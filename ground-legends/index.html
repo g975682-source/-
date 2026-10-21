@@ -459,7 +459,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td>공이 오기 전에 키 입력</td><td>원터치 패스·슛 (헤더 포함)</td></tr>
       <tr><td>패스 받기</td><td>패스를 받는 선수가 공 쪽으로 자동으로 움직여 잡습니다</td></tr>
       <tr><th colspan="2">수비</th></tr>
-      <tr><td><kbd>S</kbd></td><td>선수 전환. 공을 따내기 가장 좋은 선수로 바뀝니다 (이미 그 선수면 그대로)</td></tr>
+      <tr><td><kbd>S</kbd></td><td>선수 전환. 공격을 가장 빨리 막을 수 있는 선수로 바뀝니다. 머리 위 흰 화살표가 그 선수입니다</td></tr>
       <tr><td><kbd>S</kbd> 누르고 있기</td><td>전환한 선수가 그대로 압박. 공 가진 선수에게 따라붙어 몸싸움</td></tr>
       <tr><td><kbd>Space</kbd></td><td>스탠딩 태클</td></tr>
       <tr><td><kbd>A</kbd></td><td>슬라이딩 태클. 뒤에서 들어가거나 최후방에서 막으면 카드가 나옵니다</td></tr>
@@ -620,7 +620,7 @@ const SKINS=['#f1c9a5','#e0ac85','#c68b62','#9b6847','#6f4a33','#4c3324'];
 const HAIRS=['#16120f','#2b1d14','#5a3a22','#8a6a3a','#d8b46a','#1a1a1a'];
 const BOOTS=['#111111','#f4f4f4','#ff3d7f','#2de2e6','#ffd200','#ff6a00','#7cfc4a'];
 
-const TRAIT_KEYS=['trickster','linebreaker','speedster','acrobatic','fighter','chaser','widetackler'];
+const TRAIT_KEYS=['trickster','linebreaker','speedster','acrobatic','fighter','chaser','widetackler','laser'];
 const TRAITS={
   trickster:{name:'트릭스터',ab:'트릭',desc:'드리블 중 쓸 수 있는 개인기가 늘고 강해집니다. 수비수를 제칠 때 지체 없이 방향을 바꿉니다.',fit:'추천: 윙어 · 공격형 미드필더'},
   linebreaker:{name:'라인 브레이커',ab:'라인B',desc:'상대 최종 수비 라인 뒷공간으로 더 자주 침투하고, 침투 중 스루 패스를 받으면 가속이 붙습니다.',fit:'추천: 스트라이커 · 윙어'},
@@ -628,11 +628,12 @@ const TRAITS={
   acrobatic:{name:'아크로바틱 피니셔',ab:'아크로',desc:'발리와 원터치 슈팅 때 전용 슈팅 동작이 나오고 정확도가 올라갑니다. 박스 안 공중볼을 바로 발리로 노립니다.',fit:'추천: 스트라이커'},
   fighter:{name:'파이터',ab:'파이터',desc:'압박이나 스탠딩 태클로 몸싸움할 때 상대의 질주 속도와 킥 정확도를 떨어뜨립니다.',fit:'추천: 센터백 · 수비형 미드필더'},
   chaser:{name:'체이서',ab:'체이서',desc:'공을 뺏긴 뒤 10초 안에 우리 골문 쪽으로 질주하면 가속이 붙습니다. 직접 조작하는 선수일 때 발동합니다.',fit:'추천: 미드필더 · 수비수'},
+  laser:{name:'레이저 슈터',ab:'레이저',desc:'정면에서 오는 리턴 패스나 루즈볼을 잡지 않고 바로 때리면 낮고 빠른 강력한 슛이 나갑니다. 측면에서 오는 공에는 거의 발동하지 않습니다.',fit:'추천: 중앙·수비형 미드필더 · 공격형 미드필더'},
   widetackler:{name:'와이드 태클러',ab:'와이드',desc:'상대 뒤에서 스탠딩 태클을 할 때 태클 범위가 넓어지고 반칙이 덜 나옵니다. 정면 태클과 슬라이딩에는 발동하지 않습니다.',fit:'추천: 센터백 · 풀백'},
 };
 function defaultTrait(label,r){
   const L=LINE[label];
-  const pool=L===3?['trickster','linebreaker','speedster','acrobatic']:L===2?(label==='CDM'?['fighter','chaser','widetackler']:['trickster','speedster','linebreaker','chaser']):L===1?['fighter','chaser','widetackler','speedster']:['fighter'];
+  const pool=L===3?['trickster','linebreaker','speedster','acrobatic','laser']:L===2?(label==='CDM'?['fighter','chaser','widetackler','laser']:['trickster','speedster','linebreaker','chaser','laser']):L===1?['fighter','chaser','widetackler','speedster']:['fighter'];
   return pool[Math.floor(r()*pool.length)];
 }
 function statsFor(label,ovr,r){
@@ -989,6 +990,8 @@ const ballShadow=(function(){const c=mkCanvas(64,64),g=c.getContext('2d');const 
 /* markers */
 const markRing=new THREE.Mesh(new THREE.RingGeometry(0.5,0.66,36),new THREE.MeshBasicMaterial({color:0xf4c64a,transparent:true,opacity:0.9,depthWrite:false}));
 markRing.rotation.x=-Math.PI/2;scene.add(markRing);
+const hintCone=new THREE.Mesh(new THREE.ConeGeometry(0.13,0.26,3),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85}));
+hintCone.rotation.x=Math.PI;hintCone.visible=false;scene.add(hintCone);
 const markCone=new THREE.Mesh(new THREE.ConeGeometry(0.17,0.34,4),new THREE.MeshBasicMaterial({color:0xf4c64a}));
 markCone.rotation.x=Math.PI;scene.add(markCone);
 const aimArrow=(function(){const s=new THREE.Shape();s.moveTo(-0.18,0);s.lineTo(0.18,0);s.lineTo(0.18,2.4);s.lineTo(0.5,2.4);s.lineTo(0,3.3);s.lineTo(-0.5,2.4);s.lineTo(-0.18,2.4);s.closePath();
@@ -1061,7 +1064,7 @@ function makePlayer(T,slot,pd,base){
     itT:9,itPt:new V3(),runT:0,runTarget:new V3(),wantTackle:false,faceBall:false,holding:false,holdT:0,
     save:null,diveV:new V3(),diveSide:1,diveH:0,oAnim:null,oT:0,oDur:0,phase:Math.random()*TAU,spd:0,visA:0,visT:0,celebrating:false,poseHold:null,slideHit:false,skillSide:1,
     g:0,a:0,sh:0,so:0,pa:0,pc:0,tk:0,sv:0,yellow:0,rig:null,
-    trait:pd.trait||null,boostT:0,boostMul:1,fightT:0,lostT:-99,slowT:0,gainT:-99,flashCD:0,chaseOn:false,chaseShown:false,spin:null};
+    trait:pd.trait||null,recvVel:new V3(),recvY:0,boostT:0,boostMul:1,fightT:0,lostT:-99,slowT:0,gainT:-99,flashCD:0,chaseOn:false,chaseShown:false,spin:null};
   p.maxSpd=function(){let s=(5.3+this.st.pac*0.034)*teams[this.team].spdMul*(0.8+0.2*this.stamina/100);if(ball.owner===this)s*=0.86+this.st.dri*0.0013;if(this.boostT>0)s*=this.boostMul;if(this.fightT>0)s*=0.86;if(this.chaseOn)s*=1.12;return s;};
   return p;
 }
@@ -1422,10 +1425,13 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?T.ai.errMul*2.2:1);
   if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
   const acro=p.trait==='acrobatic'&&(gtime-p.gainT<0.2||isHeader||bp.y>0.45);
+  const laser=p.trait==='laser'&&!isHeader&&!opts.pen&&gtime-p.gainT<0.2&&laserReady(p);
+  if(laser){ty=clamp(Math.min(ty,0.25+power*0.6),0.15,0.85);sig*=0.6;}
   if(acro)sig*=isHeader?0.6:0.55;
   if(p.fightT>0)sig*=1.45;
   tz+=gauss()*sig*0.85;ty+=gauss()*sig*0.55;ty=Math.max(0.12,ty);
-  const spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
+  let spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
+  if(laser)spd*=1.18;
   const h=new V3(gx-bp.x,0,tz-bp.z),hd=h.length();h.normalize();
   const t=hd/spd,vy=(ty-bp.y+0.5*GRAV*t*t)/t;
   stats.shots[p.team]++;p.sh++;
@@ -1434,7 +1440,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   kick(p,h.multiplyScalar(spd).setY(vy),'shot');
   if(isHeader){p.oAnim='header';}
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
-  if(acro)traitFlash(p);
+  if(acro||laser)traitFlash(p);
   ball.shotBy=p;
   planSave(teams[1-p.team].gk,p,opts);
   say(pick(['슈팅!','때립니다!','과감한 슈팅!','골문을 노립니다!'])+' '+p.short);
@@ -1458,14 +1464,24 @@ function startSlide(p,dirIn){
   p.state='slide';p.stateT=0;p.slideHit=false;
   const f=fwd(p),s=Math.max(Math.hypot(p.vel.x,p.vel.z),4)+3;p.vel.set(f.x*s,0,f.z*s);
 }
+// Laser Shooter fires on a first-time strike of a ball rolling at the player from the goal side, within shooting range
+function laserReady(p){
+  if(state!=='play'||SP||p.isGK)return false;
+  const T=teams[p.team],gx=T.dir*HL-p.pos.x,gz=-p.pos.z,gl=Math.hypot(gx,gz);
+  if(gl>30)return false;
+  const v=p.recvVel,vs=Math.hypot(v.x,v.z);if(vs<3||p.recvY>0.7)return false;
+  return (v.x*gx+v.z*gz)/(vs*gl)<-0.45;   // the ball travelled toward own half, i.e. it came from the front
+}
 function gainPossession(p){
   const prevTeam=possTeam;
   if(offCheck&&p.team===offCheck.team&&offCheck.set.has(p)){callOffside(p);return;}
   offCheck=null;touched(p);
   if(lastPass&&lastPass.open){lastPass.open=false;if(p.team===lastPass.team&&p!==lastPass.by){stats.passOk[p.team]++;lastPass.by.pc++;assistRec={by:lastPass.by,to:p,t:gtime};}}
   if(lastOwner&&lastOwner!==p&&lastOwner.team!==p.team&&gtime-lastOwnerT<1.5)lastOwner.lostT=gtime;
+  p.recvVel.copy(ball.vel);p.recvY=ball.pos.y;
   ball.owner=p;ball.lastTouch=p;p.protect=0.4;p.gainT=gtime;p.slowT=0;intended=null;possTeam=p.team;clearSaves();
   p.decT=teams[p.team].ai.react*1.5+0.55;p.aiDir.set(teams[p.team].dir,0,0);p.runT=0;
+  if(p.trait==='laser'&&!(isHumanTeam(p.team)&&p===CTRL[p.team].controlled)&&laserReady(p)&&Math.random()<0.6){aiShoot(p);return;}
   if(isHumanTeam(p.team)){const K=CTRL[p.team];setControlled(p);
     if(K.buffer&&K.buffer.ttl>0&&p===K.controlled){const b=K.buffer;K.buffer=null;withC(K,()=>humanBallAction(p,b.act,b.power,moveInput()));return;}}
   if(prevTeam!==p.team&&isHumanTeam(prevTeam))autoSwitch(0,true,prevTeam);
@@ -2312,18 +2328,52 @@ function moveInput(){
   return new V3(rx*ix+fwdV.x*iy,0,rz*ix+fwdV.z*iy);
 }
 function setControlled(p){const K=CTRL[p.team];if(K.controlled!==p){K.controlled=p;K.switchCD=1.0;if(p.team===ME){controlled=p;refreshPtag();}}}
+// How soon (seconds) defender m can get in the way of the current threat. Lower = more likely to stop it.
+// Carrier: project his run for 1.8 s and find the earliest moment m can stand goal-side in his path,
+// counting turning time and DEF; reward being goal-side already, punish being left behind.
+// Loose ball / pass: time to intercept it or to reach the receiver.
+function stopTime(m){
+  if(m.state!=='normal'||m.sentOff)return 9;
+  const T=teams[m.team],gx=-T.dir*HL,ms=m.maxSpd(),f=fwd(m);
+  const reach=(px,pz)=>{const dx=px-m.pos.x,dz=pz-m.pos.z,d=Math.hypot(dx,dz);if(d<0.6)return 0.1;
+    return 0.15+Math.acos(clamp((f.x*dx+f.z*dz)/d,-1,1))/Math.PI*0.3+d/ms;};
+  const c=ball.owner;
+  if(c&&c.team!==m.team){
+    const cv=c.vel;let t=9;
+    for(let k=0;k<=6;k++){const tt=k*0.3;
+      const px=clamp(c.pos.x+cv.x*tt,-HL,HL),pz=clamp(c.pos.z+cv.z*tt,-HW,HW),gdx=gx-px,gdz=-pz,gl=Math.hypot(gdx,gdz)||1;
+      const r=reach(px+gdx/gl*1.3,pz+gdz/gl*1.3);
+      if(r<=tt+0.15){t=Math.max(tt,r);break;}
+      if(k===6)t=r+0.5;}
+    const cgx=gx-c.pos.x,cgz=-c.pos.z,cg=Math.hypot(cgx,cgz)||1;
+    const along=((m.pos.x-c.pos.x)*cgx+(m.pos.z-c.pos.z)*cgz)/cg,side=Math.abs(((m.pos.x-c.pos.x)*cgz-(m.pos.z-c.pos.z)*cgx)/cg);
+    if(along>0.3&&along<cg&&side<along*0.8+1.5)t-=0.35;                 // already between him and goal
+    if(along<-1.2&&(cv.x*cgx+cv.z*cgz)/cg>2)t+=0.9;                     // beaten: behind a runner going at goal
+    return t-(m.st.def-65)/100*0.5;
+  }
+  if(!ball.owner){
+    let t=m.itT;
+    if(intended&&intended.team!==m.team){const ip=intended.itPt;t=Math.min(t+0.3,reach(ip.x,ip.z)+0.2);}
+    return t;
+  }
+  return d2(m.pos,ball.pos)/ms;
+}
+function bestDefender(ti){
+  let best=null,bt=1e9;
+  for(const m of teams[ti].players){if(m.isGK||m.sentOff)continue;const t=stopTime(m);if(t<bt){bt=t;best=m;}}
+  return {m:best,t:bt};
+}
 function switchScore(m,ti){
   const T=teams[ti],bxn=ball.pos.x*T.dir/HL;
   return !ball.owner?m.itT*7:d2(m.pos,ball.pos)+(xN(m)>bxn+0.03?5:0);
 }
 // S while defending: take the player best placed to win the ball (keeps the current one if he already is)
 function smartSwitch(K){
-  const T=teams[K.team];let best=null,bs=1e9;
-  for(const m of T.players){if(m.isGK||m.state==='off')continue;const sc=switchScore(m,K.team);if(sc<bs){bs=sc;best=m;}}
-  const cur=K.controlled;
-  if(best&&best!==cur&&(!cur||cur.isGK||switchScore(cur,K.team)-bs>1.5)){setControlled(best);K.switchCD=1.4;return true;}
+  const {m:best,t:bt}=bestDefender(K.team),cur=K.controlled;
+  if(best&&best!==cur&&(!cur||cur.isGK||cur.state!=='normal'||stopTime(cur)-bt>0.15)){setControlled(best);K.switchCD=1.2;return true;}
   return false;
 }
+
 // Q: cycle to the next closest player
 function manualSwitch(K){
   const T=teams[K.team];let best=null,bd=1e9;const bxn=ball.pos.x*T.dir/HL;
@@ -2332,19 +2382,20 @@ function manualSwitch(K){
 }
 function autoSwitch(dt,force,ti){
   const K=CTRL[ti];K.switchCD-=dt;
-  const c=K.controlled;
+  const c=K.controlled,T=teams[ti];T.hint=null;
   if(!isHumanTeam(ti)||!c||state!=='play')return;
   if(ball.owner&&ball.owner.team===ti)return;
   if(intended&&intended.team===ti)return;
-  if(K.switchCD>0&&!force)return;
   if(c.holding)return;
-  const loose=!ball.owner,T=teams[ti],bxn=ball.pos.x*T.dir/HL;
-  const sc=m=>loose?m.itT:d2(m.pos,ball.pos)+(xN(m)>bxn+0.03?5:0);
-  let best=null,bs=1e9;for(const m of T.players){if(m.isGK||m.state!=='normal')continue;const v=sc(m);if(v<bs){bs=v;best=m;}}
-  const cs=c.isGK?1e9:sc(c),thr=loose?0.6:(force?3:7);
-  const busy=withC(K,moveInput).lengthSq()>0.01&&d2(c.pos,ball.pos)<9;
-  if(best&&best!==c&&cs-bs>thr&&(!busy||force))setControlled(best);
+  const {m:best,t:bt}=bestDefender(ti),ct=c.isGK?9:stopTime(c);
+  if(best&&best!==c&&ct-bt>0.25)T.hint=best;
+  if(K.switchCD>0&&!force)return;
+  // a player the user is steering into the play keeps the cursor, unless he has clearly lost the race
+  const busy=withC(K,moveInput).lengthSq()>0.01&&d2(c.pos,ball.pos)<8&&ct-bt<1.0;
+  const thr=force?0.25:0.5;
+  if(best&&best!==c&&ct-bt>thr&&(!busy||force)){setControlled(best);T.hint=null;}
 }
+
 function humanUpdate(dt){
   const K=C,p=K.controlled;if(!p)return;
   const inp=moveInput();
@@ -2513,6 +2564,8 @@ function renderVisuals(dt){
   const closeCam=(SP&&SP.fk&&state==='setpiece')||(state==='dead'&&foulSeq&&foulSeq.shown);
   const showMark=human&&mode==='match'&&controlled&&state!=='replay'&&!closeCam;
   markRing.visible=markCone.visible=!!showMark;
+  const hp=showMark&&teams[ME]?teams[ME].hint:null;hintCone.visible=!!(hp&&hp!==controlled&&state==='play');
+  if(hintCone.visible){const r=hp.rig.root.position;hintCone.position.set(r.x,2.2+Math.sin(gtime*7)*0.05+hp.y,r.z);hintCone.rotation.y+=dt*3;}
   if(showMark){const r=controlled.rig.root.position;markRing.position.set(r.x,0.03,r.z);markCone.position.set(r.x,2.28+Math.sin(gtime*5)*0.07+controlled.y,r.z);markCone.rotation.y+=dt*2;}
   if(state!=='replay')for(const o of officials)applyVisual(o,o.pos.x,0,o.pos.z,o.face,o.visA,o.visT,o.visPh,o.spd,0);
   const R=officials.ref;if(R&&R.rig.card){R.rig.card.visible=R.anim==='refCard'&&!!R.card;if(R.card)R.rig.card.material.color.set(R.card==='yellow'?0xffd400:0xe0102a);}
@@ -3256,11 +3309,11 @@ function netHostSend(){
   if(net.fx.length&&now-net.fxAt>200){net.fxAt=now;const f=net.fx.splice(0,12);net.room.emit('fx',{f}).catch(()=>{});}
   if(now-net.lastSend<50)return;net.lastSend=now;
   const R=officials.ref,fs=foulSeq,f=SP&&SP.fk;
-  const meta=[2,STATES.indexOf(state),Math.round(clock*10),half,score[0],score[1],stoppage[0],stoppage[1],possTeam,idxOf(CTRL[0].controlled),idxOf(CTRL[1].controlled),idxOf(intended),teams[0].dir,
+  const meta=[3,STATES.indexOf(state),Math.round(clock*10),half,score[0],score[1],stoppage[0],stoppage[1],possTeam,idxOf(CTRL[0].controlled),idxOf(CTRL[1].controlled),idxOf(intended),teams[0].dir,
     SP?SPT.indexOf(SP.type):-1,SP?idxOf(SP.taker):-1,SP?Math.round(SP.ballPos.x*100):0,SP?Math.round(SP.ballPos.z*100):0,SP?Math.round(SP.aim*100):0,
     f?(f.mode==='aim'?1:2):0,f?Math.round(f.aim.x*100):0,f?Math.round(f.aim.y*100):0,f?Math.round(f.aim.z*100):0,f&&f.pen?1:0,
     R&&R.card?(R.card==='yellow'?1:2):0,fs?idxOf(fs.off):-1,fs&&fs.shown?1:0,rp?rp.side:1,rp?Math.round(rp.t*100):0,SP&&SP.indirect?1:0,
-    Math.round((CTRL[0].controlled||{stamina:100}).stamina),Math.round((CTRL[1].controlled||{stamina:100}).stamina),idxOf(ball.owner)];
+    Math.round((CTRL[0].controlled||{stamina:100}).stamina),Math.round((CTRL[1].controlled||{stamina:100}).stamina),idxOf(ball.owner),idxOf(teams[0].hint),idxOf(teams[1].hint)];
   const out=meta.slice(),src=(state==='replay'&&rp)?recBuf:null,o=src?((rp.first+Math.min(rp.idx,rp.len-1))%REC_N)*FR:0;
   for(let i=0;i<ACTORS.length;i++){const p=ACTORS[i];
     if(src){const b=o+i*9;out.push(Math.round(src[b]*20),Math.round(src[b+1]*20),Math.round(src[b+2]*20),Math.round(src[b+3]*100),src[b+4]|0,Math.round(src[b+5]*100),Math.round(src[b+6]*10),Math.round(src[b+7]*10),src[b+8]|0,p.rig.root.visible?1:0);}
@@ -3328,7 +3381,8 @@ function applySnap(A0,A1,al){
   if(state!=='replay'&&prevState==='replay'){$('#replayTag').hidden=true;$('#hud').classList.remove('replay');}
   if(CTRL[0].controlled)CTRL[0].controlled.stamina=n(29,100);if(CTRL[1].controlled)CTRL[1].controlled.stamina=n(30,100);
   ball.owner=pi(31);
-  const M=32;
+  teams[0].hint=pi(32);teams[1].hint=pi(33);
+  const M=34;
   for(let i=0;i<ACTORS.length;i++){const p=ACTORS[i],b=M+i*10;
     const x=L(b,20),y=L(b+1,20),z=L(b+2,20);
     if(p.pos)p.pos.set(x,0,z);p.y=y;
