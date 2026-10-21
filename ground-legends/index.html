@@ -502,6 +502,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td>★5</td><td>↓↙←↖↑ 엘라스티코 · ↑↖←↙↓ 역 엘라스티코 · ←↙↓↙←↖↑ 트리플 · ←↑ 엘라스티코 촙 · ←꾹 퀵 볼 롤 · ↓꾹→ 볼 굴린 후 휙 · ↑꾹↓ 볼 롤 방향 속임 · ←↖↑↖←↙↓ 호커스 포커스 · →→← 캔슬 리프팅 · →↑ 턴 스핀 · <kbd>C</kbd>+D 후 S+← 라보나 속임 · ↑↗→ 와카와카 · →꾹 오코차 솜브레로 · ↑꾹→ 네이마르 스텝오버 · <kbd>Z</kbd>+→↑ 볼라시 플릭 · 저글링 중 회전 어라운드 더 월드 · 저글링 중 ↑/↓ 인 에어 엘라스티코</td></tr>
       <tr><td>★6</td><td>←→→ 네이마르 레인보우</td></tr>
       <tr><td>같은 입력</td><td>선수가 할 수 있는 가장 높은 별의 개인기가 나갑니다. 별이 모자라면 기본 페인트로 바뀝니다</td></tr>
+      <tr><td>입력 보정</td><td>대각선이나 위·아래로 달릴 때는 가까운 화면 축(→·↑ 등) 기준으로도 읽어 가장 잘 맞는 개인기를 고릅니다. 달리던 방향키는 Shift 직후 떼면 무시되고, 천천히 눌러도 이어질 수 있는 입력이면 기다려 줍니다. 회전 입력은 한 칸 정도 어긋나도 인정되고, 이전 개인기 중이거나 패스를 받는 중에 넣은 입력은 이어서 나갑니다</td></tr>
       <tr><td>패스 받기</td><td>패스를 받는 선수가 공 쪽으로 자동으로 움직여 잡습니다. 공이 오기 전에 누르면 원터치</td></tr>
       <tr><th colspan="2">수비</th></tr>
       <tr><td><kbd>S</kbd> · <kbd>S</kbd> 꾹</td><td>선수 전환 (막기 가장 좋은 선수, 흰 화살표) · 압박</td></tr>
@@ -1159,60 +1160,121 @@ const SKPAT=[];
 const adjTok=(a,b)=>(a+1)%8===b||(a+7)%8===b;
 // a diagonal sitting between its two neighbouring cardinals is just the stick passing through: optional
 function normToks(a){return a.filter((t,i)=>!(t.d%2===1&&!t.h&&i>0&&i<a.length-1&&a[i-1].d%2===0&&a[i+1].d%2===0&&a[i-1].d!==a[i+1].d&&adjTok(a[i-1].d,t.d)&&adjTok(a[i+1].d,t.d)));}
-function eqToks(a,b){if(a.length!==b.length)return false;
-  for(let i=0;i<a.length;i++){if(a[i].d!==b[i].d)return false;if(b[i].h&&!a[i].h)return false;if(b.length===1&&!b[i].h&&a[i].h)return false;if(b[i].tap&&!a[i].gap)return false;}return true;}
+function eqToks(a,b,strict){if(a.length!==b.length)return false;
+  for(let i=0;i<a.length;i++){if(a[i].d!==b[i].d)return false;if(b[i].h&&!a[i].h)return false;if(b.length===1&&!b[i].h&&a[i].h)return false;if(strict&&b[i].tap&&!a[i].gap)return false;}return true;}
+// edit distance on directions; a neighbouring direction (one 45° step off) costs half
+function tokDist(a,b){const n=a.length,m=b.length,D=[];for(let i=0;i<=n;i++){D[i]=[i];}for(let j=1;j<=m;j++)D[0][j]=j;
+  for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){const x=a[i-1].d,y=b[j-1].d,sub=x===y?0:adjTok(x,y)?0.5:1;D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+sub);}
+  return D[n][m];}
+// How close an input is to a pattern: 0 exact, 0.25 exact but taps run together, 0.5+ forgiving match, null = no match
+function gestScore(toks,alt){
+  if(eqToks(toks,alt,true)||eqToks(normToks(toks),normToks(alt),true))return 0;
+  if(eqToks(toks,alt,false)||eqToks(normToks(toks),normToks(alt),false))return 0.25;
+  if(alt.some(t=>t.h)||alt.length<3)return null;               // holds and short taps must be exact
+  const a=normToks(toks),b=normToks(alt);if(a.length<2)return null;
+  if(a[0].d!==b[0].d&&!adjTok(a[0].d,b[0].d))return null;      // a rotation must at least start the right way
+  const d=tokDist(a,b);return d<=(alt.length>=5?1.5:1)?0.5+d:null;
+}
 function matchGesture(toks,mod){const out=[];
-  for(const P of SKPAT){if(P.mod!==mod)continue;for(const alt of P.alts){if(eqToks(toks,alt)||eqToks(normToks(toks),normToks(alt))){out.push(P);break;}}}
+  for(const P of SKPAT){if(P.mod!==mod)continue;for(const alt of P.alts){if(gestScore(toks,alt)===0){out.push(P);break;}}}
   return out;}
 function skillStars(p){const st=p.st||{};let s=st.dri>=88?5:st.dri>=81?4:st.dri>=73?3:st.dri>=64?2:1;if(p.trait==='trickster')s++;return clamp(s,1,6);}
 function pickSkill(cands,stars){let best=null;for(const P of cands){const m=SKILLS[P.id];if(m.st<=stars&&(!best||m.st>SKILLS[best.id].st))best=P;}return best;}
 function sideAway(p){const o=nearestOpp(p).o;if(!o)return Math.random()<0.5?1:-1;const f=fwd(p);return ((o.pos.x-p.pos.x)*-f.z+(o.pos.z-p.pos.z)*f.x)>0?-1:1;}
 
-// Shift + direction keys, read on the machine that owns the keyboard and sent on as one move code
+// Shift + direction keys, read on the machine that owns the keyboard and sent on as one move code.
+// Keys are read in screen directions (→ = 0, ↑ = 2, counter-clockwise), then turned into the carrier's frame.
+// Which frame the player meant is guessed: his exact facing, the nearest screen axes (so a run toward ↗ still
+// takes the moves as written for → or ↑) and the attacking direction. The best match over all of them wins.
 const SMV_BASIC=70000,SMV_NEAR=70001,SMV_DIR=80000,SMV_NEED=90000;
-function gestTok(L,p){const w=withC(L,moveInput);if(w.lengthSq()<0.09)return -1;const f=fwd(p),fa=w.x*f.x+w.z*f.z,la=w.x*f.z-w.z*f.x;
-  return ((Math.round(Math.atan2(la,fa)/(Math.PI/4))%8)+8)%8;}
+const gV=new V3();
+function scrBasis(){camera.getWorldDirection(gV);gV.y=0;gV.normalize();return {ux:gV.x,uz:gV.z,rx:-gV.z,rz:gV.x};}
+function scrAng(x,z,B){return Math.atan2(x*B.ux+z*B.uz,x*B.rx+z*B.rz);}
+function gestTok(L,B){const w=withC(L,moveInput);if(w.lengthSq()<0.09)return -1;return ((Math.round(scrAng(w.x,w.z,B)/(Math.PI/4))%8)+8)%8;}
+function gestFrames(p,B){
+  const f=fwd(p),ph=scrAng(f.x,f.z,B)/(Math.PI/4),T=teams[p.team],atk=Math.round(scrAng(T.dir,0,B)/(Math.PI/4));
+  // keys are written for the screen axes, so the axes either side of his facing come first (nearest first; close to
+  // a true diagonal the one nearer the attack), then the attack direction, then his exact facing
+  const lo=2*Math.floor(ph/2),hi=lo+2,ad=r=>{const x=(((r-atk)%8)+8)%8;return Math.min(x,8-x);};
+  let ax=[lo,hi].sort((a,b)=>Math.abs(ph-a)-Math.abs(ph-b));
+  if(Math.abs(Math.abs(ph-lo)-Math.abs(ph-hi))<0.25)ax.sort((a,b)=>ad(a)-ad(b));
+  const out=[];for(const r of [ax[0],ax[1],atk,Math.round(ph)]){const k=((r%8)+8)%8;if(!out.includes(k))out.push(k);}return out;
+}
 function emitSmv(L,code){if(net&&net.role==='guest')netLocalEdge('down','smv',code);else L.inq.push({type:'down',act:'smv',code});}
+// all readings of the keyed sequence, best first: [{P,score}]
+function gestCands(g){
+  const mod=g.q?'q':g.z?'z':g.c?'c':'',out=[];
+  const variants=[{t:g.toks,pen:0}];
+  // a run key that was already held when Shift went down is usually not part of the move
+  if(g.toks.length>1&&g.toks[0].pre)variants.push({t:g.toks.slice(1).map((x,i)=>i===0?Object.assign({},x,{gap:false}):x),pen:0.05});
+  g.frames.forEach((rot,fi)=>{for(const v of variants){const tk=v.t.map(x=>Object.assign({},x,{d:(x.d-rot+8)%8}));
+    for(const m of mod?[mod,'']:['']){for(const P of SKPAT){if(P.mod!==m)continue;let best=null;
+      for(const alt of P.alts){const s=gestScore(tk,alt);if(s!=null&&(best==null||s<best))best=s;}
+      if(best!=null)out.push({P,score:best+v.pen+fi*0.01+(m!==mod?0.3:0)});}}}});
+  out.sort((a,b)=>a.score-b.score);return out;
+}
+// could more keys still turn this into a (longer) move?
+function gestOpen(g){
+  const mod=g.q?'q':g.z?'z':g.c?'c':'';
+  for(const rot of g.frames){const tk=normToks(g.toks.map(x=>Object.assign({},x,{d:(x.d-rot+8)%8})));
+    for(const P of SKPAT){if(P.mod!==mod&&P.mod!=='')continue;for(const alt of P.alts){const b=normToks(alt);
+      if(b.length>tk.length&&tk.every((t,i)=>t.d===b[i].d))return true;}}}
+  return false;
+}
+function gestDefending(p){return ball.owner!==p&&!receiving(p)&&!(ball.owner&&ball.owner.team===p.team)&&!(!ball.owner&&d2(p.pos,ball.pos)<3);}
 function gestureUpdate(L,dt){
   const p=L.controlled;
-  if(mode!=='match'||state!=='play'||!p||paused){L.g=null;return;}
-  const sh=L.act.skill;
-  if(!L.g){if(!sh)return;L.g={toks:[],cur:-1,curT:0,gap:0,t:0,q:false,z:false,c:false,lastPush:-1};}
-  const g=L.g,has=ball.owner===p;g.t+=dt;
+  if(mode!=='match'||state!=='play'||!p||paused){L.g=null;L.skPress=false;return;}
+  const sh=L.act.skill,B=scrBasis();
+  if(!L.g){if(!sh&&!L.skPress)return;L.skPress=false;const d0=sh?gestTok(L,B):-1;
+    L.g={toks:d0>=0?[{d:d0,h:false,gap:false,pre:true}]:[],cur:d0,curT:0,gap:0,t:0,q:false,z:false,c:false,lastPush:0,frames:gestFrames(p,B),cont:!!L.gCont,t0:L.downAt.skill||performance.now()};L.gCont=false;}
+  const g=L.g;g.t+=dt;
   if(L.act.switch)g.q=true;if(L.act.z)g.z=true;if(L.act.c)g.c=true;
-  const d=sh?gestTok(L,p):-1;
+  const d=sh?gestTok(L,B):-1;
   if(d>=0){
     if(d!==g.cur){const last=g.toks[g.toks.length-1];
       // a diagonal pressed a moment after one of its keys is one input, not two
-      if(last&&g.cur===last.d&&d%2===1&&g.t-g.lastPush<0.07&&adjTok(last.d,d))last.d=d;
+      if(last&&g.cur===last.d&&d%2===1&&g.t-g.lastPush<0.04&&adjTok(last.d,d)){last.d=d;last.pre=false;}
       else g.toks.push({d,h:false,gap:g.cur<0&&g.toks.length>0});
       g.lastPush=g.t;g.cur=d;g.curT=0;g.gap=0;
     }else{g.curT+=dt;if(g.curT>0.28&&g.toks.length)g.toks[g.toks.length-1].h=true;}
   }else{
     if(g.cur>=0){const last=g.toks[g.toks.length-1],prev=g.toks[g.toks.length-2];
+      if(last&&last.pre&&g.toks.length===1&&g.curT<0.3){g.toks.length=0;g.cur=-1;g.gap=0;return;}
       // letting go of a diagonal one key at a time flashes a cardinal: drop it
-      if(last&&prev&&last.d%2===0&&prev.d%2===1&&g.t-g.lastPush<0.07&&adjTok(prev.d,last.d))g.toks.pop();
+      if(last&&prev&&last.d%2===0&&prev.d%2===1&&g.t-g.lastPush<0.04&&adjTok(prev.d,last.d))g.toks.pop();
       g.cur=-1;g.gap=0;}
     else g.gap+=dt;
   }
-  if(!has&&g.toks.length){const w=withC(L,moveInput);L.g=null;
+  const defending=gestDefending(p);
+  if(defending&&g.toks.some(t=>!t.pre)){const w=withC(L,moveInput);L.g=null;L.gCont=sh;
     if(w.lengthSq()>0.05)emitSmv(L,SMV_DIR+Math.round(((Math.atan2(w.x,w.z)*180/Math.PI)+360)%360));return;}
-  const done=!sh||(g.toks.length&&g.cur<0&&g.gap>0.2)||(g.cur>=0&&g.curT>0.6);
+  // patience: wait longer between keys while the keys so far can still grow into a move
+  let done=!sh;
+  if(!done&&g.toks.length&&!(g.toks.length===1&&g.toks[0].pre&&g.cur>=0)){
+    const open=gestOpen(g),c=open||g.cur<0?gestCands(g):null,complete=c&&c.length&&c[0].score<0.5;
+    if(g.cur<0)done=g.gap>(complete?(open?0.34:0.16):(open?0.6:0.3));
+    else done=g.curT>(open?0.9:0.6);
+  }
   if(!done)return;
-  L.g=null;
-  if(!g.toks.length){if(!sh&&g.t<0.45)emitSmv(L,has?SMV_BASIC:SMV_NEAR);return;}
-  if(!has)return;
-  const mod=g.q?'q':g.z?'z':g.c?'c':'';
-  let c=matchGesture(g.toks,mod);if(!c.length&&mod)c=matchGesture(g.toks,'');
-  if(!c.length)return;
-  const pk=pickSkill(c,skillStars(p));
-  emitSmv(L,pk?pk.id*2+(pk.s>0?1:0):SMV_NEED+Math.min(...c.map(P=>SKILLS[P.id].st)));
+  L.g=null;L.gCont=sh;   // Shift still down: what follows is a new move, not "Shift on its own"
+  if(g.cont&&!g.toks.some(t=>!t.pre))return;
+  if(!g.toks.some(t=>!t.pre)){   // Shift on its own (a run key may be held): quick feint, or a switch while defending
+    if(defending){const w=withC(L,moveInput);if(w.lengthSq()>0.05)emitSmv(L,SMV_DIR+Math.round(((Math.atan2(w.x,w.z)*180/Math.PI)+360)%360));else if(performance.now()-g.t0<450)emitSmv(L,SMV_NEAR);}
+    else if(!sh&&performance.now()-g.t0<450)emitSmv(L,SMV_BASIC);   // wall clock: a slow frame rate must not turn a tap into a hold
+    return;}
+  if(defending)return;
+  const c=gestCands(g);if(!c.length){emitSmv(L,SMV_BASIC);return;}   // keys that match no move still get a feint
+  const top=c.filter(x=>x.score<=c[0].score+0.001),pk=pickSkill(top.map(x=>x.P),skillStars(p));
+  emitSmv(L,pk?pk.id*2+(pk.s>0?1:0):SMV_NEED+Math.min(...top.map(x=>SKILLS[x.P.id].st)));
 }
 function needStars(p,n){if(isHumanTeam(p.team))say(`★${n} 개인기입니다. ${p.short}의 개인기는 ★${skillStars(p)}`);}
 function smvEdge(K,p,code,has,live){
   if(code>=SMV_DIR&&code<SMV_DIR+361){if(!has&&live)dirSwitch(K,code-SMV_DIR);return;}
   if(code===SMV_NEAR){if(!has&&live)manualSwitch(K);return;}
-  if(!has||!live)return;
+  if(!live)return;
+  // the pass is still arriving, or the last move is still running: keep the move for a moment instead of dropping it
+  if(!has||(p.sk&&p.sk.m.fam!=='juggle')||p.cdSkill>0){if(has||receiving(p)||(!ball.owner&&d2(p.pos,ball.pos)<3))K.skBuf={code,ttl:has?0.9:1.2};return;}
   if(code===SMV_BASIC){performSkill(p,SKI.basic,-sideAway(p));return;}
   if(code>=SMV_NEED){needStars(p,code-SMV_NEED);performSkill(p,SKI.basic,-sideAway(p));return;}
   let id=code>>1;const s=code&1?1:-1,m=SKILLS[id];if(!m)return;
@@ -2813,11 +2875,12 @@ let ME=0,C=CTRL[0];        // ME: the team this browser plays; C: the controller
 function LC(){return CTRL[ME];}
 function isHumanTeam(ti){return !!(teams[ti]&&teams[ti].human);}
 function withC(K,fn){const pc=C;C=K;try{return fn();}finally{C=pc;}}
-function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.inq.length=0;K.buffer=null;K.consumed={};K.controlled=null;K.switchCD=0;K.remote=false;K.mv.set(0,0,0);K.pend=null;K.g=null;K.firstTouch=null;K.penGuessSet=false;}C=CTRL[ME];}
+function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.inq.length=0;K.buffer=null;K.consumed={};K.controlled=null;K.switchCD=0;K.remote=false;K.mv.set(0,0,0);K.pend=null;K.g=null;K.firstTouch=null;K.skBuf=null;K.penGuessSet=false;}C=CTRL[ME];}
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c});
-function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(mode==='match'&&!paused)L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
+function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;   // seen even if released before the next frame
+  if(mode==='match'&&!paused)L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
 function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused)L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
 window.addEventListener('keydown',e=>{
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')&&e.target.offsetParent!==null)return;
@@ -2918,6 +2981,7 @@ function humanUpdate(dt){
   while(K.inq.length){const e=K.inq.shift();handleEdge(p,e,inp);if(K.controlled!==p||!SP&&state!=='play')break;}
   if(K.buffer){K.buffer.ttl-=dt;if(K.buffer.ttl<=0)K.buffer=null;}
   if(K.firstTouch){K.firstTouch.ttl-=dt;if(K.firstTouch.ttl<=0)K.firstTouch=null;}
+  if(K.skBuf){K.skBuf.ttl-=dt;if(K.skBuf.ttl<=0)K.skBuf=null;else if(ball.owner===p&&!p.sk&&p.cdSkill<=0&&!SP&&state==='play'&&!p.holding){const c=K.skBuf.code;K.skBuf=null;smvEdge(K,p,c,true,true);}}
   // a released shot/cross waits a moment for D-tap (low shot), A-taps (cross type) or S (fake)
   if(K.pend){K.pend.ttl-=dt;if(K.pend.ttl<=0){const pe=K.pend;K.pend=null;
     if(ball.owner===p&&(!SP||SP.taker===p)&&!p.sk){const pi=inp.lengthSq()>0.01?inp:pe.dir;humanBallAction(p,pe.act,pe.power,pi,Object.assign({},pe.mods,{low:pe.low,count:pe.count}));if(pe.act==='shoot'&&p.oAnim==='kick')p.oT=0.15;}}}
