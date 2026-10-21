@@ -75,7 +75,7 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-
 .mini-pitch{position:relative;aspect-ratio:5/4;max-width:100%;background:repeating-linear-gradient(0deg,#1f5c2e 0 9%,#246734 9% 18%);border:2px solid rgba(255,255,255,.35);overflow:hidden}
 .mini-pitch::before{content:"";position:absolute;left:22%;right:22%;bottom:0;height:16%;border:2px solid rgba(255,255,255,.3);border-bottom:0}
 .mini-pitch::after{content:"";position:absolute;left:30%;right:30%;top:-12%;aspect-ratio:1;border:2px solid rgba(255,255,255,.25);border-radius:50%}
-.pcard{position:absolute;transform:translate(-50%,-50%);width:11.5%;min-width:40px;aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:linear-gradient(160deg,#f7dc86,#b98a22);color:#2a1d02;clip-path:polygon(50% 0,100% 9%,100% 86%,50% 100%,0 86%,0 9%);font-family:var(--f-num);line-height:1;z-index:1}
+.pcard{position:absolute;transform:translate(-50%,-50%);width:11.5%;min-width:40px;aspect-ratio:3/4.1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;box-sizing:border-box;padding-bottom:clamp(6px,.75vw,10px);gap:0;background:linear-gradient(160deg,#f7dc86,#b98a22);color:#2a1d02;clip-path:polygon(50% 0,100% 9%,100% 86%,50% 100%,0 86%,0 9%);font-family:var(--f-num);line-height:1;z-index:1;overflow:hidden}
 .pcard.t-elite{background:linear-gradient(160deg,#c9b6ff,#5a2fc4 60%,#f4c64a);color:#fff}
 .pcard.t-silver{background:linear-gradient(160deg,#eef2f7,#8f9aab);color:#1b222e}
 .pcard b{font-size:clamp(12px,1.3vw,16px);font-weight:800}
@@ -215,7 +215,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 .results div{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;background:#0a1530}
 .results b{font-family:var(--f-num)}
 .plist{display:flex;flex-direction:column;gap:4px;max-height:540px;overflow-y:auto}
-.prow{appearance:none;display:grid;grid-template-columns:40px 42px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 8px;background:#0a1530;border:1px solid transparent;cursor:pointer;text-align:left;width:100%}
+.prow{appearance:none;display:grid;grid-template-columns:30px 36px 38px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:6px 8px;background:#0a1530;border:1px solid transparent;cursor:pointer;text-align:left;width:100%}
 .prow.on{border-color:var(--gold)}
 .prow .o{font-family:var(--f-num);font-weight:800;font-size:18px}
 .prow .ps{font-family:var(--f-num);font-weight:700;color:var(--mute)}
@@ -235,8 +235,8 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 .pack h4{margin:0;font-size:18px}
 .pack p{margin:0;color:var(--mute);font-size:12px;line-height:1.55}
 .pack-art{width:120px;aspect-ratio:3/4;clip-path:polygon(50% 0,100% 7%,100% 88%,50% 100%,0 88%,0 7%);display:grid;place-items:center;font-family:var(--f-display);font-size:30px;color:rgba(255,255,255,.85)}
-.bigcard{width:170px;max-width:100%;aspect-ratio:3/4.3;clip-path:polygon(50% 0,100% 7%,100% 88%,50% 100%,0 88%,0 7%);background:linear-gradient(160deg,#f7dc86,#b98a22);color:#2a1d02;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 12px 20px;gap:3px;font-family:var(--f-num)}
-.bigcard .ov{font-size:42px;font-weight:800;line-height:1}
+.bigcard{position:relative;width:178px;max-width:100%;aspect-ratio:3/4.3;clip-path:polygon(50% 0,100% 7%,100% 88%,50% 100%,0 88%,0 7%);background:linear-gradient(160deg,#f7dc86,#b98a22);color:#2a1d02;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:8px 10px 20px;gap:2px;font-family:var(--f-num);overflow:hidden}
+.bigcard .ov{font-size:36px;font-weight:800;line-height:1}
 .bigcard .po{font-size:15px;font-weight:800;letter-spacing:.06em}
 .bigcard .nm{font-family:var(--f-body);font-weight:700;font-size:14px;text-align:center;line-height:1.2}
 .bigcard .tr{font-family:var(--f-body);font-size:11px;font-weight:700;background:rgba(0,0,0,.18);padding:2px 8px}
@@ -255,6 +255,27 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 .reward{display:flex;flex-direction:column;gap:6px;background:#0a1530;border:1px solid var(--line);padding:12px}
 .reward .kv b{font-size:14px}
 .reward .tot{border-top:1px solid var(--line);padding-top:6px;font-size:16px}
+/* cards: mini face-on and season designs */
+.bigcard>*{position:relative;z-index:1}
+.bigcard:not(.season)::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 65% 28%,rgba(255,255,255,.35),transparent 50%),repeating-linear-gradient(135deg,rgba(255,255,255,.07) 0 5px,transparent 5px 11px);z-index:0}
+.bc-top{width:100%;height:52%;flex:none;position:relative}
+.bc-meta{position:absolute;left:6%;top:12%;display:flex;flex-direction:column;align-items:center;gap:2px;z-index:2}
+.bc-face{position:absolute;right:-4%;bottom:0;height:104%;width:auto;max-width:80%;object-fit:contain;object-position:bottom right}
+.bc-face.head{height:88%;right:2%}
+.bc-season{display:flex;flex-direction:column;align-items:center;color:var(--sl);line-height:1}
+.bc-season svg{width:22px;height:22px;filter:drop-shadow(0 0 4px var(--sglow))}
+.bc-season b{font-size:11px;letter-spacing:.08em}
+.bigcard.season{background:var(--sl);color:var(--sink)}
+.bigcard.season::before{content:"";position:absolute;inset:3px;clip-path:polygon(50% 0,100% 7%,100% 88%,50% 100%,0 88%,0 7%);background:radial-gradient(circle at 64% 30%,var(--sglow),transparent 56%),var(--sbg);z-index:0}
+.bigcard.season::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 38%,rgba(255,255,255,.26) 49%,transparent 60%);transform:translateX(-130%);animation:shine 4s ease-in-out infinite;z-index:3;pointer-events:none}
+@keyframes shine{0%,60%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.bigcard.season .tr{background:rgba(255,255,255,.14)}
+.bigcard.season .nm{text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.bigcard .sn{font-family:var(--f-body);font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--sl);opacity:.95}
+.pcard .pc-face{height:40%;width:auto;max-width:80%;flex:none;margin-bottom:1px;object-fit:contain}
+.pcard.season{background:radial-gradient(circle at 50% 28%,var(--sglow),transparent 62%),var(--sbg);color:var(--sink);box-shadow:inset 0 0 0 2px var(--sl)}
+.pcard .pc-code{position:absolute;top:9%;left:7%;font-size:7px;font-weight:800;color:var(--sl);letter-spacing:.04em}
+.prow .thumb{width:30px;height:36px;object-fit:cover;object-position:top;border-radius:3px;background:rgba(255,255,255,.05)}
 /* enhancement */
 .lv{display:inline-block;font-family:var(--f-num);font-weight:800;font-size:12px;padding:1px 6px;line-height:1.3;vertical-align:middle;color:#1b1203;background:#c9c9c9}
 .lv.l2{background:linear-gradient(135deg,#e8b48a,#9a5f34);color:#2b160a}
@@ -900,7 +921,18 @@ function teamMats(kit,gkColor){
   return {kit,shirt,sleeve:lam(kit.pat==='stripes'?kit.shirt:kit.shirt),shorts:lam(kit.shorts),socks:lam(kit.socks),trim:lam(kit.trim),
     gk:{kit:gkKit,shirt:new THREE.MeshLambertMaterial({map:shirtTexture(gkKit)}),sleeve:lam(gkColor),shorts:lam('#151515'),socks:lam(gkColor),trim:lam('#111111')}};
 }
-function buildRig(mats,pd,isGK){
+const FGEO={eye:new THREE.SphereGeometry(0.017,10,8),pupil:new THREE.SphereGeometry(0.009,8,6),brow:new THREE.BoxGeometry(0.048,0.013,0.014),
+  nose:new THREE.ConeGeometry(0.016,0.042,8),mouth:new THREE.BoxGeometry(0.044,0.01,0.012),beard:new THREE.SphereGeometry(0.119,16,8,0,TAU,Math.PI*0.58,Math.PI*0.3)};
+function shade(hex,k){const n=parseInt(hex.slice(1),16),f=c=>Math.round(c*k);return '#'+[f(n>>16),f((n>>8)&255),f(n&255)].map(v=>v.toString(16).padStart(2,'0')).join('');}
+function addFace(head,pd){
+  const hm=lam(pd.hair),brw=lam(shade(pd.hair,0.75)),white=lam('#f4f1ea'),dark=lam('#1c1410'),lip=lam(shade(pd.skin,0.55)),nose=lam(shade(pd.skin,0.9));
+  const add=(g,m,x,y,z)=>{const o=new THREE.Mesh(g,m);o.position.set(x,y,z);head.add(o);return o;};
+  for(const sx of [-1,1]){add(FGEO.eye,white,sx*0.04,0.012,0.098);add(FGEO.pupil,dark,sx*0.04,0.012,0.113);add(FGEO.brow,brw,sx*0.042,0.047,0.103).rotation.z=sx*-0.12;}
+  add(FGEO.nose,nose,0,-0.012,0.116).rotation.x=Math.PI/2;
+  add(FGEO.mouth,lip,0,-0.053,0.105);
+  if(hashStr(pd.name||'')%3===0)add(FGEO.beard,hm,0,0,0).scale.set(0.95,1.05,1);
+}
+function buildRig(mats,pd,isGK,opts){
   const M0=isGK?mats.gk:mats;
   const skin=lam(pd.skin),hair=lam(pd.hair),boot=lam(pd.boot),glove=lam('#e9edf2');
   const root=new THREE.Group(),hips=new THREE.Group();hips.position.y=0.95;root.add(hips);
@@ -917,7 +949,7 @@ function buildRig(mats,pd,isGK){
   add(GEO.head,skin,0,0,0,head).scale.set(0.94,1.08,1);
   add(GEO.ear,skin,0.107,-0.005,0,head,false);add(GEO.ear,skin,-0.107,-0.005,0,head,false);
   const h=add(GEO.hair,hair,0,0.012,-0.012,head);h.rotation.x=-0.42;
-  if(pd.hs===1)h.scale.set(0.97,0.82,0.97);
+  if(pd.hs===1){h.scale.set(0.98,0.9,0.98);h.position.y=0.022;}
   if(pd.hs===2)add(GEO.bun,hair,0,0.07,-0.12,head);
   const arm=(sx)=>{const g=new THREE.Group();g.position.set(sx*0.235,0.5,0);torso.add(g);
     add(GEO.sleeve,M0.sleeve,0,-0.07,0,g);add(GEO.upper,skin,0,-0.21,0,g);
@@ -932,8 +964,9 @@ function buildRig(mats,pd,isGK){
     add(GEO.boot,boot,0,-0.47,0.045,k);
     return [g,k];};
   const [legL,kneeL]=leg(1),[legR,kneeR]=leg(-1);
+  if(opts&&opts.face)addFace(head,pd);
   root.scale.setScalar(pd.h);
-  scene.add(root);
+  ((opts&&opts.parent)||scene).add(root);
   return {root,hips,torso,head,armL,armR,elbowL,elbowR,legL,legR,kneeL,kneeR,numMat};
 }
 const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,celeb:9,header:10,tackle:11,skill:12,stackle:13,refCard:14,refPoint:15,flag:16,jump:17,volley:18,advantage:19};
@@ -2688,7 +2721,7 @@ function tier(o){return o>=88?'t-elite':o>=80?'':'t-silver';}
 function renderCol(side){
   const ti=side?sel.away:sel.home,T=TEAMS[ti],form=side?sel.formA:sel.formH,ros=rosterFor(T,form,!side),ovr=teamOvr(ros);
   const cards=FORMATIONS[form].map((s,i)=>{const p=ros[i];const top=s[0]==='GK'?89:clamp(80-(s[1]+0.72)/0.86*68,11,80),left=50+s[2]*41;
-    return `<div class="pcard ${tier(p.ovr)}${side?'':' pick'}" ${side?'':`data-qslot="${i}" role="button" tabindex="0"`} style="left:${left}%;top:${top}%" title="${p.name} · ${p.label} · OVR ${p.ovr} · ${TRAITS[p.trait]?TRAITS[p.trait].name:''}"><b>${p.ovr}</b><i>${p.label}</i><span>${p.short}</span><em>${TRAITS[p.trait]?TRAITS[p.trait].ab:''}</em></div>`;}).join('');
+    return pcardMarkup(p,p.ovr,p.label,T.home,side?'':'pick',side?'':`data-qslot="${i}" role="button" tabindex="0"`,`left:${left}%;top:${top}%;`,`${p.name} · ${p.label} · OVR ${p.ovr} · ${TRAITS[p.trait]?TRAITS[p.trait].name:''}`);}).join('');
   $('#col'+side).innerHTML=`<div class="side-label">${side?'AWAY · <b>AI</b>':'HOME · <b>나</b>'}</div>
     <div class="team-pick"><button class="arr" data-side="${side}" data-d="-1" aria-label="이전 구단">‹</button><div class="crest" style="--c1:${T.home.shirt};--c2:${T.home.trim}">${T.code}</div><div class="tn"><b>${T.name}</b><span>팀 OVR <em>${ovr}</em> · ${form}</span></div><button class="arr" data-side="${side}" data-d="1" aria-label="다음 구단">›</button></div>
     <div class="form-pick">${Object.keys(FORMATIONS).map(f=>`<button class="chip ${f===form?'on':''}" data-side="${side}" data-form="${f}">${f}</button>`).join('')}</div>
@@ -2759,6 +2792,93 @@ $('#btnCam').onclick=cycleCam;
 function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+(SND.muted?'꺼짐':'켜짐');SND.setCrowd(SND.muted?0:0.12);}
 $('#btnMute').onclick=toggleMute;
 function togglePause(){if(net){$('#pause').hidden=!$('#pause').hidden;$('#btnQuit').textContent='경기 나가기 (기권)';$('#btnResume').textContent='경기로 돌아가기';return;}$('#btnResume').textContent='계속하기';paused=!paused;$('#pause').hidden=!paused;$('#btnQuit').textContent=matchCfg&&matchCfg.club?'기권하고 구단으로 (0:3 패)':'경기 포기 · 메인으로';const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;if(SND.ctx){paused?SND.ctx.suspend():SND.ctx.resume();}}
+
+/* ================= seasons (80+ OVR cards) ================= */
+const SEASONS=[
+  {c:'EG',en:'Eternal Glory',ko:'영원한 영광',emb:'crown',pool:'both',bg:'linear-gradient(160deg,#1a1408 0%,#3d2d0c 46%,#0d0a05 100%)',line:'#d9b25a',ink:'#f6e3a8',glow:'rgba(240,200,100,.5)'},
+  {c:'GE',en:'Golden Era',ko:'황금시대',emb:'crown',pool:'legend',bg:'linear-gradient(160deg,#fbf3dc,#e2c98f 55%,#b8913f)',line:'#9a7024',ink:'#3a2a0c',glow:'rgba(255,250,225,.75)'},
+  {c:'IML',en:'Immortal Legends',ko:'불멸의 전설',emb:'shield',pool:'legend',bg:'linear-gradient(160deg,#06122e,#123a8a 55%,#071634)',line:'#a9c2f0',ink:'#eef3ff',glow:'rgba(120,170,255,.5)'},
+  {c:'PDY',en:'Prime Dynasty',ko:'전성기의 왕조',emb:'diamond',pool:'current',bg:'linear-gradient(160deg,#120507,#6e0d17 55%,#1a0306)',line:'#ff5466',ink:'#ffe9ea',glow:'rgba(255,60,80,.5)'},
+  {c:'UIC',en:'Ultimate Icons',ko:'궁극의 아이콘',emb:'shieldstar',pool:'legend',bg:'linear-gradient(160deg,#0a1a3d,#2f5fb8 50%,#0b1a3a)',line:'#d6e5ff',ink:'#ffffff',glow:'rgba(170,205,255,.55)'},
+  {c:'TMS',en:'Timeless Masters',ko:'시대를 초월한 거장들',emb:'infinity',pool:'legend',bg:'linear-gradient(160deg,#04140b,#0f5a32 55%,#03120a)',line:'#dcbc5e',ink:'#f0f7e8',glow:'rgba(80,220,140,.45)'},
+  {c:'AEL',en:'Absolute Elite',ko:'절대적 최정상',emb:'diamond',pool:'current',bg:'linear-gradient(160deg,#0d0618,#4b1c8c 55%,#120720)',line:'#c39bff',ink:'#f4ecff',glow:'rgba(170,110,255,.5)'},
+  {c:'WCD',en:'World Class Dynasty',ko:'월드클래스 왕조',emb:'globe',pool:'current',bg:'linear-gradient(160deg,#061230,#143c7a 52%,#2a2108)',line:'#ebc65e',ink:'#fff6dc',glow:'rgba(240,200,90,.45)'},
+  {c:'IFS',en:'Infinite Stars',ko:'무한한 별들',emb:'star',pool:'current',bg:'linear-gradient(160deg,#0b0710,#3a0f33 55%,#0b0610)',line:'#ff5cc0',ink:'#ffe6f5',glow:'rgba(255,80,190,.55)'},
+  {c:'SPL',en:'Supreme Legends',ko:'최고의 전설들',emb:'shield',pool:'legend',bg:'linear-gradient(160deg,#111317,#4a4f5a 50%,#0f1014)',line:'#eef1f6',ink:'#ffffff',glow:'rgba(230,235,245,.4)'},
+];
+const SEASON_BY={};SEASONS.forEach(x=>{SEASON_BY[x.c]=x;});
+function seasonPool(legend){return SEASONS.filter(x=>x.pool==='both'||x.pool===(legend?'legend':'current'));}
+function seasonOf(p){
+  if(eo(p)<80)return null;
+  if(p.season&&SEASON_BY[p.season])return SEASON_BY[p.season];
+  const pool=seasonPool(p.legend);return pool[hashStr((p.name||'')+'#'+(p.id||p.num||0))%pool.length];
+}
+function rollSeason(legend){const pool=seasonPool(legend);return pool[Math.floor(Math.random()*pool.length)].c;}
+function seasonVars(se){return `--sbg:${se.bg};--sl:${se.line};--sink:${se.ink};--sglow:${se.glow};`;}
+const EMB={
+  crown:'<path d="M3 17.5h18l-1.6-9.2-4.6 4.1L12 5l-2.8 7.4-4.6-4.1z"/><rect x="3" y="18.6" width="18" height="2.4" rx="1"/>',
+  shield:'<path d="M12 2l8 3v6c0 5.2-3.4 9.1-8 11-4.6-1.9-8-5.8-8-11V5z"/>',
+  shieldstar:'<path d="M12 2l8 3v6c0 5.2-3.4 9.1-8 11-4.6-1.9-8-5.8-8-11V5z"/><path fill="var(--sbg,#000)" d="M12 6.5l1.5 3.4 3.7.3-2.8 2.4.9 3.6L12 14.3l-3.3 1.9.9-3.6-2.8-2.4 3.7-.3z"/>',
+  diamond:'<path d="M12 2l9 8.5L12 22 3 10.5z"/><path fill="var(--sbg,#000)" opacity=".45" d="M12 5l5.5 5.5L12 18l-5.5-7.5z"/>',
+  infinity:'<path fill="none" stroke="currentColor" stroke-width="2.4" d="M7.2 8.2c-2.1 0-3.8 1.7-3.8 3.8s1.7 3.8 3.8 3.8c3.2 0 6.4-7.6 9.6-7.6 2.1 0 3.8 1.7 3.8 3.8s-1.7 3.8-3.8 3.8c-3.2 0-6.4-7.6-9.6-7.6z"/>',
+  globe:'<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path fill="none" stroke="currentColor" stroke-width="1.6" d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+  star:'<path d="M12 2l3 6.9 7.5.6-5.7 4.9 1.8 7.3L12 17.8l-6.6 3.9 1.8-7.3L1.5 9.5 9 8.9z"/>',
+};
+function embSvg(k){return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${EMB[k]||EMB.star}</svg>`;}
+
+/* ================= mini face-on portraits ================= */
+// Rendered in the browser from each player's own 3D model (skin, hair, kit): a head shot below 80 OVR, upper body from 80.
+const faceCache=new Map(),faceIds=new Map(),faceJobs=[],faceMats={};let faceR=null,faceScene=null,faceCam=null,faceFail=false;
+const BLANK='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+function cardKit(){return club&&club.kit?club.kit:TEAMS[0].home;}
+function faceTag(p,kit,up,cls){
+  const gk=p.label==='GK',key=[p.name,p.skin,p.hair,p.hs,kit.shirt,kit.trim,kit.pat,kit.shorts,gk?'g':'o',up?'u':'h',p.num||0].join('|');
+  let id=faceIds.get(key);if(id==null){id=faceIds.size+1;faceIds.set(key,id);}
+  const url=faceCache.get(id);
+  if(!url&&!faceFail&&!faceJobs.some(j=>j.id===id))faceJobs.push({id,p:{name:p.name,short:p.short,skin:p.skin,hair:p.hair,hs:p.hs,boot:p.boot||'#111111',h:1,num:p.num||0},kit,up,gk});
+  return `<img class="${cls} ${up?'up':'head'}" data-fid="${id}" src="${url||BLANK}" alt="">`;
+}
+function initFaceR(){
+  const c=document.createElement('canvas');c.width=200;c.height=240;
+  faceR=new THREE.WebGLRenderer({canvas:c,antialias:true,alpha:true,preserveDrawingBuffer:true});faceR.setClearColor(0x000000,0);
+  faceScene=new THREE.Scene();faceScene.add(new THREE.HemisphereLight(0xffffff,0x3a4256,0.72));
+  const key=new THREE.DirectionalLight(0xfff4e6,0.95);key.position.set(1.4,2.6,3);faceScene.add(key);
+  const rim=new THREE.DirectionalLight(0x9fc4ff,0.75);rim.position.set(-2.5,2,-1.5);faceScene.add(rim);
+  faceCam=new THREE.PerspectiveCamera(26,200/240,0.1,20);
+}
+function renderFace(job){
+  if(!faceR)initFaceR();
+  const k=job.kit,mk=[k.shirt,k.trim,k.pat,k.shorts,k.socks,k.num].join();
+  const mats=faceMats[mk]||(faceMats[mk]=teamMats(k,'#2bd47d'));
+  const rig=buildRig(mats,job.p,job.gk,{parent:faceScene,face:true});
+  applyPose(rig,A.idle,0,0,0,0);rig.head.rotation.set(-0.04,0.2,0);rig.root.rotation.y=-0.24;
+  // folded arms: elbows out and forward, forearms swept across the chest, one above the other
+  if(job.up){rig.armL.rotation.set(-0.32,-1.12,0.42);rig.elbowL.rotation.x=-1.5;rig.armR.rotation.set(-0.2,1.12,-0.42);rig.elbowR.rotation.x=-1.62;}
+  rig.root.updateMatrixWorld(true);
+  const hp=new V3();rig.head.getWorldPosition(hp);
+  const t=job.up?hp.clone().add(new V3(0,-0.17,0)):hp.clone().add(new V3(0,-0.03,0));
+  if(job.up)faceCam.position.set(t.x+0.17,t.y+0.07,t.z+1.5);else faceCam.position.set(t.x+0.05,t.y+0.03,t.z+0.9);
+  faceCam.lookAt(t);
+  faceR.render(faceScene,faceCam);
+  const url=faceR.domElement.toDataURL('image/png');
+  faceScene.remove(rig.root);rig.numMat.map.dispose();rig.numMat.dispose();
+  return url;
+}
+function pumpFaces(){
+  if(!faceJobs.length)return;
+  const t0=performance.now();let n=0;
+  while(faceJobs.length&&n<6&&performance.now()-t0<14){
+    const j=faceJobs.shift();n++;let url;
+    try{url=renderFace(j);}catch(e){url=BLANK;faceFail=true;faceJobs.length=0;}
+    faceCache.set(j.id,url);
+    document.querySelectorAll('img[data-fid="'+j.id+'"]').forEach(im=>{im.src=url;});
+  }
+}
+function pcardMarkup(p,ovr,label,kit,extraCls,attrs,style,title){
+  const se=seasonOf(p),cls=se?'season':cardTierOf(p);
+  return `<div class="pcard ${cls} ${extraCls}" ${attrs} style="${style}${se?seasonVars(se):''}" title="${esc(title)}">${se?`<span class="pc-code">${se.c}</span>`:''}${lvBadge(p)}${faceTag(p,kit,eo(p)>=80,'pc-face')}<b>${ovr}</b><i>${label}</i><span>${esc(p.short)}</span><em>${TRAITS[p.trait]?TRAITS[p.trait].ab:''}</em></div>`;
+}
+function cardTierOf(p){return eo(p)>=78?'':eo(p)>=68?'t-silver':'t-bronze';}
 
 /* ================= trait picker ================= */
 let tpCb=null;
@@ -2872,7 +2992,7 @@ function refreshMarket(force){
   const key=club.season+':'+club.league.week;
   if(!force&&club.marketKey===key)return;
   club.marketKey=key;const avg=clubOvr();club.market=[];
-  for(let i=0;i<12;i++){const ovr=clamp(Math.round(avg-6+Math.random()*16),55,93);const p=newCardPlayer(randPos(),ovr,{from:'이적시장'});p.price=Math.round(value(ovr)*rnd(1.05,1.35)/100)*100;club.market.push(p);}
+  for(let i=0;i<12;i++){const ovr=clamp(Math.round(avg-6+Math.random()*16),55,93);const p=newCardPlayer(randPos(),ovr,{from:'이적시장'});if(ovr>=80)p.season=rollSeason(false);p.price=Math.round(value(ovr)*rnd(1.05,1.35)/100)*100;club.market.push(p);}
 }
 function startClubMatch(){
   fixLineup();const fx=nextFixture();if(!fx)return;
@@ -2916,11 +3036,14 @@ function rewardHtml(rw){
     ${rw.season?`<p style="margin:0;color:var(--gold);font-weight:700">시즌 ${rw.season.season} 종료 · 최종 ${rw.season.rank}위. 새 시즌이 시작됩니다.</p>`:''}</div>`;
 }
 function ctoast(msg){const t=$('#clubToast');t.textContent=msg;t.hidden=false;clearTimeout(ctoast.t);ctoast.t=setTimeout(()=>{t.hidden=true;},2600);}
-function bigCard(p,extra){
-  const s=estats(p),g=p.label==='GK';
+function bigCard(p,extra,kit){
+  const s=estats(p),g=p.label==='GK',o=eo(p),se=seasonOf(p);
   const rows=g?[['GK',s.gk],['PHY',s.phy],['PAS',s.pas]]:[['PAC',s.pac],['SHO',s.sho],['PAS',s.pas],['DRI',s.dri],['DEF',s.def],['PHY',s.phy]];
-  return `<div class="bigcard ${cardTier(p)}"><span class="ov">${eo(p)}</span><span class="po">${p.label}${p.legend?' · LEGEND':''} ${lvBadge(p)}</span><span class="nm">${p.name}</span><span class="tr">${TRAITS[p.trait]?TRAITS[p.trait].name:'특성 없음'}</span><div class="stg">${rows.map(([k,v])=>`<span>${v} ${k}</span>`).join('')}</div>${extra||''}</div>`;
+  const emb=se?`<span class="bc-season">${embSvg(se.emb)}<b>${se.c}</b></span>`:'';
+  return `<div class="bigcard ${se?'season':cardTierOf(p)}" style="${se?seasonVars(se):''}"><div class="bc-top"><div class="bc-meta"><span class="ov">${o}</span><span class="po">${p.label}</span>${emb}${lvBadge(p)}</div>${faceTag(p,kit||cardKit(),o>=80,'bc-face')}</div>`+
+    `${se?`<span class="sn">${se.en.toUpperCase()}</span>`:''}<span class="nm">${esc(p.name)}</span><span class="tr">${TRAITS[p.trait]?TRAITS[p.trait].name:'특성 없음'}</span><div class="stg">${rows.map(([k,v])=>`<span>${v} ${k}</span>`).join('')}</div>${extra||''}</div>`;
 }
+
 function goClub(tab,msg){
   $('#result').hidden=true;$('#halftime').hidden=true;
   if(mode==='match')startDemo();
@@ -2981,11 +3104,11 @@ function clubHomeHtml(fx){
 function clubSquadHtml(){
   fixLineup();const slots=FORMATIONS[club.form],inXI=new Set(club.lineup);
   const cards=slots.map((s,i)=>{const p=byId(club.lineup[i]),pen=posPen(p.label,s[0]),top=s[0]==='GK'?89:clamp(80-(s[1]+0.72)/0.86*68,11,80),left=50+s[2]*41;
-    return `<div class="pcard pick ${cardTier(p)} ${selSlot===i?'sel':''} ${pen?'pen':''}" data-slot="${i}" role="button" tabindex="0" style="left:${left}%;top:${top}%" title="${p.name} · ${p.label} → ${s[0]}">${lvBadge(p)}<b>${eo(p)-pen}</b><i>${s[0]}</i><span>${p.short}</span><em>${TRAITS[p.trait]?TRAITS[p.trait].ab:''}</em></div>`;}).join('');
-  const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''}" data-pid="${p.id}"><span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
+    return pcardMarkup(p,eo(p)-pen,s[0],club.kit,`pick ${selSlot===i?'sel':''} ${pen?'pen':''}`,`data-slot="${i}" role="button" tabindex="0"`,`left:${left}%;top:${top}%;`,`${p.name} · ${p.label} → ${s[0]}`);}).join('');
+  const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''}" data-pid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
   const sp=selPid!=null?byId(selPid):null;
   const detail=sp?`<div class="panel"><h3>선수 정보</h3><div class="detail">${bigCard(sp)}<div class="info">
-      <div class="kv"><span>포지션</span><b>${sp.label}</b><span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
+      <div class="kv"><span>포지션</span><b>${sp.label}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
       <p style="margin:0;font-size:13px;line-height:1.6"><b style="color:var(--gold)">${TRAITS[sp.trait]?TRAITS[sp.trait].name:'특성 없음'}</b><br>${TRAITS[sp.trait]?TRAITS[sp.trait].desc:''}</p>
       <div class="row"><button class="btn primary" data-act="trait">특성 변경</button><button class="btn" data-act="toenh">강화하기</button>${selSlot>=0?`<button class="btn" data-act="place">${slots[selSlot][0]} 자리에 배치</button>`:''}<button class="btn" data-act="sell">${resetArm==='sell'+sp.id?'한 번 더 누르면 판매':'판매 '+fmtBP(sellPrice(sp))+' BP'}</button></div>
     </div></div></div>`:`<div class="panel"><h3>선수 정보</h3><p class="foot">오른쪽 목록에서 선수를 고르면 능력치와 특성을 볼 수 있습니다. 경기장 위 카드를 누른 뒤 목록의 선수를 누르면 그 자리에 배치됩니다.</p></div>`;
@@ -3035,7 +3158,7 @@ function clubEnhanceHtml(){
   const nextBonus=t&&l<LV_MAX?LV_BONUS[l+1]-LV_BONUS[l]:0,err=enhOk(t,mats);
   const slots=[0,1,2,3,4].map(i=>{const m=mats[i];return m?`<button class="mat full" data-unmat="${m.id}" title="빼기"><b>${eo(m)}</b><small>${m.label} ${m.short}</small>${lvBadge(m)}</button>`:`<button class="mat" disabled><small>재료 ${i+1}</small></button>`;}).join('');
   const list=club.players.slice().sort((a,b)=>eo(a)-eo(b)).map(p=>{const isT=p.id===enhTarget,isM=enhMats.includes(p.id);const low=t&&!isT&&eo(p)-eo(t)<-10;
-    return `<button class="prow ${isT?'tg':''} ${isM?'mt':''}" data-epid="${p.id}"><span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.name} ${lvBadge(p)}</span><span class="tchip">${isT?'강화 대상':isM?'재료':low?'게이지 0':TRAITS[p.trait]?TRAITS[p.trait].ab:''}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`;}).join('');
+    return `<button class="prow ${isT?'tg':''} ${isM?'mt':''}" data-epid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.name} ${lvBadge(p)}</span><span class="tchip">${isT?'강화 대상':isM?'재료':low?'게이지 0':TRAITS[p.trait]?TRAITS[p.trait].ab:''}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`;}).join('');
   const tgt=t?`<div class="enh-target">${bigCard(t)}<div class="enh-arrow"><span class="big">+${l} <i>→</i> +${Math.min(l+1,LV_MAX)}</span><span>OVR ${eo(t)} → ${eo(t)+nextBonus}</span><span style="color:var(--mute);font-weight:600">${l===1||enhProtect?'실패해도 +'+l+' 유지'+(enhProtect&&l>1?' (등급 보호)':''):'실패하면 +'+(l-1)+'로 내려갑니다'}</span></div></div>`
     :'<p class="foot">오른쪽 목록에서 강화할 선수를 먼저 누르세요. 그다음 누르는 선수들은 재료로 들어갑니다.</p>';
   return `<div class="enh">
@@ -3133,8 +3256,8 @@ function openPack(pk){
   if(club.players.length>=30){ctoast('스쿼드가 가득 찼습니다 (30명). 선수를 먼저 판매하세요.');return;}
   club.money-=pk.price;
   const ovr=pk.min+Math.floor(Math.pow(Math.random(),pk.skew)*(pk.max-pk.min+1));
-  const p=newCardPlayer(randPos(),ovr,{legend:pk.legend,from:pk.name});assignNum(p);club.players.push(p);saveClub();packPlayer=p;
-  const hint=p.legend||p.ovr>=88?'#f4c64a':p.ovr>=80?'#8fd0ff':p.ovr>=70?'#e6edf7':'#d9a073';
+  const p=newCardPlayer(randPos(),ovr,{legend:pk.legend,from:pk.name});if(ovr>=80)p.season=rollSeason(pk.legend);assignNum(p);club.players.push(p);saveClub();packPlayer=p;
+  const se_=seasonOf(p),hint=se_?se_.line:p.ovr>=70?'#e6edf7':'#d9a073';
   $('#pkFront').innerHTML=bigCard(p);$('#pkWalk').textContent='';$('#pkText').textContent=pk.name+' 개봉 중...';$('#pkBtns').hidden=true;
   $('#pkStage').classList.remove('walkout');const fl=$('#pkFlip');fl.classList.remove('open','shake');$('#pkBack').classList.remove('hint');$('#pkBack').style.setProperty('--hint',hint);
   $('#packOpen').hidden=false;$('#pkSell').textContent='바로 판매 · '+fmtBP(sellPrice(p))+' BP';
@@ -3142,7 +3265,7 @@ function openPack(pk){
   setTimeout(()=>{fl.classList.add('shake');$('#pkBack').classList.add('hint');},350);
   setTimeout(()=>{fl.classList.remove('shake');fl.classList.add('open');
     if(big){$('#pkStage').classList.add('walkout');$('#pkWalk').textContent='WALKOUT';SND.init&&SND.ctx&&SND.roar();}
-    $('#pkText').textContent=p.name+' · '+p.label+' · OVR '+p.ovr+' · '+TRAITS[p.trait].name;$('#pkBtns').hidden=false;},big?2300:1400);
+    $('#pkText').textContent=(se_?se_.c+' '+se_.ko+' · ':'')+p.name+' · '+p.label+' · OVR '+p.ovr+' · '+TRAITS[p.trait].name;$('#pkBtns').hidden=false;},big?2300:1400);
 }
 $('#pkKeep').onclick=()=>{$('#packOpen').hidden=true;renderClub();ctoast(packPlayer.name+' 스쿼드 합류');};
 $('#pkSell').onclick=()=>{const p=packPlayer;if(club.players.includes(p)){club.money+=sellPrice(p);club.players=club.players.filter(q=>q!==p);fixLineup();saveClub();}$('#packOpen').hidden=true;renderClub();ctoast(p.name+' 판매 · +'+fmtBP(sellPrice(p))+' BP');};
@@ -3229,7 +3352,7 @@ function renderOnline(){
   const ps=lobbyPeers();
   if(!ps.length){list.innerHTML='<p class="foot">지금 접속한 감독이 없습니다. 같은 링크를 친구에게 공유하고 이 화면을 열어 두면 목록에 나타납니다.</p>';return;}
   list.innerHTML=ps.map(p=>{const pr=p.presence,busy=pr.st==='busy',wait=outgoing&&outgoing.to===p.peer;
-    return `<div class="prow" style="cursor:default"><span class="o" style="color:${cleanCol(pr.c1)}">${numIn(pr.ovr,0,130,0)}</span><span class="ps">${busy?'경기 중':'대기'}</span><span class="n">${esc(cleanTxt(pr.nick,12))} · ${esc(cleanTxt(pr.team,20))}${p.guest?' (외부)':''}</span><span></span>
+ return `<div class="prow" style="cursor:default"><span></span><span class="o" style="color:${cleanCol(pr.c1)}">${numIn(pr.ovr,0,130,0)}</span><span class="ps">${busy?'경기 중':'대기'}</span><span class="n">${esc(cleanTxt(pr.nick,12))} · ${esc(cleanTxt(pr.team,20))}${p.guest?' (외부)':''}</span><span></span>
       <button class="btn ${wait?'':'primary'}" data-ask="${esc(p.peer)}" ${busy||(outgoing&&!wait)?'disabled':''}>${wait?'신청 취소':'친선전 신청'}</button></div>`;}).join('');
 }
 $('#online').addEventListener('click',e=>{
@@ -3435,7 +3558,7 @@ function frame(now){
   if(net&&net.role==='guest'&&mode==='match')netGuestFrame(dt);
   else if((!paused||net)&&!window.__freeze){acc+=dt;let n=0;while(acc>=STEP&&n<4){if(net)netHostRead();tick(STEP);acc-=STEP;n++;}if(n>=4)acc=0;if(net&&mode==='match')netHostSend();}
   netTickLobby(dt);
-  renderVisuals(dt);updateCamera(dt);renderer.render(scene,camera);updateHud(dt);
+  renderVisuals(dt);updateCamera(dt);renderer.render(scene,camera);updateHud(dt);pumpFaces();
   exciteT-=dt;if(exciteT<=0&&SND.ctx){exciteT=0.3;const dg=Math.min(Math.abs(ball.pos.x-HL),Math.abs(ball.pos.x+HL));SND.setCrowd(state==='goal'?0.4:0.1+clamp((30-dg)/30,0,1)*0.16);}
   requestAnimationFrame(frame);
 }
@@ -3451,6 +3574,7 @@ window.__game={
   startMatch(cfg){Object.assign(sel,cfg||{});startMatch();},
   setPiece(type,ti,x,z){startSetPiece(type,ti,new V3(x,BR,z));},
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
+  faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
   foul(card){const o=ball.owner||teams[0].players[9];const d=teams[1-o.team].players.filter(q=>!q.isGK).sort((a,b)=>d2(a.pos,o.pos)-d2(b.pos,o.pos))[0];d.pos.set(o.pos.x-teams[o.team].dir*0.8,0,o.pos.z);foul(d,o,'slide',card);return d.short;},
   get officials(){return officials;},get traitCount(){return traitCount;},get advCount(){return advCount;},get sp(){return SP;},startDemo,get act(){return LC().act;},actDown,actUp,get net(){return net;},setCam(m){camMode=m;},
