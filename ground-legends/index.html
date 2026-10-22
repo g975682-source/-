@@ -170,6 +170,7 @@ body.touch #spHint{top:auto;bottom:calc(244px + env(safe-area-inset-bottom,0px))
 #traitToast{position:absolute;left:50%;top:calc(62px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(5,11,23,.9);border:1px solid var(--gold);border-left-width:4px;padding:6px 14px;font-size:13px;font-weight:700;white-space:nowrap;opacity:0}
 #traitToast i{font-style:normal;color:var(--gold);margin-right:6px;letter-spacing:.04em}
 #traitToast.show{animation:tt 1.8s ease-out forwards}
+body[data-guide="1"] #keys,body[data-guide="2"] #keys,body[data-guide="2"] #spHint{display:none!important}
 #skToast{position:absolute;left:50%;top:calc(100px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(5,11,23,.9);border:1px solid #9fc4ff;border-left-width:4px;padding:5px 12px;font-size:12px;font-weight:700;white-space:nowrap;opacity:0;pointer-events:none}
 #skToast i{font-style:normal;color:#9fc4ff;margin-right:6px}
 #skToast.show{animation:tt 1.6s ease-out forwards}
@@ -450,7 +451,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
   <div class="keys" id="keys">
     <kbd>S</kbd> 패스/전환 · <kbd>W</kbd> 스루/돌진 · <kbd>A</kbd> 로빙/슬라이딩 · <kbd>D</kbd> 슛/태클 · <kbd>E</kbd> 질주<br>
     <kbd>Q</kbd> 기술(+S·D·A·W)/협력수비 · <kbd>Z</kbd> 감아차기·지원 · <kbd>C</kbd> 지키기/견제 · <kbd>Ctrl</kbd>+방향 치고 달리기<br>
-    <kbd>Shift</kbd>+방향키 개인기 · <kbd>R</kbd> 카메라 · <kbd>Esc</kbd> 일시정지
+    <kbd>Shift</kbd> 누른 채 방향키 개인기 · <kbd>R</kbd> 카메라 · <kbd>H</kbd> 가이드 끄기 · <kbd>Esc</kbd> 일시정지
   </div>
   <div id="banner" hidden><b id="bnBig"></b><span id="bnSmall"></span></div>
   <div id="nameTag" hidden></div>
@@ -494,15 +495,15 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td><kbd>C</kbd> · <kbd>C</kbd>+<kbd>E</kbd></td><td>공 지키기 (등지기) · 페이스업 드리블</td></tr>
       <tr><td><kbd>C</kbd>+<kbd>S</kbd> · <kbd>C</kbd>+<kbd>D</kbd></td><td>플레어 패스 · 플레어 슛</td></tr>
       <tr><td><kbd>E</kbd>+<kbd>C</kbd></td><td>슛·크로스 입력 취소</td></tr>
-      <tr><th colspan="2">개인기 (Shift+방향키, 오른쪽으로 달릴 때 기준 · 선수 개인기 ★ 이하만)</th></tr>
-      <tr><td>★1</td><td><kbd>Shift</kbd> 톡 페인트 · <kbd>C</kbd>+<kbd>Z</kbd> 볼 저글링 · <kbd>Q</kbd>+<kbd>Z</kbd> 풋 페이크</td></tr>
+      <tr><th colspan="2">개인기 (Shift를 누른 채 방향키, 오른쪽으로 달릴 때 기준 · 선수 개인기 ★ 이하만)</th></tr>
+      <tr><td>★1</td><td><kbd>C</kbd>+<kbd>Z</kbd> 볼 저글링 · <kbd>Q</kbd>+<kbd>Z</kbd> 풋 페이크</td></tr>
       <tr><td>★2</td><td>↓/↑ 톡 속임 동작 · ↓/↑ 꾹 사이드 스텝 · →↘↓ 스텝오버 · ↓↘→ 역스텝오버 · <kbd>Z</kbd>+← 드래그 백 · <kbd>Q</kbd>+↑↓ 힐 플릭 · <kbd>Q</kbd>+↓←↑ 연속 속임</td></tr>
       <tr><td>★3</td><td>→← 힐 플릭 · →→→ 볼 띄우기 · ←↖↑↗→↘↓ 룰렛 · ↑↖←↙↓ 속임 후 이동 · <kbd>Q</kbd>+←↓ 드래그백 스핀 · <kbd>Q</kbd>+↑꾹 팬텀 드리블 · <kbd>Q</kbd>+←↑→ 볼 끌기 턴 · <kbd>C</kbd>+←↑ 3터치 룰렛</td></tr>
       <tr><td>★4</td><td>←→→ 레인보우 · ←꾹→ 고급 레인보우 · →↑ 멈춘 다음 턴 · ↑꾹↓ 볼 롤 컷 · ↖↖ 돌기 · <kbd>`</kbd> 양발 점프 · <kbd>C</kbd>+D 후 S 힐 춉 · D 후 S+← 스쿱 턴 · <kbd>Z</kbd>+→← 힐 플릭 턴</td></tr>
       <tr><td>★5</td><td>↓↙←↖↑ 엘라스티코 · ↑↖←↙↓ 역 엘라스티코 · ←↙↓↙←↖↑ 트리플 · ←↑ 엘라스티코 촙 · ←꾹 퀵 볼 롤 · ↓꾹→ 볼 굴린 후 휙 · ↑꾹↓ 볼 롤 방향 속임 · ←↖↑↖←↙↓ 호커스 포커스 · →→← 캔슬 리프팅 · →↑ 턴 스핀 · <kbd>C</kbd>+D 후 S+← 라보나 속임 · ↑↗→ 와카와카 · →꾹 오코차 솜브레로 · ↑꾹→ 네이마르 스텝오버 · <kbd>Z</kbd>+→↑ 볼라시 플릭 · 저글링 중 회전 어라운드 더 월드 · 저글링 중 ↑/↓ 인 에어 엘라스티코</td></tr>
       <tr><td>★6</td><td>←→→ 네이마르 레인보우</td></tr>
       <tr><td>같은 입력</td><td>선수가 할 수 있는 가장 높은 별의 개인기가 나갑니다. 별이 모자라면 기본 페인트로 바뀝니다</td></tr>
-      <tr><td>입력 보정</td><td>대각선이나 위·아래로 달릴 때는 가까운 화면 축(→·↑ 등) 기준으로도 읽어 가장 잘 맞는 개인기를 고릅니다. 달리던 방향키는 Shift 직후 떼면 무시되고, 천천히 눌러도 이어질 수 있는 입력이면 기다려 줍니다. 회전 입력은 한 칸 정도 어긋나도 인정되고, 이전 개인기 중이거나 패스를 받는 중에 넣은 입력은 이어서 나갑니다</td></tr>
+      <tr><td>입력 보정</td><td>Shift를 누르고 있는 동안 누른 방향키만 개인기로 읽습니다 (Shift만 누르면 아무 동작 없음). 판정은 넉넉하게: 꾹·톡을 조금 잘못 눌러도, 회전이 한두 칸 어긋나도 가장 가까운 개인기가 나갑니다. 대각선으로 달릴 때도 가까운 화면 축 기준으로 읽고, 별이 모자라면 할 수 있는 가장 가까운 개인기로 바꿉니다</tr>
       <tr><td>패스 받기</td><td>패스를 받는 선수가 공 쪽으로 자동으로 움직여 잡습니다. 공이 오기 전에 누르면 원터치</td></tr>
       <tr><th colspan="2">수비</th></tr>
       <tr><td><kbd>S</kbd> · <kbd>S</kbd> 꾹</td><td>선수 전환 (막기 가장 좋은 선수, 흰 화살표) · 압박</td></tr>
@@ -523,6 +524,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td>코너킥·스로인</td><td>방향키 조준 · S 짧게 · A 크로스·긴 스로인 · A×2 낮게 · A×3 땅볼 · C 동료 부르기 · W 짧은 스로인(직접 조준) · A 후 S 페이크 스로우</td></tr>
       <tr><td>백패스</td><td>동료가 발로 일부러 준 공과 스로인은 골키퍼가 손으로 잡지 못합니다</td></tr>
       <tr><td><kbd>R</kbd> · <kbd>M</kbd> · <kbd>Esc</kbd></td><td>카메라 · 소리 · 일시정지</td></tr>
+      <tr><td><kbd>H</kbd></td><td>가이드 표시: 전체 → 세트피스만 (오른쪽 아래 키 안내 숨김) → 끄기 (세트피스 안내와 추천 선수 흰 화살표도 숨김). 일시정지 메뉴에서도 바꿀 수 있고 다음에도 기억합니다</td></tr>
       <tr><td>게임패드</td><td>A 패스·전환 · B 슛·태클 · X 로빙 · Y 스루 · LB 기술(Q) · RB+스틱 개인기 · LT 지키기·견제 · RT 질주</td></tr>
     </table>
     <div class="row end"><button class="btn primary" id="btnHelpClose">확인</button></div>
@@ -535,6 +537,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     <button class="btn primary" id="btnResume">계속하기</button>
     <button class="btn" id="btnCam">카메라: 중계</button>
     <button class="btn" id="btnMute">소리: 켜짐</button>
+    <button class="btn" id="btnGuide">가이드: 전체</button>
     <button class="btn" id="btnHelp3">조작법</button>
     <button class="btn" id="btnQuit">경기 포기 · 메인으로</button>
   </div>
@@ -1166,17 +1169,22 @@ function eqToks(a,b,strict){if(a.length!==b.length)return false;
 function tokDist(a,b){const n=a.length,m=b.length,D=[];for(let i=0;i<=n;i++){D[i]=[i];}for(let j=1;j<=m;j++)D[0][j]=j;
   for(let i=1;i<=n;i++)for(let j=1;j<=m;j++){const x=a[i-1].d,y=b[j-1].d,sub=x===y?0:adjTok(x,y)?0.5:1;D[i][j]=Math.min(D[i-1][j]+1,D[i][j-1]+1,D[i-1][j-1]+sub);}
   return D[n][m];}
-// How close an input is to a pattern: 0 exact, 0.25 exact but taps run together, 0.5+ forgiving match, null = no match
+// a held key where the move wants a tap: still fine, but a move that wants the hold comes first
+function holdPen(a,b){let n=0;for(let i=0;i<a.length&&i<b.length;i++)if(a[i].h&&!b[i].h)n+=0.15;return n;}
+// How close an input is to a pattern (lower is better, null = no match). Generous on purpose:
+// 0 exact · 0.25 taps ran together · 0.45 a tap held too long or a hold let go early · 0.6+ keys off by a little
 function gestScore(toks,alt){
-  if(eqToks(toks,alt,true)||eqToks(normToks(toks),normToks(alt),true))return 0;
-  if(eqToks(toks,alt,false)||eqToks(normToks(toks),normToks(alt),false))return 0.25;
-  if(alt.some(t=>t.h)||alt.length<3)return null;               // holds and short taps must be exact
-  const a=normToks(toks),b=normToks(alt);if(a.length<2)return null;
-  if(a[0].d!==b[0].d&&!adjTok(a[0].d,b[0].d))return null;      // a rotation must at least start the right way
-  const d=tokDist(a,b);return d<=(alt.length>=5?1.5:1)?0.5+d:null;
+  const A=normToks(toks),Bn=normToks(alt),pairs=[[toks,alt],[A,Bn]];
+  for(const [x,y] of pairs)if(eqToks(x,y,true))return holdPen(x,y);
+  for(const [x,y] of pairs)if(eqToks(x,y,false))return 0.25+holdPen(x,y);
+  for(const [x,y] of pairs)if(x.length===y.length&&x.every((t,i)=>t.d===y[i].d))return 0.45;
+  if(!A.length)return null;
+  const d=tokDist(A,Bn),lim=alt.length>=5?2.5:alt.length>=3?1.5:alt.length===2?1:0.5;
+  if(d>lim)return null;
+  return 0.6+d+(A[0].d!==Bn[0].d&&!adjTok(A[0].d,Bn[0].d)?0.3:0);
 }
 function matchGesture(toks,mod){const out=[];
-  for(const P of SKPAT){if(P.mod!==mod)continue;for(const alt of P.alts){if(gestScore(toks,alt)===0){out.push(P);break;}}}
+  for(const P of SKPAT){if(P.mod!==mod)continue;for(const alt of P.alts){const sc=gestScore(toks,alt);if(sc!=null&&sc<0.2){out.push(P);break;}}}
   return out;}
 function skillStars(p){const st=p.st||{};let s=st.dri>=88?5:st.dri>=81?4:st.dri>=73?3:st.dri>=64?2:1;if(p.trait==='trickster')s++;return clamp(s,1,6);}
 function pickSkill(cands,stars){let best=null;for(const P of cands){const m=SKILLS[P.id];if(m.st<=stars&&(!best||m.st>SKILLS[best.id].st))best=P;}return best;}
@@ -1201,16 +1209,14 @@ function gestFrames(p,B){
   const out=[];for(const r of [ax[0],ax[1],atk,Math.round(ph)]){const k=((r%8)+8)%8;if(!out.includes(k))out.push(k);}return out;
 }
 function emitSmv(L,code){if(net&&net.role==='guest')netLocalEdge('down','smv',code);else L.inq.push({type:'down',act:'smv',code});}
-// all readings of the keyed sequence, best first: [{P,score}]
+// all readings of the keyed sequence, best first: [{P,score}]. The main reading (first frame) is preferred unless another is clearly better.
 function gestCands(g){
   const mod=g.q?'q':g.z?'z':g.c?'c':'',out=[];
   const variants=[{t:g.toks,pen:0}];
-  // a run key that was already held when Shift went down is usually not part of the move
-  if(g.toks.length>1&&g.toks[0].pre)variants.push({t:g.toks.slice(1).map((x,i)=>i===0?Object.assign({},x,{gap:false}):x),pen:0.05});
   g.frames.forEach((rot,fi)=>{for(const v of variants){const tk=v.t.map(x=>Object.assign({},x,{d:(x.d-rot+8)%8}));
     for(const m of mod?[mod,'']:['']){for(const P of SKPAT){if(P.mod!==m)continue;let best=null;
       for(const alt of P.alts){const s=gestScore(tk,alt);if(s!=null&&(best==null||s<best))best=s;}
-      if(best!=null)out.push({P,score:best+v.pen+fi*0.01+(m!==mod?0.3:0)});}}}});
+      if(best!=null)out.push({P,score:best+v.pen+fi*0.12+(m!==mod?0.3:0)});}}}});
   out.sort((a,b)=>a.score-b.score);return out;
 }
 // could more keys still turn this into a (longer) move?
@@ -1227,45 +1233,47 @@ function gestureUpdate(L,dt){
   if(mode!=='match'||state!=='play'||!p||paused){L.g=null;L.skPress=false;return;}
   const sh=L.act.skill,B=scrBasis();
   if(!L.g){if(!sh&&!L.skPress)return;L.skPress=false;const d0=sh?gestTok(L,B):-1;
-    L.g={toks:d0>=0?[{d:d0,h:false,gap:false,pre:true}]:[],cur:d0,curT:0,gap:0,t:0,q:false,z:false,c:false,lastPush:0,frames:gestFrames(p,B),cont:!!L.gCont,t0:L.downAt.skill||performance.now()};L.gCont=false;}
+    // only keys pressed while Shift is down make the move; a key held from running is ignored until pressed again,
+    // unless it went down a split second before Shift (pressed together)
+    const dg=L.downG||{},fresh=d0>=0&&['up','down','left','right'].some(k=>L.act[k]&&gtime-(dg[k]??-9)<0.12);
+    L.g={toks:fresh?[{d:d0,h:false,gap:false}]:[],cur:d0,curT:0,gap:0,t:0,q:false,z:false,c:false,lastPush:0,frames:gestFrames(p,B),cont:!!L.gCont,t0:L.downAt.skill||performance.now()};L.gCont=false;}
   const g=L.g;g.t+=dt;
   if(L.act.switch)g.q=true;if(L.act.z)g.z=true;if(L.act.c)g.c=true;
   const d=sh?gestTok(L,B):-1;
   if(d>=0){
     if(d!==g.cur){const last=g.toks[g.toks.length-1];
       // a diagonal pressed a moment after one of its keys is one input, not two
-      if(last&&g.cur===last.d&&d%2===1&&g.t-g.lastPush<0.04&&adjTok(last.d,d)){last.d=d;last.pre=false;}
+      if(last&&g.cur===last.d&&d%2===1&&g.t-g.lastPush<0.04&&adjTok(last.d,d)){last.d=d;}
       else g.toks.push({d,h:false,gap:g.cur<0&&g.toks.length>0});
       g.lastPush=g.t;g.cur=d;g.curT=0;g.gap=0;
-    }else{g.curT+=dt;if(g.curT>0.28&&g.toks.length)g.toks[g.toks.length-1].h=true;}
+    }else{g.curT+=dt;if(g.curT>0.22&&g.toks.length&&g.toks[g.toks.length-1].d===d)g.toks[g.toks.length-1].h=true;}
   }else{
     if(g.cur>=0){const last=g.toks[g.toks.length-1],prev=g.toks[g.toks.length-2];
-      if(last&&last.pre&&g.toks.length===1&&g.curT<0.3){g.toks.length=0;g.cur=-1;g.gap=0;return;}
       // letting go of a diagonal one key at a time flashes a cardinal: drop it
       if(last&&prev&&last.d%2===0&&prev.d%2===1&&g.t-g.lastPush<0.04&&adjTok(prev.d,last.d))g.toks.pop();
       g.cur=-1;g.gap=0;}
     else g.gap+=dt;
   }
   const defending=gestDefending(p);
-  if(defending&&g.toks.some(t=>!t.pre)){const w=withC(L,moveInput);L.g=null;L.gCont=sh;
+  if(defending&&g.toks.length){const w=withC(L,moveInput);L.g=null;L.gCont=sh;
     if(w.lengthSq()>0.05)emitSmv(L,SMV_DIR+Math.round(((Math.atan2(w.x,w.z)*180/Math.PI)+360)%360));return;}
   // patience: wait longer between keys while the keys so far can still grow into a move
   let done=!sh;
-  if(!done&&g.toks.length&&!(g.toks.length===1&&g.toks[0].pre&&g.cur>=0)){
+  if(!done&&g.toks.length){
     const open=gestOpen(g),c=open||g.cur<0?gestCands(g):null,complete=c&&c.length&&c[0].score<0.5;
-    if(g.cur<0)done=g.gap>(complete?(open?0.34:0.16):(open?0.6:0.3));
+    if(g.cur<0)done=g.gap>(complete?(open?0.36:0.16):(open?0.65:0.32));
     else done=g.curT>(open?0.9:0.6);
   }
   if(!done)return;
   L.g=null;L.gCont=sh;   // Shift still down: what follows is a new move, not "Shift on its own"
-  if(g.cont&&!g.toks.some(t=>!t.pre))return;
-  if(!g.toks.some(t=>!t.pre)){   // Shift on its own (a run key may be held): quick feint, or a switch while defending
-    if(defending){const w=withC(L,moveInput);if(w.lengthSq()>0.05)emitSmv(L,SMV_DIR+Math.round(((Math.atan2(w.x,w.z)*180/Math.PI)+360)%360));else if(performance.now()-g.t0<450)emitSmv(L,SMV_NEAR);}
-    else if(!sh&&performance.now()-g.t0<450)emitSmv(L,SMV_BASIC);   // wall clock: a slow frame rate must not turn a tap into a hold
+  if(!g.toks.length){   // Shift with no direction key: no skill move. While defending a quick tap still changes player.
+    if(defending&&!g.cont&&!sh&&performance.now()-g.t0<450)emitSmv(L,SMV_NEAR);   // wall clock: a slow frame rate must not turn a tap into a hold
     return;}
   if(defending)return;
   const c=gestCands(g);if(!c.length){emitSmv(L,SMV_BASIC);return;}   // keys that match no move still get a feint
-  const top=c.filter(x=>x.score<=c[0].score+0.001),pk=pickSkill(top.map(x=>x.P),skillStars(p));
+  const stars=skillStars(p),top=c.filter(x=>x.score<=c[0].score+0.001);
+  // best reading he can do; if that needs more stars, the closest move within his stars instead of nothing
+  const pk=pickSkill(top.map(x=>x.P),stars)||(c.find(x=>SKILLS[x.P.id].st<=stars&&x.score<=c[0].score+1.0)||{}).P;
   emitSmv(L,pk?pk.id*2+(pk.s>0?1:0):SMV_NEED+Math.min(...top.map(x=>SKILLS[x.P.id].st)));
 }
 function needStars(p,n){if(isHumanTeam(p.team))say(`★${n} 개인기입니다. ${p.short}의 개인기는 ★${skillStars(p)}`);}
@@ -2879,7 +2887,7 @@ function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c});
-function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;   // seen even if released before the next frame
+function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(mode==='match'&&!paused)L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
 function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused)L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
 window.addEventListener('keydown',e=>{
@@ -2890,6 +2898,7 @@ window.addEventListener('keydown',e=>{
   if(e.code==='Escape'||e.code==='KeyP'){if(mode==='match'&&!['halftime','fulltime'].includes(state))togglePause();}
   else if(e.code==='KeyR'||e.code==='KeyV'){if(mode==='match'){e.preventDefault();cycleCam();}}
   else if(e.code==='KeyM'){toggleMute();}
+  else if(e.code==='KeyH'){cycleGuide();}
 });
 window.addEventListener('keyup',e=>{if(e.target&&e.target.tagName==='INPUT'&&e.target.offsetParent!==null)return;const a=KEYMAP[e.code];if(a){e.preventDefault();actUp(a);}});
 window.addEventListener('blur',()=>{const L=LC();for(const k of ACTS){if(L.act[k])actUp(k);}L.inq.length=0;});
@@ -3219,7 +3228,7 @@ function renderVisuals(dt){
   const closeCam=(SP&&SP.fk&&state==='setpiece')||(state==='dead'&&foulSeq&&foulSeq.shown);
   const showMark=human&&mode==='match'&&controlled&&state!=='replay'&&!closeCam;
   markRing.visible=markCone.visible=!!showMark;
-  const hp=showMark&&teams[ME]?teams[ME].hint:null;hintCone.visible=!!(hp&&hp!==controlled&&state==='play');
+  const hp=showMark&&teams[ME]?teams[ME].hint:null;hintCone.visible=!!(hp&&hp!==controlled&&state==='play'&&guideMode<2);
   if(hintCone.visible){const r=hp.rig.root.position;hintCone.position.set(r.x,2.2+Math.sin(gtime*7)*0.05+hp.y,r.z);hintCone.rotation.y+=dt*3;}
   if(showMark){const r=controlled.rig.root.position;markRing.position.set(r.x,0.03,r.z);markCone.position.set(r.x,2.28+Math.sin(gtime*5)*0.07+controlled.y,r.z);markCone.rotation.y+=dt*2;}
   if(state!=='replay')for(const o of officials)applyVisual(o,o.pos.x,0,o.pos.z,o.face,o.visA,o.visT,o.visPh,o.spd,0);
@@ -3413,6 +3422,12 @@ function cycleCam(){camMode=(camMode+1)%3;$('#btnCam').textContent='카메라: '
 $('#btnCam').onclick=cycleCam;
 function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+(SND.muted?'꺼짐':'켜짐');SND.setCrowd(SND.muted?0:0.12);}
 $('#btnMute').onclick=toggleMute;
+// on-screen guides: 0 everything · 1 set-piece hints only (no key panel) · 2 off (also the suggested-player arrow)
+const GUIDES=['전체','세트피스만','끄기'];let guideMode=0;
+try{guideMode=clamp(parseInt(localStorage.getItem('gl-guide')||'0',10)||0,0,2);}catch(e){}
+function applyGuide(){document.body.dataset.guide=String(guideMode);$('#btnGuide').textContent='가이드: '+GUIDES[guideMode];}
+function cycleGuide(){guideMode=(guideMode+1)%3;try{localStorage.setItem('gl-guide',String(guideMode));}catch(e){}applyGuide();if(mode==='match')say('가이드 표시: '+GUIDES[guideMode]+' (H로 변경)');}
+$('#btnGuide').onclick=cycleGuide;applyGuide();
 function togglePause(){if(net){$('#pause').hidden=!$('#pause').hidden;$('#btnQuit').textContent='경기 나가기 (기권)';$('#btnResume').textContent='경기로 돌아가기';return;}$('#btnResume').textContent='계속하기';paused=!paused;$('#pause').hidden=!paused;$('#btnQuit').textContent=matchCfg&&matchCfg.club?'기권하고 구단으로 (0:3 패)':'경기 포기 · 메인으로';const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;if(SND.ctx){paused?SND.ctx.suspend():SND.ctx.resume();}}
 
 /* ================= seasons (80+ OVR cards) ================= */
