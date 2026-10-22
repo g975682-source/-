@@ -171,6 +171,13 @@ body.touch #spHint{top:auto;bottom:calc(244px + env(safe-area-inset-bottom,0px))
 #traitToast i{font-style:normal;color:var(--gold);margin-right:6px;letter-spacing:.04em}
 #traitToast.show{animation:tt 1.8s ease-out forwards}
 body[data-guide="1"] #keys,body[data-guide="2"] #keys,body[data-guide="2"] #spHint{display:none!important}
+#pkTrack{position:absolute;left:50%;top:calc(96px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(5,11,23,.88);border:1px solid var(--line);padding:6px 12px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
+#pkTrack div{display:flex;align-items:center;gap:5px;font-family:var(--f-num);font-size:13px}
+#pkTrack b{min-width:34px;border-left:4px solid var(--c);padding-left:5px}
+#pkTrack i{width:11px;height:11px;border-radius:50%;border:1.5px solid rgba(255,255,255,.45)}
+#pkTrack i.g{background:#2bd47d;border-color:#2bd47d}
+#pkTrack i.x{background:#e0102a;border-color:#e0102a}
+#pkTrack span{min-width:14px;text-align:right;font-weight:800;color:var(--gold)}
 #skToast{position:absolute;left:50%;top:calc(100px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(5,11,23,.9);border:1px solid #9fc4ff;border-left-width:4px;padding:5px 12px;font-size:12px;font-weight:700;white-space:nowrap;opacity:0;pointer-events:none}
 #skToast i{font-style:normal;color:#9fc4ff;margin-right:6px}
 #skToast.show{animation:tt 1.6s ease-out forwards}
@@ -448,6 +455,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     <div class="sb-team"><b id="sbN1">AWAY</b><span class="chip2" id="sbC1"></span></div>
   </div>
   <div id="skToast"></div>
+  <div id="pkTrack" hidden></div>
   <div id="traitToast"></div>
   <div id="replayTag" hidden><span class="dot"></span>REPLAY<small>아무 키나 누르면 건너뜁니다</small></div>
   <div id="spHint" hidden></div>
@@ -532,6 +540,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td>직접 프리킥</td><td>방향키 조준 · D 길게 눌렀다 떼면 슛 · 도움닫기 중 ←→ 감아차기 ↑ 드롭 ↓ 띄우기 · Q+D 드라이브 · E 키커 변경 · C/Z 두 번째·세 번째 키커 (C+D·Z+D 슛, C+S 내주기) · S 땅볼 · A 높은 패스</td></tr>
       <tr><td>상대 프리킥</td><td>W 수비벽 점프 · D 수비벽 달려들기 · Z 수비벽 전진 · C/E 수비벽 좌우 이동</td></tr>
       <tr><td>페널티킥</td><td>방향키 조준 · D 슛 · Q+D 칩슛(파넨카) · Z+D 감아차기 / 막을 때 ←→ 좌우 이동 · D·Ctrl+방향 다이브 방향 결정</td></tr>
+      <tr><td>승부차기</td><td>대회 토너먼트(8강·4강·결승)에서 비기면 바로 승부차기. 우리 키커는 페널티킥처럼 직접 차고(조준 + D · Q+D 칩슛 · Z+D 감아차기), 상대 키커는 골키퍼로 막습니다(←→ 이동 · D+방향 다이브). 5번씩, 이후 서든데스</td></tr>
       <tr><td>코너킥·스로인</td><td>방향키 조준 · S 짧게 · A 크로스·긴 스로인 · A×2 낮게 · A×3 땅볼 · C 동료 부르기 · W 짧은 스로인(직접 조준) · A 후 S 페이크 스로우</td></tr>
       <tr><td>백패스</td><td>동료가 발로 일부러 준 공과 스로인은 골키퍼가 손으로 잡지 못합니다</td></tr>
       <tr><td><kbd>R</kbd> · <kbd>M</kbd> · <kbd>Esc</kbd></td><td>카메라 · 소리 · 일시정지</td></tr>
@@ -926,26 +935,153 @@ function drawBigScreen(){
 }
 
 /* ================= player rigs ================= */
+// Body parts are lathed from muscle profiles ([radius, height] from bottom to top), so limbs taper and bulge
+// like a person instead of being straight tubes.
+function lathe(pts,seg){return new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(Math.max(r,0.0005),y)),seg||12);}
 const GEO={
-  torso:new THREE.CylinderGeometry(0.2,0.155,0.56,16,1),
-  collar:new THREE.TorusGeometry(0.075,0.018,6,14),
-  shorts:new THREE.CylinderGeometry(0.168,0.178,0.25,12),
-  thighS:new THREE.CylinderGeometry(0.09,0.084,0.2,10),
-  thigh:new THREE.CylinderGeometry(0.078,0.064,0.26,10),
-  shin:new THREE.CylinderGeometry(0.064,0.048,0.42,10),
-  band:new THREE.CylinderGeometry(0.067,0.067,0.04,10),
-  boot:new THREE.BoxGeometry(0.1,0.075,0.27),
-  sleeve:new THREE.CylinderGeometry(0.07,0.062,0.16,10),
-  upper:new THREE.CylinderGeometry(0.052,0.046,0.15,8),
-  fore:new THREE.CylinderGeometry(0.045,0.037,0.25,8),
-  hand:new THREE.SphereGeometry(0.05,8,6),
-  neck:new THREE.CylinderGeometry(0.055,0.062,0.1,8),
-  head:new THREE.SphereGeometry(0.115,16,12),
-  hair:new THREE.SphereGeometry(0.123,16,10,0,TAU,0,Math.PI*0.55),
+  pelvis:lathe([[0,-0.1],[0.12,-0.095],[0.152,-0.05],[0.162,0.02],[0.158,0.09],[0.12,0.13],[0,0.14]],16),
+  abdomen:lathe([[0,-0.03],[0.14,-0.02],[0.156,0.04],[0.158,0.12],[0.166,0.2],[0.12,0.24],[0,0.245]],16),
+  chest:lathe([[0,-0.06],[0.13,-0.055],[0.172,0.0],[0.195,0.08],[0.206,0.16],[0.2,0.23],[0.178,0.29],[0.13,0.335],[0.07,0.36],[0,0.365]],18),
+  collar:new THREE.TorusGeometry(0.058,0.016,6,14),
+  neck:lathe([[0,-0.03],[0.06,-0.02],[0.052,0.05],[0.047,0.12],[0,0.13]],10),
+  head:new THREE.SphereGeometry(0.112,18,14),
+  jaw:new THREE.SphereGeometry(0.083,14,10),
+  hair:new THREE.SphereGeometry(0.121,18,10,0,TAU,0,Math.PI*0.55),
   bun:new THREE.SphereGeometry(0.05,8,6),
-  ear:new THREE.SphereGeometry(0.025,6,4),
-  num:new THREE.PlaneGeometry(0.27,0.3),
+  ear:new THREE.SphereGeometry(0.024,8,6),
+  delt:new THREE.SphereGeometry(0.072,12,10),
+  sleeve:lathe([[0,-0.17],[0.058,-0.165],[0.063,-0.1],[0.068,-0.03],[0.06,0.02],[0,0.03]],12),
+  upper:lathe([[0,-0.3],[0.041,-0.295],[0.047,-0.25],[0.054,-0.18],[0.052,-0.12],[0,-0.1]],12),
+  fore:lathe([[0,-0.265],[0.031,-0.258],[0.034,-0.22],[0.046,-0.1],[0.047,-0.05],[0.04,0.0],[0,0.015]],12),
+  palm:new THREE.SphereGeometry(0.04,10,8),
+  thumb:new THREE.SphereGeometry(0.016,6,5),
+  shortsLeg:lathe([[0,-0.2],[0.088,-0.195],[0.092,-0.1],[0.096,-0.02],[0.07,0.03],[0,0.04]],12),
+  elbow:new THREE.SphereGeometry(0.04,10,8),
+  thigh:lathe([[0,-0.43],[0.05,-0.425],[0.057,-0.39],[0.068,-0.31],[0.082,-0.19],[0.09,-0.08],[0.088,0.0],[0,0.02]],14),
+  knee:new THREE.SphereGeometry(0.056,10,8),
+  shin:lathe([[0,-0.43],[0.034,-0.425],[0.037,-0.37],[0.05,-0.26],[0.064,-0.15],[0.062,-0.06],[0.055,0.0],[0,0.015]],14),
+  band:lathe([[0.04,-0.03],[0.041,0.0],[0.04,0.03]],12),
+  boot:new THREE.SphereGeometry(0.05,12,8),
+  sole:new THREE.BoxGeometry(0.094,0.018,0.255),
+  num:new THREE.PlaneGeometry(0.25,0.28),
 };
+// Per-player body from his data: height (wider spread than before, keepers and centre-backs taller), shoulder width
+// and muscle from physique, leg length and running style from a stable hash of the name.
+const POS_H={GK:0.035,CB:0.026,ST:0.012,CDM:0.01,LB:-0.005,RB:-0.005,LWB:-0.01,RWB:-0.01,CM:0,CAM:-0.018,LM:-0.016,RM:-0.016,LW:-0.022,RW:-0.022};
+function bodyOf(pd){
+  const r=mulberry(hashStr((pd.name||'p')+'|'+(pd.label||'')+'|body'));
+  const st=pd.st||{phy:65,pac:65},phy=(st.phy||65),pac=(st.pac||65);
+  const S=clamp(1+((pd.h||0.995)-0.995)*1.9+(POS_H[pd.label]||0)+(r()-0.5)*0.03,0.91,1.09);
+  const W=clamp(0.95+(phy-65)/40*0.1+(r()-0.5)*0.1+(S-1)*0.3,0.88,1.14);
+  const M=clamp(0.94+(phy-65)/40*0.12+(r()-0.5)*0.08,0.86,1.16);
+  const L=clamp(1+(pac-65)/40*0.025+(r()-0.5)*0.05,0.95,1.05);
+  const gait={arm:0.78+r()*0.32,lean:0.03+r()*0.08,knee:0.85+r()*0.3,bounce:0.7+r()*0.6,armOut:r()*0.12,seed:r()*TAU};
+  return {S,W,M,L,gait,cm:Math.round(181*S)};
+}
+function bodyLabel(b){const k=b.W+b.M;return k>2.12?'건장':k>2.0?'탄탄':k<1.86?'마른':'보통';}
+function buildRig(mats,pd,isGK,opts){
+  const M0=isGK?mats.gk:mats,B=bodyOf(pd);
+  const skin=lam(pd.skin),hair=lam(pd.hair),boot=lam(pd.boot),glove=lam('#e9edf2'),sole=lam('#1c1c1c');
+  const root=new THREE.Group(),hips=new THREE.Group();root.add(hips);
+  const add=(geo,mat,x,y,z,parent,shadow=true)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=shadow;parent.add(m);return m;};
+  const grp=(parent,x,y,z)=>{const g=new THREE.Group();g.position.set(x,y,z);parent.add(g);return g;};
+  add(GEO.pelvis,M0.shorts,0,0,0,hips).scale.set(B.W*0.98,1,0.74*B.M);
+  // spine: lower (abdomen) and upper (chest) bend separately
+  const torso=grp(hips,0,0.08,0);
+  add(GEO.abdomen,M0.shirt,0,0,0,torso).scale.set(B.W*0.97,1,0.68*B.M);
+  const chest=grp(torso,0,0.2,0);
+  const chestMesh=add(GEO.chest,M0.shirt,0,0,0,chest);chestMesh.scale.set(B.W,1,0.64*B.M);
+  const col=add(GEO.collar,M0.trim,0,0.345,0.004,chest,false);col.rotation.x=Math.PI/2;col.scale.set(1,0.78,1);
+  const numMat=new THREE.MeshBasicMaterial({map:numberTexture(pd.num,pd.short,M0.kit.num),transparent:true,depthWrite:false});
+  const nm=new THREE.Mesh(GEO.num,numMat);nm.position.set(0,0.12,-0.134*B.M-0.002);nm.rotation.y=Math.PI;chest.add(nm);
+  const fm=new THREE.Mesh(new THREE.PlaneGeometry(0.09,0.1),numMat);fm.position.set(0.075*B.W,0.2,0.136*B.M);chest.add(fm);
+  const neck=grp(chest,0,0.34,0.005);add(GEO.neck,skin,0,0,0,neck,false).scale.set(B.M,1,B.M);
+  const head=grp(neck,0,0.15,0.01);
+  add(GEO.head,skin,0,0,0,head).scale.set(0.93,1.07,1);
+  add(GEO.jaw,skin,0,-0.052,0.012,head,false).scale.set(0.9*(0.94+B.W*0.06),0.62,0.95);
+  add(GEO.ear,skin,0.104,-0.008,-0.004,head,false);add(GEO.ear,skin,-0.104,-0.008,-0.004,head,false);
+  const h=add(GEO.hair,hair,0,0.012,-0.012,head,false);h.rotation.x=-0.42;
+  if(pd.hs===1){h.scale.set(0.98,0.9,0.98);h.position.y=0.022;}
+  if(pd.hs===2)add(GEO.bun,hair,0,0.07,-0.12,head,false);
+  // clavicle -> shoulder -> elbow -> wrist
+  const arm=(sx)=>{const sh=grp(chest,sx*0.07*B.W,0.29,0);
+    const g=grp(sh,sx*(0.135*B.W+0.02),0.01,0);
+    add(GEO.delt,M0.sleeve,0,-0.015,0,g,false).scale.set(B.M,0.95,B.M*0.95);
+    add(GEO.sleeve,M0.sleeve,0,-0.02,0,g,false).scale.set(B.M,1,B.M);add(GEO.upper,skin,0,0,0,g).scale.set(B.M,1,B.M);
+    const e=grp(g,0,-0.285,0);add(GEO.elbow,skin,0,0.005,-0.004,e,false).scale.set(B.M,1,B.M);
+    add(GEO.fore,isGK?M0.sleeve:skin,0,0,0,e).scale.set(B.M,1,B.M);
+    const w=grp(e,0,-0.255,0);
+    const gl=isGK?1.3:1;add(GEO.palm,isGK?glove:skin,0,-0.055,0.004,w,false).scale.set(0.82*gl,1.32*gl,0.55*gl);
+    add(GEO.thumb,isGK?glove:skin,sx*-0.028*gl,-0.035,0.02,w,false).scale.set(1,1.6,1);
+    return [sh,g,e,w];};
+  const [shL,armL,elbowL,wristL]=arm(1),[shR,armR,elbowR,wristR]=arm(-1);
+  // hip -> knee -> ankle; leg length varies, the hips sit at the leg's height
+  const TL=0.42*B.L,SL=0.42*B.L;
+  const leg=(sx)=>{const g=grp(hips,sx*0.093*B.W,-0.03,0);
+    add(GEO.shortsLeg,M0.shorts,0,0,0,g,false).scale.set(B.M,1,B.M);
+    add(GEO.thigh,skin,0,0,0,g).scale.set(B.M,TL/0.43,B.M);
+    const k=grp(g,0,-TL,0);add(GEO.knee,skin,0,0.005,0.012,k,false).scale.set(B.M,1,B.M);
+    add(GEO.shin,M0.socks,0,0,0,k).scale.set(B.M,SL/0.43,B.M);add(GEO.band,M0.trim,0,-0.03,0,k,false).scale.set(1.3*B.M,1,1.3*B.M);
+    const a=grp(k,0,-SL,0);
+    add(GEO.boot,boot,0,-0.03,0.045,a).scale.set(1.0,0.82,2.55);add(GEO.sole,sole,0,-0.064,0.045,a,false);
+    return [g,k,a];};
+  const [legL,kneeL,ankleL]=leg(1),[legR,kneeR,ankleR]=leg(-1);
+  const hipH=0.03+TL+SL+0.073;hips.position.y=hipH;
+  if(opts&&opts.face)addFace(head,pd);
+  root.scale.setScalar(B.S);
+  ((opts&&opts.parent)||scene).add(root);
+  return {root,hips,torso,chest,chestMesh,neck,head,shL,shR,armL,armR,elbowL,elbowR,wristL,wristR,legL,legR,kneeL,kneeR,ankleL,ankleR,numMat,
+    hipK:hipH/0.95,g:B.gait,body:B,sm:null};
+}
+// Life on top of the authored pose: the spine bends through two joints, pelvis and shoulders counter-rotate in
+// the run, feet follow the ground, the head looks at the ball, the chest breathes, and every joint eases toward
+// its new angle instead of snapping. All of it is driven by time and the actor's own seed, so replays match.
+const RJ=['hips','torso','chest','neck','head','shL','shR','armL','armR','elbowL','elbowR','wristL','wristR','legL','legR','kneeL','kneeR','ankleL','ankleR'];
+let visDt=1/60;
+function rigLife(p,r,aid,t,ph,spd){
+  if(!r.chest)return;
+  const g=r.g,sd=g.seed,T=gtime,a=clamp(spd/8.5,0,1);
+  const running=aid===A.run||aid===A.celeb,still=aid===A.idle||aid===A.gkready||aid===A.gkhold;
+  const tx=r.torso.rotation.x,ty=r.torso.rotation.y;
+  r.torso.rotation.x=tx*0.55;r.chest.rotation.x=tx*0.45;r.torso.rotation.y=ty*0.45;r.chest.rotation.y=ty*0.55;
+  if(running){const s=Math.sin(ph);r.hips.rotation.y+=s*0.13*a;r.chest.rotation.y-=s*0.16*a*g.arm;r.hips.rotation.z+=Math.cos(ph*2)*0.03*a;r.chest.rotation.z=-Math.cos(ph*2)*0.02*a;}
+  else r.chest.rotation.z=0;
+  if(still){r.hips.rotation.z+=0.028*Math.sin(T*0.55+sd);r.hips.rotation.y+=0.04*Math.sin(T*0.37+sd*1.7);r.chest.rotation.x+=0.015*Math.sin(T*0.8+sd);
+    r.armL.rotation.z+=0.035*Math.sin(T*0.7+sd);r.armR.rotation.z-=0.035*Math.sin(T*0.63+sd*2.1);}
+  // feet: keep the sole on the ground while standing on it, point the toes when the leg swings or kicks
+  const tX=r.hips.rotation.x,kick=aid===A.kick||aid===A.volley;
+  for(const [L,K,An,w] of [[r.legL,r.kneeL,r.ankleL,0],[r.legR,r.kneeR,r.ankleR,1]]){
+    const swing=clamp((K.rotation.x-0.45)/0.6,0,1);
+    let an=(1-swing)*-(tX+L.rotation.x+K.rotation.x)*0.9+swing*0.45+(kick&&w===1?0.5:0);
+    if(aid===A.slide||aid===A.fall||aid===A.dive)an=0.35;
+    An.rotation.x=clamp(an,-0.75,1.0);An.rotation.z=-L.rotation.z*0.5;
+  }
+  // clavicles shrug when the arms go up, wrists follow the elbows
+  for(const [S,Ar,E,W,sx] of [[r.shL,r.armL,r.elbowL,r.wristL,1],[r.shR,r.armR,r.elbowR,r.wristR,-1]]){
+    const up=Math.max(0,Math.abs(Ar.rotation.z)-0.45)+Math.max(0,-Ar.rotation.x-1.2)*0.6;
+    S.rotation.set(Ar.rotation.x*0.06,0,sx*up*0.2);
+    W.rotation.set(E.rotation.x*0.14+0.06*Math.sin(T*1.1+sd+sx),0,sx*0.05);
+    Ar.rotation.z+=sx*g.armOut*0.5;
+  }
+  // head: look toward the ball (less when sprinting or diving), a little noise, the neck takes part
+  const bp=state==='replay'?replayBall:ball.pos,root=r.root.position,face=r.root.rotation.y;
+  let look=0;
+  if(aid!==A.dive&&aid!==A.fall&&aid!==A.slide&&aid!==A.refCard&&p.team!==undefined){const rel=angDiff(face,Math.atan2(bp.x-root.x,bp.z-root.z));look=clamp(rel,-1.15,1.15)*(1-0.55*a);}
+  else if(p.isOfficial){const rel=angDiff(face,Math.atan2(bp.x-root.x,bp.z-root.z));look=clamp(rel,-1,1);}
+  look+=0.06*Math.sin(T*0.43+sd)+0.03*Math.sin(T*1.31+sd*3);
+  r.neck.rotation.set(-r.chest.rotation.x*0.3,look*0.4,0);
+  r.head.rotation.y=look*0.6;r.head.rotation.x+=0.03*Math.sin(T*0.61+sd*1.3);
+  // breathing: faster after running
+  const br=1+(0.012+0.012*Math.min(1,(p.stamina!=null?(100-p.stamina)/60:0)))*Math.sin(T*(2.1+a*1.5)+sd);
+  r.chestMesh.scale.z=0.64*r.body.M*br;
+  // ease every joint toward its new angle
+  const k=1-Math.exp(-visDt*26);
+  if(!r.sm||visDt>0.2){r.sm=new Float32Array(RJ.length*3+1);for(let i=0;i<RJ.length;i++){const o=r[RJ[i]].rotation;r.sm[i*3]=o.x;r.sm[i*3+1]=o.y;r.sm[i*3+2]=o.z;}r.sm[RJ.length*3]=r.hips.position.y;return;}
+  for(let i=0;i<RJ.length;i++){const o=r[RJ[i]].rotation,j=i*3;
+    r.sm[j]+=(o.x-r.sm[j])*k;r.sm[j+1]+=(o.y-r.sm[j+1])*k;r.sm[j+2]+=(o.z-r.sm[j+2])*k;o.set(r.sm[j],r.sm[j+1],r.sm[j+2]);}
+  const hy=RJ.length*3;r.sm[hy]+=(r.hips.position.y-r.sm[hy])*k;r.hips.position.y=r.sm[hy];
+}
+
 const matCache={};
 function lam(color){return matCache[color]||(matCache[color]=new THREE.MeshLambertMaterial({color}));}
 function shirtTexture(kit){
@@ -982,43 +1118,6 @@ function addFace(head,pd){
   add(FGEO.nose,nose,0,-0.012,0.116).rotation.x=Math.PI/2;
   add(FGEO.mouth,lip,0,-0.053,0.105);
   if(hashStr(pd.name||'')%3===0)add(FGEO.beard,hm,0,0,0).scale.set(0.95,1.05,1);
-}
-function buildRig(mats,pd,isGK,opts){
-  const M0=isGK?mats.gk:mats;
-  const skin=lam(pd.skin),hair=lam(pd.hair),boot=lam(pd.boot),glove=lam('#e9edf2');
-  const root=new THREE.Group(),hips=new THREE.Group();hips.position.y=0.95;root.add(hips);
-  const add=(geo,mat,x,y,z,parent,shadow=true)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.castShadow=shadow;parent.add(m);return m;};
-  add(GEO.shorts,M0.shorts,0,0.02,0,hips).scale.set(1,1,0.74);
-  const torso=new THREE.Group();torso.position.y=0.1;hips.add(torso);
-  add(GEO.torso,M0.shirt,0,0.3,0,torso).scale.set(1,1,0.66);
-  const col=add(GEO.collar,M0.trim,0,0.585,0,torso,false);col.rotation.x=Math.PI/2;col.scale.set(1,0.8,1);
-  const numMat=new THREE.MeshBasicMaterial({map:numberTexture(pd.num,pd.short,M0.kit.num),transparent:true,depthWrite:false});
-  const nm=new THREE.Mesh(GEO.num,numMat);nm.position.set(0,0.33,-0.124);nm.rotation.y=Math.PI;torso.add(nm);
-  const fm=new THREE.Mesh(new THREE.PlaneGeometry(0.1,0.11),numMat);fm.position.set(0.075,0.43,0.128);torso.add(fm);
-  add(GEO.neck,skin,0,0.63,0,torso);
-  const head=new THREE.Group();head.position.y=0.76;torso.add(head);
-  add(GEO.head,skin,0,0,0,head).scale.set(0.94,1.08,1);
-  add(GEO.ear,skin,0.107,-0.005,0,head,false);add(GEO.ear,skin,-0.107,-0.005,0,head,false);
-  const h=add(GEO.hair,hair,0,0.012,-0.012,head);h.rotation.x=-0.42;
-  if(pd.hs===1){h.scale.set(0.98,0.9,0.98);h.position.y=0.022;}
-  if(pd.hs===2)add(GEO.bun,hair,0,0.07,-0.12,head);
-  const arm=(sx)=>{const g=new THREE.Group();g.position.set(sx*0.235,0.5,0);torso.add(g);
-    add(GEO.sleeve,M0.sleeve,0,-0.07,0,g);add(GEO.upper,skin,0,-0.21,0,g);
-    const e=new THREE.Group();e.position.y=-0.285;g.add(e);
-    add(GEO.fore,isGK?M0.sleeve:skin,0,-0.125,0,e);add(GEO.hand,isGK?glove:skin,0,-0.27,0.01,e).scale.set(isGK?1.35:1,1.1,isGK?1.35:1);
-    return [g,e];};
-  const [armL,elbowL]=arm(1),[armR,elbowR]=arm(-1);
-  const leg=(sx)=>{const g=new THREE.Group();g.position.set(sx*0.095,-0.02,0);hips.add(g);
-    add(GEO.thighS,M0.shorts,0,-0.1,0,g);add(GEO.thigh,skin,0,-0.3,0,g);
-    const k=new THREE.Group();k.position.y=-0.44;g.add(k);
-    add(GEO.shin,M0.socks,0,-0.21,0,k);add(GEO.band,M0.trim,0,-0.02,0,k,false);
-    add(GEO.boot,boot,0,-0.47,0.045,k);
-    return [g,k];};
-  const [legL,kneeL]=leg(1),[legR,kneeR]=leg(-1);
-  if(opts&&opts.face)addFace(head,pd);
-  root.scale.setScalar(pd.h);
-  ((opts&&opts.parent)||scene).add(root);
-  return {root,hips,torso,head,armL,armR,elbowL,elbowR,legL,legR,kneeL,kneeR,numMat};
 }
 const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,celeb:9,header:10,tackle:11,skill:12,stackle:13,refCard:14,refPoint:15,flag:16,jump:17,volley:18,advantage:19};
 /* ================= skill moves ================= */
@@ -1474,9 +1573,14 @@ function callShort(p){
 function applyPose(r,aid,t,phase,spd,side){
   let hipY=0.95,tX=0,tZ=0,toX=0.04,toY=0,hdX=0;
   let lT=0,rT=0,lK=0.08,rK=0.08,lA=0,rA=0,lE=-0.25,rE=-0.25,lAz=0.1,rAz=-0.1,lTz=0.02,rTz=-0.02;
-  const runPose=(amul)=>{const a=clamp(spd/8.5,0,1)*amul,s=Math.sin(phase),c=Math.cos(phase);
-    lT=-s*0.9*a;rT=s*0.9*a;lK=0.12+a*1.25*Math.max(0,-Math.sin(phase+0.9));rK=0.12+a*1.25*Math.max(0,Math.sin(phase+0.9));
-    lA=s*0.75*a;rA=-s*0.75*a;lE=rE=-0.35-0.95*a;hipY=0.95-0.06*a+Math.abs(c)*0.05*a;toX=0.06+0.16*a;toY=-s*0.12*a;};
+  const g=r.g||{arm:1,lean:0.06,knee:1,bounce:1,seed:0};
+  // gait cycle per leg: thigh reaches forward at contact (phase pi/2), the knee folds most in mid-swing and
+  // gives a little in mid-stance; arms swing against the legs. v: no two strides quite alike.
+  const runPose=(amul)=>{const a=clamp(spd/8.5,0,1)*amul,s=Math.sin(phase),v=1+0.08*Math.sin(phase*0.37+g.seed);
+    const leg=f=>[(-0.7*Math.sin(f)-0.1)*a*v,0.1+a*(1.4*g.knee*Math.pow(Math.max(0,Math.cos(f+0.25)),1.3)+0.28*Math.max(0,-Math.cos(f)))];
+    [lT,lK]=leg(phase);[rT,rK]=leg(phase+Math.PI);
+    lA=s*0.7*a*g.arm;rA=-s*0.7*a*g.arm;lE=rE=-0.4-0.95*a;
+    hipY=0.95-0.05*a-0.035*a*g.bounce*Math.max(0,-Math.cos(2*phase));toX=0.04+0.15*a+g.lean*a;toY=-s*0.12*a;};
   switch(aid){
     case A.idle:toX=0.03+Math.sin(t*2)*0.015;break;
     case A.run:runPose(1);break;
@@ -1512,7 +1616,7 @@ function applyPose(r,aid,t,phase,spd,side){
     case A.advantage:{const q=clamp(t/0.25,0,1);lA=rA=-1.45*q;lE=rE=0;lAz=0.35;rAz=-0.35;break;}
     case A.jump:{const q=clamp(t/0.62,0,1),e=Math.sin(q*Math.PI);lK=rK=0.2+0.6*(1-e);lT=rT=-0.12;lA=rA=-0.3;lE=rE=-1.4;lAz=-0.05;rAz=0.05;toX=0.08;break;}
   }
-  r.hips.position.y=hipY;r.hips.rotation.set(tX,0,tZ);r.torso.rotation.set(toX,toY,0);r.head.rotation.x=hdX-toX*0.4;
+  r.hips.position.y=hipY*(r.hipK||1);r.hips.rotation.set(tX,0,tZ);r.torso.rotation.set(toX,toY,0);r.head.rotation.x=hdX-toX*0.4;
   r.legL.rotation.set(lT,0,lTz);r.legR.rotation.set(rT,0,rTz);r.kneeL.rotation.x=lK;r.kneeR.rotation.x=rK;
   r.armL.rotation.set(lA,0,lAz);r.armR.rotation.set(rA,0,rAz);r.elbowL.rotation.x=lE;r.elbowR.rotation.x=rE;
 }
@@ -1614,7 +1718,7 @@ function makePlayer(T,slot,pd,base){
 function colorDist(a,b){const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);return Math.hypot((pa>>16)-(pb>>16),((pa>>8)&255)-((pb>>8)&255),(pa&255)-(pb&255));}
 
 function setupMatch(cfg){
-  matchCfg=cfg;
+  matchCfg=cfg;shoot=null;$('#pkTrack').hidden=true;
   for(const p of players){scene.remove(p.rig.root);p.rig.numMat.map.dispose();}
   const sides=cfg.sides||[0,1].map(i=>{const T=TEAMS[i?cfg.away:cfg.home],form=i?cfg.formA:cfg.formH;return {def:T,form,roster:rosterFor(T,form,i===0&&cfg.human)};});
   const defs=sides.map(x=>x.def);
@@ -1628,7 +1732,7 @@ function setupMatch(cfg){
     T.spdMul=T.human?1:T.ai.spd;
     T.mats=teamMats(kits[i],defs[i].gk);
     const ros=sides[i].roster;
-    FORMATIONS[form].forEach((s,k)=>{const pd=ros[k];const p=makePlayer(T,k,pd,[s[1],s[2]]);p.rig=buildRig(T.mats,pd,p.isGK);T.players.push(p);if(p.isGK)T.gk=p;});
+    FORMATIONS[form].forEach((s,k)=>{const pd=ros[k];const p=makePlayer(T,k,pd,[s[1],s[2]]);p.rig=buildRig(T.mats,pd,p.isGK);p.bodyS=p.rig.body.S;T.players.push(p);if(p.isGK)T.gk=p;});
     return T;
   });
   if(!cfg.human){teams[0].ai=DIFFS[cfg.demoDiff||cfg.diff];}
@@ -2242,7 +2346,7 @@ function resolveTouches(){
     if(p===ball.lastTouch&&ball.lastKind==='touch'&&ball.pos.y>0.95)continue;   // his own flick (rainbow, sombrero): let it drop first
     if(p.state==='dive'&&!(p.save&&p.save.success))continue;
     const gkBox=p.isGK&&inBox(p.pos,p.team);
-    let reach=gkBox?1.25:0.85,hmax=gkBox?2.7:2.35;
+    let reach=gkBox?1.25:0.85,hmax=(gkBox?2.7:2.35)*(p.bodyS||1);   // height matters in the air
     // reception assist: the intended receiver controls a pass that comes near him
     if(p===intended){reach=Math.max(reach,1.45);hmax=Math.max(hmax,2.2);}
     if(wallShot&&!p.isGK&&p.team!==ball.lastTouch.team){reach=0.5;hmax=1.85+p.y*1.4;}
@@ -2423,6 +2527,7 @@ function checkBounds(){
         else setDead(1.6,()=>startSetPiece('goalkick',dT.idx,new V3(s*(HL-5.5),BR,4.5)));
         return;}
       goalScored(teams[0].dir===s?0:1);return;}
+    if(shoot){shootResult(false,ball.lastTouch&&ball.lastTouch.isGK&&ball.lastTouch!==shoot.kicker?'save':'miss');return;}
     const defT=teams[0].dir===-s?teams[0]:teams[1],atkT=teams[1-defT.idx];
     const zs=Math.sign(b.pos.z)||1;
     if(b.lastTouch&&b.lastTouch.team===defT.idx){
@@ -2435,6 +2540,7 @@ function checkBounds(){
     return;
   }
   if(Math.abs(b.pos.z)>HW+BR){
+    if(shoot){shootResult(false,'miss');return;}
     const ti=b.lastTouch?1-b.lastTouch.team:0;
     const pos=new V3(clamp(b.pos.x,-HL+1,HL-1),BR,Math.sign(b.pos.z)*(HW-0.05));
     setDead(0.9,()=>startSetPiece('throw',ti,pos));
@@ -2614,7 +2720,7 @@ function startSetPiece(type,ti,pos,opts={}){
     pushAway(O,SP.ballPos,9.15);
     if(dG<34&&Math.abs(pos.z)<28)makeWall(O,pos,goalC);
   }else if(type==='penalty'){
-    taker=outT.slice().sort((a,b)=>b.st.sho-a.st.sho)[0];
+    taker=opts.taker||outT.slice().sort((a,b)=>b.st.sho-a.st.sho)[0];
     let k=0;for(const p of players){if(p===taker||p===O.gk||p.sentOff)continue;const i=k++,side=i%2?1:-1,row=i>>1;p.pos.set(T.dir*(HL-18.2-Math.floor(row/5)*1.7)+rnd(-0.3,0.3),0,side*(4.5+(row%5)*1.7));}
     O.gk.pos.set(-O.dir*(HL-0.3),0,0);
     aim.set(T.dir,0,0);
@@ -2843,6 +2949,7 @@ function kickoff(ti){
 
 /* ================= goal, periods, replay ================= */
 function goalScored(ti){
+  if(shoot){shootResult(true);return;}
   const s=Math.sign(ball.pos.x);
   score[ti]++;
   const scorer=ball.lastTouch;const own=scorer&&scorer.team!==ti;
@@ -2878,7 +2985,8 @@ function checkPeriodEnd(){
   if(clock>=end){
     advantage=null;pendingCards=[];
     if(half===1){state='halftime';halfT=0;SND.whistle(2,true);if(human&&!net)showHalftime();if(net)banner('하프타임','후반전이 곧 시작됩니다');say('전반전이 끝났습니다.');}
-    else{state='fulltime';halfT=0;SND.whistle(3,true);say('경기 종료!');if(net)netHostEnd();else if(human||mode==='match')showResult();}
+    else{if(needShootout()){SND.whistle(3,true);say('경기 종료! 무승부로 승부차기에 들어갑니다.');startShootout();return;}
+      state='fulltime';halfT=0;SND.whistle(3,true);say('경기 종료!');if(net)netHostEnd();else if(human||mode==='match')showResult();}
   }
 }
 function startSecondHalf(){
@@ -3191,11 +3299,12 @@ function tick(dt){
   if(state==='replay'){replayUpdate(dt);return;}
   if(state==='halftime'){halfT+=dt;if((!human&&halfT>2.5)||(net&&halfT>4))startSecondHalf();return;}
   if(state==='fulltime'){halfT+=dt;if(mode==='menu'&&halfT>4)startDemo();return;}
-  if(state==='play'||state==='setpiece'||state==='dead'){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
+  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
   for(const p of players){p.wantTackle=false;p.faceBall=false;p.shielding=false;p.faceUp=false;}
   if(human&&!(net&&net.role==='guest'))gestureUpdate(LC(),dt);   // drops a half-keyed move when play stops
   if(!ball.owner){computeTraj();for(const p of players)calcIntercept(p);}
-  if(state==='play'){
+  if(state==='play'&&shoot){shootUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
+  else if(state==='play'){
     for(const ti of [0,1])if(isHumanTeam(ti))autoSwitch(dt,false,ti);
     teamThink(teams[0],dt);teamThink(teams[1],dt);
     const o=ball.owner,oh=o&&isHumanTeam(o.team)&&o===CTRL[o.team].controlled;
@@ -3231,7 +3340,7 @@ function syncAnimState(p){
   p.visA=a;p.visT=t;p.visPh=ph;p.visSide=side;
 }
 function applyVisual(p,x,y,z,face,a,t,ph,spd,side){
-  const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);
+  const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);rigLife(p,r,a,t,ph,spd);
 }
 const cam={focus:new V3(),pos:new V3(0,30,60),look:new V3(),snap:true};
 const P_=new V3(),L_=new V3();
@@ -3259,6 +3368,7 @@ function updateCamera(dt){
   camera.position.copy(cam.pos);camera.lookAt(cam.look);
 }
 function renderVisuals(dt){
+  visDt=dt;
   if(!teams.length)return;
   if(state==='replay'&&rp&&!(net&&net.role==='guest')){applyFrame((rp.first+Math.min(rp.idx,rp.len-1))%REC_N);}
   else{for(const p of players)applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,p.visSide);
@@ -3371,7 +3481,8 @@ function rating(p){return clamp(6+p.g*1.4+p.a*0.9+p.so*0.25+p.sv*0.45+p.pc*0.04+
 function showResult(){
   let mom=null,mr=-1;for(const p of players){const r=rating(p)+(p.team===(score[0]>=score[1]?0:1)?0.3:0);if(r>mr){mr=r;mom=p;}}
   const scorers=players.filter(p=>p.g>0).map(p=>`${p.short}${p.g>1?' ×'+p.g:''}`).join(', ')||'득점 없음';
-  const res=human?(score[ME]>score[1-ME]?'승리':score[ME]<score[1-ME]?'패배':'무승부'):'경기 종료';
+  const pk=matchCfg&&matchCfg.club&&matchCfg.club.pens;
+  const res=human?(pk?'무승부 · 승부차기 '+pk.my+' : '+pk.op+(pk.my>pk.op?' 승리':' 패배'):score[ME]>score[1-ME]?'승리':score[ME]<score[1-ME]?'패배':'무승부'):'경기 종료';
   $('#resBody').innerHTML=`<p class="kicker" style="text-align:center">${res}</p>`+scoreHead()+`<p style="margin:0;text-align:center;color:var(--mute)">득점: ${scorers}</p>`+
     `<div class="mom"><b>${rating(mom).toFixed(1)}</b><div><div style="font-weight:700">MOM · ${mom.name}</div><div style="color:var(--mute);font-size:12px">${teams[mom.team].def.name} · ${mom.label} · ${mom.g}골 ${mom.a}도움 ${mom.isGK?mom.sv+'선방':''}</div></div></div>`+
     '<div style="display:flex;flex-direction:column;gap:8px">'+statRows()+'</div>';
@@ -3708,6 +3819,65 @@ function applyClubResult(forfeit){
   refreshMarket(true);saveClub();
   return {lines,total,season,res};
 }
+/* ================= penalty shoot-out (knockout ties in competitions) ================= */
+// Five kicks each, alternating, the user's side first; stops as soon as one side cannot catch up, then sudden death.
+// Every kick is a normal penalty: the user aims and shoots his own, and is the keeper for the other side's.
+let shoot=null;
+function needShootout(){return !!(matchCfg&&matchCfg.club&&matchCfg.club.ko&&!net&&human&&score[0]===score[1]);}
+function startShootout(){
+  const key=p=>p.st.sho*0.75+p.ovr*0.25;
+  const order=[0,1].map(ti=>teams[ti].players.filter(p=>!p.isGK&&!p.sentOff).sort((a,b)=>key(b)-key(a)));
+  shoot={order,n:[0,0],g:[0,0],marks:[[],[]],turn:0,t:0,live:false,kicker:null,gkT:0};
+  for(const K of CTRL){K.inq.length=0;K.pend=null;K.buffer=null;}
+  banner('승부차기','두 팀이 5번씩 찹니다');say('승부차기에 들어갑니다! '+teams[0].def.name+'가 먼저 찹니다.');SND.whistle(2);
+  renderPk();$('#pkTrack').hidden=false;
+  setDead(2.6,shootKick);
+}
+function shootKick(){
+  const ti=shoot.turn,list=shoot.order[ti],p=list[shoot.n[ti]%list.length];
+  shoot.t=0;shoot.gkT=0;shoot.live=true;shoot.kicker=p;
+  startSetPiece('penalty',ti,new V3(teams[ti].dir*(HL-11),BR,0),{taker:p});
+  say('승부차기 '+(shoot.n[ti]+1)+'번 키커 · '+teams[ti].def.name+' '+p.short);
+}
+function shootResult(goal,why){
+  if(!shoot||!shoot.live)return;
+  shoot.live=false;const ti=shoot.turn;shoot.n[ti]++;if(goal)shoot.g[ti]++;shoot.marks[ti].push(goal?1:0);
+  releaseBall();ball.vel.set(0,0,0);clearSaves();intended=null;
+  banner(goal?'골':why==='save'?'선방':'실축',shoot.kicker.short+' · '+shoot.g[0]+' : '+shoot.g[1],goal?'goal':'');
+  if(goal)SND.roar();else SND.ooh();
+  renderPk();
+  const [a,b]=shoot.g,[na,nb]=shoot.n;let done=false;
+  if(na<=5&&nb<=5){if(a>b+(5-nb)||b>a+(5-na))done=true;}
+  else if(na===nb&&a!==b)done=true;
+  if(na>=16&&na===nb&&a===b){shoot.g[Math.random()<0.5?0:1]++;done=true;}   // safety stop
+  shoot.turn=1-ti;
+  setDead(goal?2.2:1.9,done?finishShootout:shootKick);
+}
+function finishShootout(){
+  const s=shoot;matchCfg.club.pens={my:s.g[0],op:s.g[1]};s.done=true;
+  state='fulltime';halfT=0;SND.whistle(3,true);
+  const win=s.g[0]>s.g[1]?0:1;
+  banner('승부차기 '+s.g[0]+' : '+s.g[1],teams[win].def.name+' 승리',win===ME?'goal':'');
+  say('승부차기 '+s.g[0]+' : '+s.g[1]+' · '+teams[win].def.name+'의 승리!');
+  setTimeout(()=>{if(mode==='match'&&state==='fulltime')showResult();},1600);
+}
+// after the strike: a goal arrives through goalScored, a miss through checkBounds; a save or a dead ball here
+function shootUpdate(dt){
+  if(!shoot.live)return;
+  shoot.t+=dt;const gk=teams[1-shoot.turn].gk;
+  for(const p of players)if(p!==gk&&p.state==='normal')p.wantVel.set(0,0,0);
+  if(ball.owner===gk||gk.holding){shootResult(false,'save');return;}
+  if(ball.lastTouch===gk){shoot.gkT+=dt;if(shoot.gkT>0.6){shootResult(false,'save');return;}}
+  if(shoot.t>3.4||(shoot.t>0.9&&ball.vel.length()<1.2))shootResult(false,ball.lastTouch===gk?'save':'miss');
+}
+function renderPk(){
+  if(!shoot)return;
+  const row=ti=>{const m=shoot.marks[ti],n=Math.max(5,m.length,shoot.marks[1-ti].length);let h='';
+    for(let i=0;i<n;i++)h+=`<i class="${i<m.length?(m[i]?'g':'x'):''}"></i>`;
+    return `<div><b style="--c:${teams[ti].kit.shirt}">${esc(teams[ti].def.code)}</b>${h}<span>${shoot.g[ti]}</span></div>`;};
+  $('#pkTrack').innerHTML=row(0)+row(1);
+}
+
 /* ================= competitions: Europa League · Champions League · World Cup ================= */
 // Group of four (three matches, top two go through), then single-match quarter-final, semi-final and final.
 // Knockout draws go to a penalty shoot-out. Each competition can be entered once per season.
@@ -3797,7 +3967,7 @@ function startCupMatch(k){
     return Object.assign({},p,{label:s[0],line:LINE[s[0]],ovr:eo(p)-pen,st:stt});});
   const oppForm=pick(Object.keys(FORMATIONS));
   beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:opp,form:oppForm,roster:rosterFor(opp,oppForm,false)}],
-    diff:CUPS[k].diff,minutes:club.minutes,human:true,club:{cup:k,done:false}});
+    diff:CUPS[k].diff,minutes:club.minutes,human:true,club:{cup:k,done:false,ko:st.stage!=='group'}});
   say(CUPS[k].name+' '+(st.stage==='group'?'조별리그 '+(st.round+1)+'차전':KO_NAME[st.stage])+' · '+opp.name);
 }
 function applyCupResult(forfeit){
@@ -3816,9 +3986,11 @@ function applyCupResult(forfeit){
       else{st.stage='out';lines.push(['조별리그 탈락 위로금',P.out]);note='조 '+rank+'위로 조별리그에서 탈락했습니다.';}}
   }else{
     let won=my>op,pens=null;
-    if(my===op&&!forfeit){
+    if(my===op&&!forfeit&&matchCfg.club.pens)pens=Object.assign({},matchCfg.club.pens);   // played out on the pitch
+    else if(my===op&&!forfeit){
       const xi=club.lineup.map(byId),sho=xi.filter(p=>p.label!=='GK').map(p=>estats(p).sho).sort((a,b)=>b-a).slice(0,5),gk=xi.find(p=>p.label==='GK');
-      pens=shootout(sho.reduce((a,v)=>a+v,0)/sho.length,gk?estats(gk).gk:50,opp.ovr+2,opp.ovr+1);won=pens.my>pens.op;}
+      pens=shootout(sho.reduce((a,v)=>a+v,0)/sho.length,gk?estats(gk).gk:50,opp.ovr+2,opp.ovr+1);}
+    if(pens)won=pens.my>pens.op;
     const stage=st.stage;st.log.push({s:KO_NAME[stage],opp:opp.code,my,op,pens});
     if(won){
       if(stage==='f'){st.stage='won';trophies()[k]++;lines.push([c.name+' 우승 상금',P.champ]);note=c.name+' 우승! 트로피를 들어 올렸습니다.';}
@@ -3946,7 +4118,7 @@ function clubSquadHtml(){
   const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''}" data-pid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
   const sp=selPid!=null?byId(selPid):null;
   const detail=sp?`<div class="panel"><h3>선수 정보</h3><div class="detail">${bigCard(sp)}<div class="info">
-      <div class="kv"><span>포지션</span><b>${sp.label}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
+      <div class="kv"><span>포지션</span><b>${sp.label}</b><span>키 · 체형</span><b>${bodyOf(sp).cm}cm · ${bodyLabel(bodyOf(sp))}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
       <p style="margin:0;font-size:13px;line-height:1.6"><b style="color:var(--gold)">${TRAITS[sp.trait]?TRAITS[sp.trait].name:'특성 없음'}</b><br>${TRAITS[sp.trait]?TRAITS[sp.trait].desc:''}</p>
       <div class="row"><button class="btn primary" data-act="trait">특성 변경</button><button class="btn" data-act="toenh">강화하기</button>${selSlot>=0?`<button class="btn" data-act="place">${slots[selSlot][0]} 자리에 배치</button>`:''}<button class="btn" data-act="sell">${resetArm==='sell'+sp.id?'한 번 더 누르면 판매':'판매 '+fmtBP(sellPrice(sp))+' BP'}</button></div>
     </div></div></div>`:`<div class="panel"><h3>선수 정보</h3><p class="foot">오른쪽 목록에서 선수를 고르면 능력치와 특성을 볼 수 있습니다. 경기장 위 카드를 누른 뒤 목록의 선수를 누르면 그 자리에 배치됩니다.</p></div>`;
