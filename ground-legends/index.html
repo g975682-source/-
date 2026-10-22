@@ -481,15 +481,15 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td><kbd>S</kbd></td><td>땅볼 패스 · 헤딩. 누르는 시간만큼 세게</td></tr>
       <tr><td><kbd>W</kbd></td><td>스루 패스</td></tr>
       <tr><td><kbd>A</kbd> · <kbd>A</kbd>×2 · <kbd>A</kbd>×3</td><td>로빙 패스 · 크로스 / 땅볼 크로스 / 낮은 크로스</td></tr>
-      <tr><td><kbd>D</kbd> · <kbd>D</kbd> 후 <kbd>D</kbd> 톡</td><td>슛 / 낮게 깔리는 슛</td></tr>
+      <tr><td><kbd>D</kbd> · <kbd>D</kbd> 후 <kbd>D</kbd> 톡</td><td>슛 / 낮고 빠르게 깔리는 슛 (D를 떼고 바로 한 번 더)</td></tr>
       <tr><td><kbd>D</kbd>·<kbd>A</kbd> 후 <kbd>S</kbd>+방향</td><td>슛하는 척 · 패스하는 척 (뒤로 = 스쿱 턴)</td></tr>
       <tr><td><kbd>E</kbd> · 방향 없이 <kbd>E</kbd></td><td>전력 질주 · 공 멈추기</td></tr>
       <tr><td><kbd>Ctrl</kbd>+방향</td><td>퍼스트터치·치고 달리기 (방향키와 함께만 쓰세요)</td></tr>
       <tr><th colspan="2">공격 · 기술 키</th></tr>
       <tr><td><kbd>Q</kbd>+<kbd>S</kbd> · <kbd>Q</kbd>+<kbd>W</kbd></td><td>침투 패스 · 로빙 스루</td></tr>
-      <tr><td><kbd>Q</kbd>+<kbd>D</kbd> · <kbd>Q</kbd>+<kbd>A</kbd></td><td>칩슛 · 얼리 크로스</td></tr>
+      <tr><td><kbd>Q</kbd>+<kbd>D</kbd> · <kbd>Q</kbd>+<kbd>A</kbd></td><td>로빙슛 (골키퍼 키를 넘김) · 얼리 크로스</td></tr>
       <tr><td><kbd>Q</kbd> · <kbd>Q</kbd>+<kbd>E</kbd></td><td>방향과 함께: 노터치 페인팅 · 큰 페인팅 / 방향 없이: 공 멈추고 골대 보기</td></tr>
-      <tr><td><kbd>Z</kbd>+<kbd>D</kbd> · <kbd>Z</kbd>+<kbd>S</kbd></td><td>감아차기 · 드라이브 땅볼 패스</td></tr>
+      <tr><td><kbd>Z</kbd>+<kbd>D</kbd> · <kbd>Z</kbd>+<kbd>S</kbd></td><td>감아차기 (먼 포스트 쪽으로 휘어 들어감) · 드라이브 땅볼 패스</td></tr>
       <tr><td><kbd>Z</kbd>+<kbd>W</kbd> · <kbd>Z</kbd>+<kbd>A</kbd></td><td>침투 쓰루 · 바운싱 로빙</td></tr>
       <tr><td><kbd>Z</kbd> · 패스 올 때 <kbd>Z</kbd></td><td>동료 지원 요청 · 공 흘리기</td></tr>
       <tr><td><kbd>C</kbd> · <kbd>C</kbd>+<kbd>E</kbd></td><td>공 지키기 (등지기) · 페이스업 드리블</td></tr>
@@ -516,7 +516,8 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><th colspan="2">골키퍼</th></tr>
       <tr><td><kbd>S</kbd> · <kbd>Z</kbd>+<kbd>S</kbd></td><td>스로우 · 드라이브 스로우</td></tr>
       <tr><td><kbd>D</kbd>·<kbd>A</kbd> · <kbd>Z</kbd>+<kbd>A</kbd></td><td>드롭킥 · 드라이브 킥</td></tr>
-      <tr><td><kbd>W</kbd> · <kbd>E</kbd> · <kbd>Z</kbd></td><td>공 내려놓기 · 팀 전진 · 공 줍기 (백패스는 불가)</td></tr>
+      <tr><td>방향키 · <kbd>W</kbd></td><td>공을 든 채 박스 안에서 이동 (이동하면서 S·D·A로 패스·킥) · 공 내려놓기</td></tr>
+      <tr><td><kbd>E</kbd> · <kbd>Z</kbd></td><td>팀 전진 · 공 줍기 (백패스는 불가)</td></tr>
       <tr><th colspan="2">세트피스</th></tr>
       <tr><td>직접 프리킥</td><td>방향키 조준 · D 길게 눌렀다 떼면 슛 · 도움닫기 중 ←→ 감아차기 ↑ 드롭 ↓ 띄우기 · Q+D 드라이브 · E 키커 변경 · C/Z 두 번째·세 번째 키커 (C+D·Z+D 슛, C+S 내주기) · S 땅볼 · A 높은 패스</td></tr>
       <tr><td>상대 프리킥</td><td>W 수비벽 점프 · D 수비벽 달려들기 · Z 수비벽 전진 · C/E 수비벽 좌우 이동</td></tr>
@@ -671,7 +672,10 @@ const SKINS=['#f1c9a5','#e0ac85','#c68b62','#9b6847','#6f4a33','#4c3324'];
 const HAIRS=['#16120f','#2b1d14','#5a3a22','#8a6a3a','#d8b46a','#1a1a1a'];
 const BOOTS=['#111111','#f4f4f4','#ff3d7f','#2de2e6','#ffd200','#ff6a00','#7cfc4a'];
 
-const TRAIT_KEYS=['trickster','linebreaker','speedster','acrobatic','fighter','chaser','widetackler','laser'];
+const TRAIT_KEYS=['trickster','linebreaker','speedster','acrobatic','fighter','chaser','widetackler','laser','deadeye'];
+// goalkeepers take only keeper traits, outfield players never take them
+const GK_TRAITS=['deadeye'];
+function traitOk(label,k){return !!TRAITS[k]&&(label==='GK')===GK_TRAITS.includes(k);}
 const TRAITS={
   trickster:{name:'트릭스터',ab:'트릭',desc:'드리블 중 쓸 수 있는 개인기가 늘고 강해집니다. 수비수를 제칠 때 지체 없이 방향을 바꿉니다.',fit:'추천: 윙어 · 공격형 미드필더'},
   linebreaker:{name:'라인 브레이커',ab:'라인B',desc:'상대 최종 수비 라인 뒷공간으로 더 자주 침투하고, 침투 중 스루 패스를 받으면 가속이 붙습니다.',fit:'추천: 스트라이커 · 윙어'},
@@ -680,11 +684,12 @@ const TRAITS={
   fighter:{name:'파이터',ab:'파이터',desc:'압박이나 스탠딩 태클로 몸싸움할 때 상대의 질주 속도와 킥 정확도를 떨어뜨립니다.',fit:'추천: 센터백 · 수비형 미드필더'},
   chaser:{name:'체이서',ab:'체이서',desc:'공을 뺏긴 뒤 10초 안에 우리 골문 쪽으로 질주하면 가속이 붙습니다. 직접 조작하는 선수일 때 발동합니다.',fit:'추천: 미드필더 · 수비수'},
   laser:{name:'레이저 슈터',ab:'레이저',desc:'정면에서 오는 리턴 패스나 루즈볼을 잡지 않고 바로 때리면 낮고 빠른 강력한 슛이 나갑니다. 측면에서 오는 공에는 거의 발동하지 않습니다.',fit:'추천: 중앙·수비형 미드필더 · 공격형 미드필더'},
+  deadeye:{name:'데드아이',ab:'데드아이',desc:'상대의 중거리 슛 궤적을 미리 읽고 자리를 잡습니다. 페널티 박스 밖(약 18m 이상)에서 날아오는 슛의 선방률이 크게 오르고 늦게 반응해 놓치는 일이 줄어듭니다. 박스 안 근거리 슛과 페널티킥에는 발동하지 않습니다.',fit:'골키퍼 전용 특성'},
   widetackler:{name:'와이드 태클러',ab:'와이드',desc:'상대 뒤에서 스탠딩 태클을 할 때 태클 범위가 넓어지고 반칙이 덜 나옵니다. 정면 태클과 슬라이딩에는 발동하지 않습니다.',fit:'추천: 센터백 · 풀백'},
 };
 function defaultTrait(label,r){
   const L=LINE[label];
-  const pool=L===3?['trickster','linebreaker','speedster','acrobatic','laser']:L===2?(label==='CDM'?['fighter','chaser','widetackler','laser']:['trickster','speedster','linebreaker','chaser','laser']):L===1?['fighter','chaser','widetackler','speedster']:['fighter'];
+  const pool=L===3?['trickster','linebreaker','speedster','acrobatic','laser']:L===2?(label==='CDM'?['fighter','chaser','widetackler','laser']:['trickster','speedster','linebreaker','chaser','laser']):L===1?['fighter','chaser','widetackler','speedster']:['deadeye'];
   return pool[Math.floor(r()*pool.length)];
 }
 function statsFor(label,ovr,r){
@@ -712,7 +717,7 @@ try{quickTraits=JSON.parse(localStorage.getItem('gl-traits')||'{}')||{};}catch(e
 function rosterFor(T,form,mine){
   const used=new Set();
   return FORMATIONS[form].map((s,i)=>{let p,k=0;do{p=genPlayer(T,i,s[0],k++);}while((used.has(p.short)||used.has(p.name))&&k<40);used.add(p.short);used.add(p.name);
-    if(mine&&quickTraits[T.code+'#'+i])p.trait=quickTraits[T.code+'#'+i];return p;});
+    if(mine&&quickTraits[T.code+'#'+i]&&traitOk(p.label,quickTraits[T.code+'#'+i]))p.trait=quickTraits[T.code+'#'+i];return p;});
 }
 
 function teamOvr(roster){return Math.round(roster.reduce((a,p)=>a+p.ovr,0)/roster.length);}
@@ -1586,7 +1591,7 @@ function makePlayer(T,slot,pd,base){
     itT:9,itPt:new V3(),runT:0,runTarget:new V3(),wantTackle:false,faceBall:false,holding:false,holdT:0,
     save:null,diveV:new V3(),diveSide:1,diveH:0,oAnim:null,oT:0,oDur:0,phase:Math.random()*TAU,spd:0,visA:0,visT:0,celebrating:false,poseHold:null,slideHit:false,skillSide:1,
     g:0,a:0,sh:0,so:0,pa:0,pc:0,tk:0,sv:0,yellow:0,rig:null,
-    trait:pd.trait||null,recvVel:new V3(),recvY:0,boostT:0,boostMul:1,fightT:0,lostT:-99,slowT:0,gainT:-99,flashCD:0,chaseOn:false,chaseShown:false,spin:null,sk:null,postSkT:0,shielding:false,shieldFace:null,faceUp:false,jockeyT:0,gotBack:false,beatenT:-99};
+    trait:traitOk(pd.label,pd.trait)?pd.trait:(pd.label==='GK'?'deadeye':pd.trait||null),recvVel:new V3(),recvY:0,boostT:0,boostMul:1,fightT:0,lostT:-99,slowT:0,gainT:-99,flashCD:0,chaseOn:false,chaseShown:false,spin:null,sk:null,postSkT:0,shielding:false,shieldFace:null,faceUp:false,jockeyT:0,gotBack:false,beatenT:-99};
   p.maxSpd=function(){let s=(5.3+this.st.pac*0.034)*teams[this.team].spdMul*(0.8+0.2*this.stamina/100);if(ball.owner===this)s*=0.86+this.st.dri*0.0013;if(this.boostT>0)s*=this.boostMul;if(this.fightT>0)s*=0.86;if(this.chaseOn)s*=1.12;return s;};
   return p;
 }
@@ -1748,10 +1753,13 @@ function gkThink(p,dt){
   const dx=bp.x-gx,dz=bp.z,d=Math.hypot(dx,dz)||1;
   let off=clamp(d*0.11,0.6,5);
   if(ball.owner&&ball.owner.team!==p.team&&d<18)off=clamp(d*0.32,1,6.5);
+  // Dead Eye: against a carrier in shooting range outside the box he squares up to the shot line early
+  const de=p.trait==='deadeye'&&ball.owner&&ball.owner.team!==p.team&&d>=16&&d<34;
+  if(de)off=clamp(d*0.12,1.4,3.2);
   tmpA.set(gx+dx/d*off,0,dz/d*off);
   tmpA.z=clamp(tmpA.z,-GW-0.6,GW+0.6);
   if((tmpA.x-gx)*T.dir<0.3)tmpA.x=gx+T.dir*0.3;
-  moveTo(p,tmpA,d<30?0.85:0.5);
+  moveTo(p,tmpA,de?1:d<30?0.85:0.5);
 }
 function shotQuality(p){
   const T=teams[p.team],gx=T.dir*HL,dx=gx-p.pos.x,dz=-p.pos.z,d=Math.hypot(dx,dz)||1;
@@ -1949,7 +1957,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   const pressure=clamp((3-nearestOppDist(p))/3,0,1);
   let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?T.ai.errMul*2.2:1);
   if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
-  if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.17+power*0.1;}
+  if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;}
   if(opts.fin)sig*=0.75;if(opts.flair)sig*=1.25;
   const acro=p.trait==='acrobatic'&&(gtime-p.gainT<0.2||isHeader||bp.y>0.45);
   const laser=p.trait==='laser'&&!isHeader&&!opts.pen&&gtime-p.gainT<0.2&&laserReady(p);
@@ -1959,12 +1967,13 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   tz+=gauss()*sig*0.85;ty+=gauss()*sig*0.55;ty=Math.max(0.12,ty);
   let spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
   if(laser)spd*=1.18;
-  if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.86;if(opts.low)spd*=1.04;}
+  if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.86;if(opts.low)spd*=1.2;}
   // finesse (Z+D): aim outside the post and let the spin bend it back in
   let curveS=0;
   if(opts.fin&&!isHeader){const dl=Math.hypot(gx-bp.x,tz-bp.z)||1,rz=(gx-bp.x)/dl;curveS=(Math.sign(-tz*rz)||1)*0.8;const tt=dl/spd;tz-=rz*0.5*MAG*curveS*7*spd*tt*tt;}
   const h=new V3(gx-bp.x,0,tz-bp.z),hd=h.length();h.normalize();
-  const t=hd/spd,vy=(ty-bp.y+0.5*GRAV*t*t)/t;
+  const t=hd/spd;let vy=(ty-bp.y+0.5*GRAV*t*t)/t;
+  if(opts.low&&!isHeader)vy=Math.min(vy,1.5);   // driven along the ground: skims and skids rather than arcing
   stats.shots[p.team]++;p.sh++;
   lastPass=null;
   if(isHeader){p.oAnim='header';p.oT=0;p.oDur=0.5;}
@@ -1976,7 +1985,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
   planSave(teams[1-p.team].gk,p,opts);
-  say(pick(['슈팅!','때립니다!','과감한 슈팅!','골문을 노립니다!'])+' '+p.short);
+  say((opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
 }
 
 function startSlide(p,dirIn){
@@ -2160,6 +2169,9 @@ function planSave(gk,shooter,opts){
   const spd=ball.vel.length(),gkr=gk.st.gk+(T.human?0:T.ai.gk);
   let prob=0.3+gkr*0.0088-Math.max(0,reach-0.7)*0.17-Math.max(0,spd-20)*0.017-(P.t<0.32?0.22:0);
   if(Math.abs(P.z)>GW-0.6&&P.y>1.55)prob-=0.15;
+  // Dead Eye: a long shot was read early, so the keeper is set and reaches further
+  const deadeye=gk.trait==='deadeye'&&!opts.pen&&Math.hypot(shooter.pos.x-gx,shooter.pos.z)>=18;
+  if(deadeye){prob+=0.1+Math.max(0,reach-0.7)*0.05+(P.t<0.32?0.12:0);}
   let tz=P.z;
   if(opts.pen){
     let guess;
@@ -2171,6 +2183,7 @@ function planSave(gk,shooter,opts){
   }
   prob=clamp(prob,opts.pen?0.02:0.1,0.94);
   const success=Math.random()<prob;
+  if(deadeye&&success)traitFlash(gk);
   gk.save={pt:new V3(P.x,P.y,opts.pen?tz:P.z),t:0,tHit:P.t,success,catchIt:success&&spd<21&&P.y<2.0&&Math.random()<0.55};
   gk.noTouch=success?0:1.4;
   const ddz=(opts.pen?tz:P.z)-gk.pos.z;
@@ -2481,6 +2494,9 @@ function updatePlayer(p,dt){
   p.phase+=(sp*1.2+(sp>0.3?1.5:0))*dt;p.spd=sp;
   if(p.oAnim){p.oT+=dt;if(p.oT>p.oDur)p.oAnim=null;}
   p.pos.x=clamp(p.pos.x,-HL-4,HL+4);p.pos.z=clamp(p.pos.z,-HW-4,HW+4);
+  if(p.holding&&p.isGK){const dir=teams[p.team].dir,xn=p.pos.x*dir,lim=-(HL-BOX_D)-0.5;   // hands only inside his own box
+    if(xn>lim){p.pos.x=lim*dir;p.vel.x=0;}if(xn<-HL+0.4){p.pos.x=(-HL+0.4)*dir;p.vel.x=0;}
+    if(Math.abs(p.pos.z)>BOX_W-0.5){p.pos.z=Math.sign(p.pos.z)*(BOX_W-0.5);p.vel.z=0;}}
   if(p.holding&&p.state==='normal'){p.holdT+=dt;}
 }
 
@@ -3003,7 +3019,9 @@ function humanUpdate(dt){
   T.secondPress=!has&&A_.switch&&oppBall;              // Q held: a teammate joins the press
   T.gkRush=!has&&!p.isGK&&A_.through&&oppBall;          // W held: the keeper rushes out
   if(p.state!=='normal'||p.sk)return;
-  if(p.holding){p.wantVel.set(0,0,0);if(inp.lengthSq()>0.01){p.face=Math.atan2(inp.x,inp.z);}if(p.holdT>5.5){aiGKDistribute(p);}return;}
+  if(p.holding){   // the keeper can walk with the ball in his hands and throw or kick on the move; W puts it down
+    if(inp.lengthSq()>0.01){p.wantVel.copy(inp).normalize().multiplyScalar(p.maxSpd()*(A_.sprint?0.8:0.6)*Math.min(1,inp.length()));if(p.vel.lengthSq()<0.5)p.face=Math.atan2(inp.x,inp.z);}else p.wantVel.set(0,0,0);
+    if(p.holdT>5.5){aiGKDistribute(p);}return;}
   // Shift held with the ball: the move is being keyed in, keep the heading and ease off
   if(has&&A_.skill){const s=Math.min(p.vel.length(),p.maxSpd()*0.55);p.wantVel.copy(fwd(p)).multiplyScalar(s);return;}
   // FC-style pass reception: the receiver runs onto the ball by himself
@@ -3075,7 +3093,7 @@ function handleEdge(p,e,inp){
   if(SP&&(SP.taker!==p||SP.t<0.6))return;
   const mods={q:M.q,z:M.z,c:M.c};if(mods.q)K.qUsed=true;if(mods.z)K.zUsed=true;if(mods.c)K.cUsed=true;
   if(has){
-    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.13,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=0;p.oDur=0.45;return;}
+    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.2,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.06;p.oDur=0.45;return;}   // 0.2 s back-swing leaves time for the second D tap
     if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:SP||crossZone(p)?0.24:0.1,count:1,dir:inp.clone()};return;}
     humanBallAction(p,a,power,inp,mods);
   }
@@ -3521,8 +3539,8 @@ function cardTierOf(p){return eo(p)>=78?'':eo(p)>=68?'t-silver':'t-bronze';}
 let tpCb=null;
 function openTraitPicker(pl,cb){
   tpCb=cb;
-  $('#tpWho').textContent=pl.name+' · '+pl.label+' · OVR '+pl.ovr+' · 선수당 특성 1개';
-  $('#tpList').innerHTML=TRAIT_KEYS.map(k=>`<button class="trait ${pl.trait===k?'on':''}" data-trait="${k}"><b>${TRAITS[k].name}</b><span>${TRAITS[k].desc}</span><i>${TRAITS[k].fit}</i></button>`).join('');
+  $('#tpWho').textContent=pl.name+' · '+pl.label+' · OVR '+pl.ovr+' · 선수당 특성 1개'+(pl.label==='GK'?' · 골키퍼는 키퍼 전용 특성만':'');
+  $('#tpList').innerHTML=TRAIT_KEYS.filter(k=>traitOk(pl.label,k)).map(k=>`<button class="trait ${pl.trait===k?'on':''}" data-trait="${k}"><b>${TRAITS[k].name}</b><span>${TRAITS[k].desc}</span><i>${TRAITS[k].fit}</i></button>`).join('');
   $('#traitPick').hidden=false;
 }
 $('#tpList').addEventListener('click',e=>{const b=e.target.closest('[data-trait]');if(!b)return;const k=b.dataset.trait;$('#traitPick').hidden=true;tpCb&&tpCb(k);});
@@ -3559,7 +3577,10 @@ function wageOf(p){return Math.round(value(eo(p))*0.025/10)*10;}
 function sellPrice(p){return Math.round(value(eo(p))*0.7/100)*100;}
 function cardTier(p){return p.legend?'t-legend':p.ovr>=88?'t-elite':p.ovr>=78?'':p.ovr>=68?'t-silver':'t-bronze';}
 function randPos(){const t=POS_W.reduce((a,x)=>a+x[1],0);let r=Math.random()*t;for(const [k,w] of POS_W){r-=w;if(r<=0)return k;}return 'CM';}
-function loadClub(){try{const v=localStorage.getItem(CLUB_KEY);club=v?JSON.parse(v):null;}catch(e){club=null;}}
+function loadClub(){try{const v=localStorage.getItem(CLUB_KEY);club=v?JSON.parse(v):null;}catch(e){club=null;}
+  // older saves gave keepers outfield traits
+  let fixed=false;if(club&&Array.isArray(club.players))for(const p of club.players)if(!traitOk(p.label,p.trait)){p.trait=defaultTrait(p.label,Math.random);fixed=true;}
+  if(fixed)saveClub();}
 function saveClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club));}catch(e){}}
 function newCardPlayer(label,ovr,opts={}){
   const r=mulberry((Math.random()*2147483647)|0),regs=Object.keys(NAMEDB);
@@ -4218,6 +4239,7 @@ window.__game={
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
+  aiShoot(p){aiShoot(p);},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
   foul(card){const o=ball.owner||teams[0].players[9];const d=teams[1-o.team].players.filter(q=>!q.isGK).sort((a,b)=>d2(a.pos,o.pos)-d2(b.pos,o.pos))[0];d.pos.set(o.pos.x-teams[o.team].dir*0.8,0,o.pos.z);foul(d,o,'slide',card);return d.short;},
   get officials(){return officials;},get traitCount(){return traitCount;},get advCount(){return advCount;},get sp(){return SP;},startDemo,get act(){return LC().act;},actDown,actUp,get net(){return net;},setCam(m){camMode=m;},
