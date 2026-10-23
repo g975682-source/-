@@ -132,6 +132,13 @@ kbd{font-family:var(--f-num);font-weight:700;background:#0a1530;border:1px solid
 .gauge{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:210px;height:14px;background:rgba(5,11,23,.86);border:1px solid var(--line)}
 .gauge i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--turf),var(--gold) 70%,var(--alert))}
 .gauge span{position:absolute;right:-46px;top:-3px;font-family:var(--f-num);font-weight:700;font-size:14px;color:var(--gold)}
+#psGauge{position:absolute;left:50%;bottom:calc(190px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(300px,calc(100vw - 32px));pointer-events:none;text-align:center}
+#psGauge b{display:block;font-family:var(--f-num);font-size:15px;letter-spacing:.06em;color:#fff;text-shadow:0 1px 3px #000;margin-bottom:4px}
+#psGauge .psBar{position:relative;height:16px;background:linear-gradient(180deg,#e2453c,#a3221c);border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.5)}
+#psGreen{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#46e58e,#17a457);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+#psCur{position:absolute;top:-5px;bottom:-5px;width:4px;margin-left:-2px;background:#fff;box-shadow:0 0 6px #fff,0 0 2px #000}
+#psGauge.perfect b{color:#5dffa6}#psGauge.good b{color:#b8f5cf}#psGauge.miss b{color:#ff8a80}
+#psGauge.perfect .psBar{box-shadow:0 0 16px #46e58e}
 #radar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:230px;height:149px;opacity:.92}
 .keys{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:11px;color:var(--mute);background:rgba(5,11,23,.7);padding:8px 10px;line-height:1.75;text-align:right}
 .keys kbd{font-size:11px;padding:0 5px}
@@ -496,10 +503,11 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     <div class="pt-body"><div class="pt-name" id="ptName">-</div><div class="pt-meta" id="ptMeta"></div><div class="stam"><i id="ptStam"></i></div></div>
   </div>
   <div class="gauge" id="gauge" hidden><i id="gaugeFill"></i><span id="gaugeLbl"></span></div>
+  <div id="psGauge" hidden><b id="psLbl">파워 슛</b><div class="psBar"><i id="psGreen"></i><i id="psCur"></i></div></div>
   <canvas id="radar" width="230" height="149"></canvas>
   <div class="keys" id="keys">
     <kbd>S</kbd> 패스/전환 · <kbd>W</kbd> 스루/돌진 · <kbd>A</kbd> 로빙/슬라이딩 · <kbd>D</kbd> 슛/태클 · <kbd>E</kbd> 질주<br>
-    <kbd>Q</kbd> 기술(+S·D·A·W)/협력수비 · <kbd>Z</kbd> 감아차기·지원 · <kbd>C</kbd> 지키기/견제 · <kbd>Ctrl</kbd>+방향 치고 달리기<br>
+    <kbd>Q</kbd> 기술(+S·D·A·W)/협력수비 · <kbd>Z</kbd> 감아차기·지원 · <kbd>F</kbd>+<kbd>D</kbd> 파워 슛 · <kbd>C</kbd> 지키기/견제 · <kbd>Ctrl</kbd>+방향 치고 달리기<br>
     <kbd>Shift</kbd> 누른 채 방향키 개인기 · <kbd>R</kbd> 카메라 · <kbd>H</kbd> 가이드 끄기 · <kbd>Esc</kbd> 일시정지
   </div>
   <div id="banner" hidden><b id="bnBig"></b><span id="bnSmall"></span></div>
@@ -531,7 +539,8 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td><kbd>W</kbd></td><td>스루 패스</td></tr>
       <tr><td><kbd>A</kbd> · <kbd>A</kbd>×2 · <kbd>A</kbd>×3</td><td>로빙 패스 · 크로스 / 땅볼 크로스 / 낮은 크로스</td></tr>
       <tr><td><kbd>D</kbd> · <kbd>D</kbd> 후 <kbd>D</kbd> 톡</td><td>슛 / 낮고 빠르게 깔리는 슛 (D를 떼고 바로 한 번 더)</td></tr>
-      <tr><td><kbd>D</kbd>·<kbd>A</kbd> 후 <kbd>S</kbd>+방향</td><td>슛하는 척 · 패스하는 척 (뒤로 = 스쿱 턴)</td></tr>
+      <tr><td><kbd>D</kbd> 후 <kbd>S</kbd> · <kbd>A</kbd> 후 <kbd>S</kbd></td><td>슛 페이크 · 크로스 페이크 (S와 방향키로 빠질 쪽, 뒤로 = 스쿱 턴)</td></tr>
+      <tr><td><kbd>F</kbd>+<kbd>D</kbd> 후 <kbd>D</kbd></td><td>파워 슛: 흰 막대가 초록 구간을 지날 때 D를 한 번 더. 맞히면 강하고 정확, 놓치면 약하고 크게 빗나감</td></tr>
       <tr><td><kbd>E</kbd> · 방향 없이 <kbd>E</kbd></td><td>전력 질주 · 공 멈추기</td></tr>
       <tr><td><kbd>Ctrl</kbd>+방향</td><td>퍼스트터치·치고 달리기 (방향키와 함께만 쓰세요)</td></tr>
       <tr><th colspan="2">공격 · 기술 키</th></tr>
@@ -1301,6 +1310,7 @@ const SKILLS=[
   {k:'nt1',nm:'노터치 페인팅',st:1,fam:'feint',dur:0.34,eff:0.3,ex:[1,-0.4],es:5.0},
   {k:'nt2',nm:'노터치 큰 페인팅',st:1,fam:'feint',big:1,dur:0.5,eff:0.4,ex:[0.9,-0.8],es:5.6},
   {k:'stopgoal',nm:'공 멈추고 골대 보기',st:1,fam:'stopturn',still:1,dur:0.5,eff:0,ex:null,es:0.4},
+  {k:'fakecross',nm:'크로스 페이크',st:1,fam:'fakeshot',cross:0,dur:0.55,eff:0.55,es:5.0,show:1},
 ];
 const SKI={};SKILLS.forEach((m,i)=>{SKI[m.k]=i;});
 const SKT={F:0,FL:1,L:2,BL:3,B:4,BR:5,R:6,FR:7};
@@ -1492,7 +1502,7 @@ function skillRelease(p,k){
   const v=k.m.rel.v;
   releaseBall();touched(p);ball.lastTouch=p;ball.lastKind='touch';
   ball.vel.set(k.f.x*v[0]+k.r.x*v[1],v[2],k.f.z*v[0]+k.r.z*v[1]);
-  ball.sp.s=0;ball.sp.top=0;ball.grace=0.06;p.noTouch=0.3;intended=p;offCheck=null;
+  ball.sp.s=0;ball.sp.top=0;ball.sp.g=0;ball.grace=0.06;p.noTouch=0.3;intended=p;offCheck=null;
   computeTraj();SND.kick(0.25);
 }
 // the beat: defenders close in front may be wrong-footed (stunned and leaning the other way)
@@ -1531,11 +1541,11 @@ function showSkillToast(id,short,ti){
 function crossZone(p){return xN(p)>0.55&&Math.abs(p.pos.z)>HW*0.38;}
 function goalTurn(p){const T=teams[p.team],f=fwd(p),gx=T.dir*HL-p.pos.x,gz=-p.pos.z;return Math.atan2(gx*-f.z+gz*f.x,gx*f.x+gz*f.z);}
 // D then S (or A then S): stop the kick and drag the ball away. With C held it is a heel chop or rabona fake.
-function fakeShot(p,inp,c){
+function fakeShot(p,inp,c,cross){
   const f=fwd(p),r=new V3(-f.z,0,f.x),st=skillStars(p);let fa=0.6,ra=0.8,has=false;
   if(inp&&inp.lengthSq()>0.01){const d=inp.clone().normalize();fa=d.dot(f);ra=d.dot(r);has=true;}
-  const back=fa<-0.4;let id=c?(back?SKI.rabonafake:SKI.heelchop):(back?SKI.scoop:SKI.fakeshot);
-  if(SKILLS[id].st>st){needStars(p,SKILLS[id].st);id=SKI.fakeshot;}
+  const base=cross?SKI.fakecross:SKI.fakeshot,back=fa<-0.4;let id=c?(back?SKI.rabonafake:SKI.heelchop):(back?SKI.scoop:base);
+  if(SKILLS[id].st>st){needStars(p,SKILLS[id].st);id=base;}
   const s=has?(ra<0?-1:1):sideAway(p)*-1,ex=[fa,Math.abs(ra)];
   performSkill(p,id,s,{ex,turn:Math.atan2(ex[1],ex[0])});
 }
@@ -1712,7 +1722,7 @@ let clock=0,half=1,matchMinutes=5,diffKey='pro',score=[0,0],stats=null,clockRate
 let intended=null,offCheck=null,lastPass=null,assistRec=null,lastOwner=null,lastOwnerT=0;
 let deadT=0,deadFn=null,goalT=0,goalInfo=null,halfT=0,gtime=0,switchCD=0,buffer=null,slideConsumed=false;
 let camMode=0,firstKick=0,matchCfg=null;
-const ball={pos:new V3(0,BR,0),prev:new V3(),vel:new V3(),owner:null,lastTouch:null,quat:new THREE.Quaternion(),sp:{s:0,top:0},lastKind:'',restartBy:null,noGoal:false,fkShot:false,gkRelease:null,grace:0};
+const ball={pos:new V3(0,BR,0),prev:new V3(),vel:new V3(),owner:null,lastTouch:null,quat:new THREE.Quaternion(),sp:{s:0,top:0,g:0},lastKind:'',restartBy:null,noGoal:false,fkShot:false,gkRelease:null,grace:0};
 let foulSeq=null,ACTORS=[],advantage=null,pendingCards=[];
 const traj=[];
 
@@ -1807,7 +1817,7 @@ function moveTo(p,tgt,urg){
 }
 function steer(p,dir,sprint){const s=p.maxSpd()*(sprint?1:0.68);p.wantVel.set(dir.x*s,0,dir.z*s);}
 function computeTraj(){
-  traj.length=0;const p=ball.pos.clone(),v=ball.vel.clone(),sp={s:ball.sp.s,top:ball.sp.top};let t=0;traj.push({x:p.x,y:p.y,z:p.z,t:0});
+  traj.length=0;const p=ball.pos.clone(),v=ball.vel.clone(),sp={s:ball.sp.s,top:ball.sp.top,g:ball.sp.g};let t=0;traj.push({x:p.x,y:p.y,z:p.z,t:0});
   for(let i=0;i<70;i++){for(let k=0;k<3;k++)ballStep(p,v,1/60,sp);t+=0.05;traj.push({x:p.x,y:p.y,z:p.z,t});}
 }
 
@@ -2008,7 +2018,8 @@ function aiShoot(p,opts={}){
   let side=gk.pos.z>0.35?-1:gk.pos.z<-0.35?1:(Math.random()<0.5?-1:1);
   if(Math.random()<0.15)side=-side;
   const tz=side*rnd(1.9,3.35),ty=Math.random()<0.6?rnd(0.2,0.9):rnd(1.0,2.15);
-  doShoot(p,clamp(0.45+d/50,0.45,0.9),{tz,ty},false,true,opts);
+  if(!opts.pen&&!opts.fin&&d>13&&d<27&&side*p.pos.z<-2&&Math.random()<0.22)opts=Object.assign({},opts,{fin:true});   // far post: curl it
+  doShoot(p,clamp(0.45+d/50,0.45,0.9),{tz,ty:opts.fin?Math.min(ty,1.6):ty},false,true,opts);
 }
 function aiGKDistribute(g){
   const T=teams[g.team];let best=null,bs=-9;
@@ -2026,7 +2037,7 @@ function kick(p,vel,type){
   releaseBall();
   if(wasHolding&&type!=='throw'){ball.pos.y=Math.max(ball.pos.y,0.6);}
   ball.vel.copy(vel);ball.lastTouch=p;p.noTouch=0.32;ball.grace=vel.y>2?0.17:0.07;
-  ball.sp.s=0;ball.sp.top=0;ball.fkShot=false;ball.lastKind=type;
+  ball.sp.s=0;ball.sp.top=0;ball.sp.g=0;ball.fkShot=false;ball.lastKind=type;
   // a restart taker may not touch the ball again until someone else has
   ball.restartBy=SP?p:null;ball.noGoal=!!(SP&&(SP.type==='throw'||SP.indirect));
   ball.gkRelease=wasHolding?p:null;
@@ -2042,6 +2053,7 @@ function kick(p,vel,type){
   computeTraj();
 }
 function touched(p){
+  ball.sp.s=0;ball.sp.top=0;ball.sp.g=0;   // a touch kills the spin, so a parried curler does not keep bending
   if(ball.restartBy&&ball.restartBy!==p){ball.restartBy=null;ball.noGoal=false;}
   if(ball.gkRelease&&ball.gkRelease!==p)ball.gkRelease=null;
   ball.fkShot=false;ball.lastKind='touch';
@@ -2104,17 +2116,27 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
   intended=m||null;
   if(T.human&&m){setControlled(m);CTRL[T.idx].switchCD=1.0;}
 }
+// fly a kicked ball forward until it reaches the goal line x=gx: where it crosses and how far the spin bent it
+function flightTo(bp,v,spin,gx){
+  const pos=bp.clone(),vel=v.clone(),sp={s:spin.s,top:0,g:spin.g},dx=Math.sign(gx-bp.x)||1,h0=v.clone().setY(0).normalize();let t=0,bend=0;
+  for(let i=0;i<300;i++){ballStep(pos,vel,1/60,sp);t+=1/60;
+    const ox=pos.x-bp.x,oz=pos.z-bp.z;bend=Math.max(bend,Math.abs(ox*h0.z-oz*h0.x));if((pos.x-gx)*dx>=0)break;}
+  return {z:pos.z,y:pos.y,t,bend};
+}
 function doShoot(p,power,aim,isHeader,isAI,opts={}){
   const T=teams[p.team],gx=T.dir*HL,bp=ball.pos.clone();
   let tz,ty;
+  const pw=opts.power&&!isHeader,pOK=pw&&opts.pq>=50,pk=pOK?clamp((opts.pq-70)/30,0,1):0;
   if(aim){tz=aim.tz;ty=aim.ty;}
   else{const inp=moveInput();let lat=inp.z;if(Math.abs(lat)<0.25)lat=-Math.sign(p.pos.z||1)*0.5;tz=clamp(lat,-1,1)*3.0;ty=0.22+power*power*2.45;}
   const d=Math.hypot(gx-bp.x,tz-bp.z);
   const pressure=clamp((3-nearestOppDist(p))/3,0,1);
   let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?T.ai.errMul*2.2:1);
   if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
-  if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;}
+  if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;if(opts.fin)ty=clamp(ty,0.45,1.85);
+    if(pw)ty=pOK?rnd(0.45,1.7):rnd(1.7,2.8);}   // a clean power strike stays under the bar, a miss tends to fly
   if(opts.fin)sig*=0.75;if(opts.flair)sig*=1.25;
+  if(pw)sig*=pOK?0.55-0.2*pk:3.0;
   const acro=p.trait==='acrobatic'&&(gtime-p.gainT<0.2||isHeader||bp.y>0.45);
   const laser=p.trait==='laser'&&!isHeader&&!opts.pen&&gtime-p.gainT<0.2&&laserReady(p);
   if(laser){ty=clamp(Math.min(ty,0.25+power*0.6),0.15,0.85);sig*=0.6;}
@@ -2123,25 +2145,34 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   tz+=gauss()*sig*0.85;ty+=gauss()*sig*0.55;ty=Math.max(0.12,ty);
   let spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
   if(laser)spd*=1.18;
-  if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.86;if(opts.low)spd*=1.2;}
-  // finesse (Z+D): aim outside the post and let the spin bend it back in
-  let curveS=0;
-  if(opts.fin&&!isHeader){const dl=Math.hypot(gx-bp.x,tz-bp.z)||1,rz=(gx-bp.x)/dl;curveS=(Math.sign(-tz*rz)||1)*0.8;const tt=dl/spd;tz-=rz*0.5*MAG*curveS*7*spd*tt*tt;}
-  const h=new V3(gx-bp.x,0,tz-bp.z),hd=h.length();h.normalize();
-  const t=hd/spd;let vy=(ty-bp.y+0.5*GRAV*t*t)/t;
-  if(opts.low&&!isHeader)vy=Math.min(vy,1.5);   // driven along the ground: skims and skids rather than arcing
+  if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.9;if(opts.low)spd*=1.2;}
+  if(pw)spd*=pOK?0.98+0.08*pk:0.8;
+  // finesse (Z+D): start it outside the post, the spin builds and hooks it back in late.
+  // The kick direction is solved by flying the ball forward, so it ends where it was aimed.
+  let spin=null,bend=0;
+  if(opts.fin&&!isHeader){const dl=Math.hypot(gx-bp.x,tz-bp.z)||1,rz=(gx-bp.x)/dl;spin={s:(Math.sign(-tz*rz)||1),g:2.6};
+    spin.want=clamp(0.95+dl*0.105,1.9,3.7)*(0.85+p.st.sho*0.002);}   // metres of bend: grows with distance, a little with SHO
+  let z0=tz,dvy=0,vel=null;
+  for(let it=0;it<(spin?5:1);it++){
+    const h=new V3(gx-bp.x,0,z0-bp.z),hd=h.length();h.normalize();
+    const t=hd/spd;let vy=(ty-bp.y+0.5*GRAV*t*t)/t+dvy;
+    if(opts.low&&!isHeader)vy=Math.min(vy,1.5);   // driven along the ground: skims and skids rather than arcing
+    vel=h.multiplyScalar(spd).setY(vy);
+    if(spin){let r=flightTo(bp,vel,spin,gx);if(it===0&&r.bend>0.01){spin.s*=spin.want/r.bend;r=flightTo(bp,vel,spin,gx);}z0+=tz-r.z;dvy+=clamp((ty-r.y)/Math.max(r.t,0.3),-3,3);bend=r.bend;}
+  }
   stats.shots[p.team]++;p.sh++;
   lastPass=null;
   if(isHeader){p.oAnim='header';p.oT=0;p.oDur=0.5;}
-  kick(p,h.multiplyScalar(spd).setY(vy),'shot');
-  if(curveS)ball.sp.s=curveS*7;
+  kick(p,vel,'shot');
+  if(spin){ball.sp.s=spin.s;ball.sp.g=spin.g;}
   if(opts.flair&&!isHeader){p.oAnim='volley';p.oT=0.05;p.oDur=0.55;}
   if(isHeader){p.oAnim='header';}
+  if(pw)p.oT=0.14;   // the wind-up was already shown
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
-  planSave(teams[1-p.team].gk,p,opts);if(p.team===0)tutEv('shot',opts.pen?'pen':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
-  say((opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
+  planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
+  say((pw?(pOK?'완벽한 파워 슛! ':'파워 슛이 빗맞습니다! '):opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
 }
 
 function startSlide(p,dirIn){
@@ -2316,7 +2347,9 @@ function planSave(gk,shooter,opts){
   const T=teams[gk.team],gx=-T.dir*HL;
   computeTraj();
   let cross=null,atGk=null;
-  for(const q of traj){if(!atGk&&(q.x-gk.pos.x)*(-T.dir)>=-0.2)atGk=q;if((q.x-gx)*(-T.dir)>=0){cross=q;break;}}
+  let pq=null,ai=-1;   // samples are 0.05 s apart: interpolate the goal-line crossing, or a fast angled shot reads as wide
+  for(const q of traj){if(!atGk&&(q.x-gk.pos.x)*(-T.dir)>=-0.2){atGk=q;ai=traj.indexOf(q);}if((q.x-gx)*(-T.dir)>=0){cross=q;
+    if(pq){const a=(gx-pq.x)/((q.x-pq.x)||1e-6);cross={x:gx,y:pq.y+(q.y-pq.y)*a,z:pq.z+(q.z-pq.z)*a,t:pq.t+(q.t-pq.t)*a};}break;}pq=q;}
   if(!cross)return;
   const onT=Math.abs(cross.z)<GW+0.1&&cross.y<GH+0.08;
   if(!onT)return;
@@ -2324,8 +2357,13 @@ function planSave(gk,shooter,opts){
   const P=atGk||cross;
   const dz=P.z-gk.pos.z,dy=P.y-1.0,reach=Math.hypot(dz,Math.max(0,dy)*0.8);
   const spd=ball.vel.length(),gkr=gk.st.gk+(T.human?0:T.ai.gk);
-  let prob=0.3+gkr*0.0088-Math.max(0,reach-0.7)*0.17-Math.max(0,spd-20)*0.017-(P.t<0.32?0.22:0);
+  const q0=traj[ai-1],q1=traj[ai],vAt=atGk&&q0?Math.hypot(q1.x-q0.x,q1.y-q0.y,q1.z-q0.z)/(q1.t-q0.t):spd;   // pace when it reaches him: a long drive has slowed
+  let prob=0.3+gkr*0.0088-Math.max(0,reach-0.7)*0.17-Math.max(0,vAt-20)*0.017-(P.t<0.32?0.22:0)+clamp((P.t-0.75)*0.2,0,0.14);   // and a long flight gives him time
+  if(P.y<0.45&&Math.abs(dz)>1.5)prob-=0.03;
+  if(P.y>2.15)prob-=(P.y-2.15)*(Math.abs(gk.pos.x-gx)>2.5?0.85:0.25);   // over his head: off his line he has to back-pedal and leap   // hard and low by the post: awkward to get down to
   if(Math.abs(P.z)>GW-0.6&&P.y>1.55)prob-=0.15;
+  if(opts.fin)prob-=clamp(0.03+(opts.bend||0)*0.02,0,0.1);   // it starts outside the post: the keeper moves late
+  if(opts.chip&&Math.abs(gk.pos.x-gx)<3&&P.y<GH+0.3)prob+=clamp((P.t-0.7)*0.35,0,0.25);   // a keeper on his line has time to back-pedal
   // Dead Eye: a long shot was read early, so the keeper is set and reaches further
   const deadeye=gk.trait==='deadeye'&&!opts.pen&&Math.hypot(shooter.pos.x-gx,shooter.pos.z)>=18;
   if(deadeye){prob+=0.1+Math.max(0,reach-0.7)*0.05+(P.t<0.32?0.12:0);}
@@ -2499,9 +2537,9 @@ const MAG=0.05;
 function ballStep(pos,vel,dt,sp){
   if(pos.y>BR+0.005||vel.y>0.01){
     vel.y-=GRAV*dt;const k=1-AIR*dt;vel.x*=k;vel.z*=k;
-    if(sp&&(sp.s||sp.top)){const h=Math.hypot(vel.x,vel.z);if(h>1){const a=MAG*sp.s*h*dt,vx=vel.x;vel.x-=vel.z/h*a;vel.z+=vx/h*a;vel.y-=MAG*sp.top*h*dt;}sp.s*=1-0.25*dt;}
+    if(sp&&(sp.s||sp.top)){const h=Math.hypot(vel.x,vel.z);if(h>1){const a=MAG*sp.s*h*dt,vx=vel.x;vel.x-=vel.z/h*a;vel.z+=vx/h*a;vel.y-=MAG*sp.top*h*dt;}if(sp.g){sp.s*=1+sp.g*dt;sp.g*=1-0.8*dt;}else sp.s*=1-0.25*dt;}
     pos.addScaledVector(vel,dt);
-    if(pos.y<BR){pos.y=BR;if(sp){sp.s=0;sp.top=0;}if(vel.y<-1.2){vel.y=-vel.y*0.52;vel.x*=0.86;vel.z*=0.86;}else vel.y=0;}
+    if(pos.y<BR){pos.y=BR;if(sp){sp.s=0;sp.top=0;sp.g=0;}if(vel.y<-1.2){vel.y=-vel.y*0.52;vel.x*=0.86;vel.z*=0.86;}else vel.y=0;}
   }else{
     pos.y=BR;vel.y=0;const k=Math.exp(-ROLL*dt);vel.x*=k;vel.z*=k;
     if(Math.hypot(vel.x,vel.z)<0.12){vel.x=0;vel.z=0;}
@@ -3056,9 +3094,9 @@ const replayBall=new V3();
 
 /* ================= human input ================= */
 // FC Online layout. 'switch' is the Q key: attacking technique modifier / defensive help request.
-const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyS:'pass',KeyW:'through',KeyA:'lob',KeyD:'shoot',KeyE:'sprint',ShiftLeft:'skill',ShiftRight:'skill',KeyQ:'switch',KeyZ:'z',KeyC:'c',ControlLeft:'ctrl',ControlRight:'ctrl',Space:'tackle',Backquote:'hop'};
-// order matters for the online input bitmask; 'smv' is never held, it carries a recognised skill move
-const ACTS=['up','down','left','right','pass','through','lob','shoot','sprint','switch','skill','tackle','z','c','ctrl','hop','smv'];
+const KEYMAP={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',KeyS:'pass',KeyW:'through',KeyA:'lob',KeyD:'shoot',KeyE:'sprint',ShiftLeft:'skill',ShiftRight:'skill',KeyQ:'switch',KeyZ:'z',KeyC:'c',ControlLeft:'ctrl',ControlRight:'ctrl',Space:'tackle',Backquote:'hop',KeyF:'f'};
+// order matters for the online input bitmask; 'smv' and 'psh' are never held, they carry a recognised skill move / a power-shot timing
+const ACTS=['up','down','left','right','pass','through','lob','shoot','sprint','switch','skill','tackle','z','c','ctrl','hop','smv','f','psh'];
 // one controller per team: who it controls, held keys, queued key edges and a buffered first-time action
 function mkCtrl(ti){const a={};for(const k of ACTS)a[k]=false;return {team:ti,controlled:null,act:a,downAt:{},inq:[],buffer:null,consumed:{},switchCD:0,remote:false,mv:new V3(),pend:null,g:null,firstTouch:null,qUsed:false,zUsed:false,cUsed:false,penGuess:0,penGuessSet:false};}
 const CTRL=[mkCtrl(0),mkCtrl(1)];
@@ -3066,13 +3104,15 @@ let ME=0,C=CTRL[0];        // ME: the team this browser plays; C: the controller
 function LC(){return CTRL[ME];}
 function isHumanTeam(ti){return !!(teams[ti]&&teams[ti].human);}
 function withC(K,fn){const pc=C;C=K;try{return fn();}finally{C=pc;}}
-function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.inq.length=0;K.buffer=null;K.consumed={};K.controlled=null;K.switchCD=0;K.remote=false;K.mv.set(0,0,0);K.pend=null;K.g=null;K.firstTouch=null;K.skBuf=null;K.penGuessSet=false;}C=CTRL[ME];}
+function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.inq.length=0;K.buffer=null;K.consumed={};K.controlled=null;K.switchCD=0;K.remote=false;K.mv.set(0,0,0);K.pend=null;K.g=null;K.firstTouch=null;K.skBuf=null;K.penGuessSet=false;K.psT=0;K.ps=null;K.swallow=false;}C=CTRL[ME];}
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
-const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c});
+const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
+  if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
+  if(a==='shoot'&&L.act.f&&psCan(L))psStart(L);
   if(mode==='match'&&!paused)L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
-function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused)L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
+function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;if(a==='shoot'&&L.swallow){L.swallow=false;return;}const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused)L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
 window.addEventListener('keydown',e=>{
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')&&e.target.offsetParent!==null)return;
   if(state==='replay'&&mode==='match'&&!paused&&!(net&&net.role==='guest')){e.preventDefault();endReplay();return;}
@@ -3186,7 +3226,9 @@ function humanUpdate(dt){
   const has=ball.owner===p,A_=K.act,T=teams[K.team],oppBall=ball.owner&&ball.owner.team!==K.team;
   T.secondPress=!has&&A_.switch&&oppBall;              // Q held: a teammate joins the press
   T.gkRush=!has&&!p.isGK&&A_.through&&oppBall;          // W held: the keeper rushes out
-  if(p.state!=='normal'||p.sk)return;
+  if(p.state!=='normal'||p.sk){K.psT=0;return;}
+  if(K.psT){if(!has||state!=='play'||gtime-K.psT>PS_DUR+0.7)K.psT=0;
+    else{const s=Math.min(p.vel.length(),p.maxSpd()*0.3);p.wantVel.copy(fwd(p)).multiplyScalar(s);p.oAnim='kick';p.oT=Math.min(0.13,(gtime-K.psT)*0.5);p.oDur=0.45;return;}}
   if(p.holding){   // the keeper can walk with the ball in his hands and throw or kick on the move; W puts it down
     if(inp.lengthSq()>0.01){p.wantVel.copy(inp).normalize().multiplyScalar(p.maxSpd()*(A_.sprint?0.8:0.6)*Math.min(1,inp.length()));if(p.vel.lengthSq()<0.5)p.face=Math.atan2(inp.x,inp.z);}else p.wantVel.set(0,0,0);
     if(p.holdT>5.5){aiGKDistribute(p);}return;}
@@ -3210,7 +3252,7 @@ function humanUpdate(dt){
 function receiving(p){return !ball.owner&&intended===p;}
 function handleEdge(p,e,inp){
   const K=C,has=ball.owner===p,live=!SP&&state==='play'&&!p.holding,a=e.act;
-  const M=e.mods||{q:K.act.switch,z:K.act.z,c:K.act.c},A_=Object.assign({},K.act,{switch:M.q,z:M.z,c:M.c});
+  const M=e.mods||{q:K.act.switch,z:K.act.z,c:K.act.c,f:K.act.f},A_=Object.assign({},K.act,{switch:M.q,z:M.z,c:M.c});
   if(e.type==='down'){
     if(a==='smv'){if(A_.switch)K.qUsed=true;if(A_.z)K.zUsed=true;if(A_.c)K.cUsed=true;smvEdge(K,p,e.code|0,has,live);return;}
     if(a==='skill'){if(A_.switch)K.qUsed=true;if(A_.z)K.zUsed=true;if(A_.c)K.cUsed=true;return;}
@@ -3230,7 +3272,7 @@ function handleEdge(p,e,inp){
     if(a==='through'){if(p.holding&&!SP){gkDrop(p);K.consumed.through=true;}return;}
     if(a==='tackle'){if(!has&&live)startTackle(p,inp);return;}
     if(a==='pass'){
-      if(has&&live&&K.pend&&(K.pend.act==='shoot'||K.pend.act==='lob')){K.pend=null;K.consumed.pass=true;if(A_.c)K.cUsed=true;fakeShot(p,inp,A_.c);return;}
+      if(has&&live&&K.pend&&(K.pend.act==='shoot'||K.pend.act==='lob')){const cr=K.pend.act==='lob';K.pend=null;K.consumed.pass=true;if(A_.c)K.cUsed=true;fakeShot(p,inp,A_.c,cr);return;}
       if(SP&&SP.taker===p&&SP.type==='throw'&&K.pend&&K.pend.act==='lob'){K.pend=null;K.consumed.pass=true;p.oAnim='throw';p.oT=0;p.oDur=0.5;say(p.short+'의 페이크 스로우');return;}
       // S without the ball: switch player (holding it keeps pressing). Never a pass, so its release is swallowed.
       if(!has&&live&&!receiving(p)){smartSwitch(K);K.consumed.pass=true;}
@@ -3240,6 +3282,8 @@ function handleEdge(p,e,inp){
       if(K.pend&&K.pend.act==='lob'&&(has||SP&&SP.taker===p)){K.pend.count=Math.min(3,K.pend.count+1);K.pend.ttl=0.24;K.consumed.lob=true;return;}
       if(!has&&live&&!receiving(p)){startSlide(p,inp);K.consumed.lob=true;}
       return;}
+    if(a==='psh'){K.psT=0;if(has&&live&&!p.sk&&p.state==='normal'){K.pend=null;doShoot(p,0.95,null,false,false,{power:true,pq:clamp(e.code|0,0,100)});}return;}
+    if(a==='shoot'&&M.f&&has&&live&&!p.sk){K.pend=null;K.consumed.shoot=true;K.psT=gtime;return;}   // F + D: wind up, the timing bar runs on the player's screen
     if(a==='shoot'){
       if(has&&K.pend&&K.pend.act==='shoot'){K.pend.low=true;K.consumed.shoot=true;return;}           // D then tap D: low shot
       // D while defending: standing tackle when close enough (holding it keeps pressing)
@@ -3262,7 +3306,7 @@ function handleEdge(p,e,inp){
   const mods={q:M.q,z:M.z,c:M.c};if(mods.q)K.qUsed=true;if(mods.z)K.zUsed=true;if(mods.c)K.cUsed=true;
   if(has){
     if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.2,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.06;p.oDur=0.45;return;}   // 0.2 s back-swing leaves time for the second D tap
-    if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:SP||crossZone(p)?0.24:0.1,count:1,dir:inp.clone()};return;}
+    if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:SP||crossZone(p)?0.24:0.2,count:1,dir:inp.clone()};return;}   // room for A-taps and the S fake
     humanBallAction(p,a,power,inp,mods);
   }
   else if(!ball.owner&&state==='play'&&(receiving(p)||d2(p.pos,ball.pos)<7))K.buffer={act:a,power,ttl:1.1,mods:a==='shoot'&&xN(p)<-0.3&&!receiving(p)?Object.assign({},mods,{clear:true}):mods};   // D on a loose ball deep in our half: clear it
@@ -3330,6 +3374,28 @@ function pollPad(){
   canvas.addEventListener('pointerdown',()=>{if(state==='replay'&&mode==='match')endReplay();});
 })();
 
+/* ================= power shot (F + D): timing bar ================= */
+// F held + D starts it on this screen. The white bar sweeps across the red; a second D while it is over the green
+// strikes it clean (harder, truer). Missing the green, or letting it run out, still shoots: weaker and wild.
+const PS_DUR=0.8;
+function psCan(L){const p=L.controlled;return mode==='match'&&!paused&&state==='play'&&!SP&&!!p&&ball.owner===p&&!p.holding&&!p.sk&&p.state==='normal';}
+function psStart(L){const p=L.controlled,w=clamp(0.1+(p.st.sho-50)/50*0.12,0.1,0.22),c=rnd(0.4+w/2,0.92-w/2);
+  L.ps={t:0,w,c,wall:performance.now()};const el=$('#psGauge');el.hidden=false;el.className='';
+  $('#psGreen').style.left=((c-w/2)*100).toFixed(1)+'%';$('#psGreen').style.width=(w*100).toFixed(1)+'%';$('#psLbl').textContent='파워 슛';psDraw(L);}
+function psDraw(L){if(L.ps)$('#psCur').style.left=(clamp(L.ps.t/PS_DUR,0,1)*100).toFixed(1)+'%';}
+function psHit(L,timeout){
+  const s=L.ps;L.ps=null;let q=0,x=1;
+  if(!timeout){x=clamp((s.t+Math.min(0.03,(performance.now()-s.wall)/1000))/PS_DUR,0,1);const d=Math.abs(x-s.c)/(s.w/2);q=d<=1?Math.round(100-d*30):0;}
+  $('#psCur').style.left=(x*100).toFixed(1)+'%';
+  const el=$('#psGauge');el.className=q>=92?'perfect':q?'good':'miss';$('#psLbl').textContent=q>=92?'PERFECT!':q?'GOOD':'MISS';
+  clearTimeout(psHit.tm);psHit.tm=setTimeout(()=>{if(!LC().ps)el.hidden=true;},650);
+  if(net&&net.role==='guest')netLocalEdge('down','psh',q);else if(mode==='match')L.inq.push({type:'down',act:'psh',code:q});
+}
+function psUpdate(L,dt){const s=L.ps;if(!s)return;
+  const p=L.controlled;
+  if(!p||ball.owner!==p||state!=='play'||mode!=='match'){L.ps=null;$('#psGauge').hidden=true;return;}   // lost the ball: no shot
+  s.t+=dt;s.wall=performance.now();if(s.t>=PS_DUR){psHit(L,true);return;}psDraw(L);}
+
 /* ================= main tick ================= */
 let lastTickState='';
 function tick(dt){
@@ -3341,7 +3407,7 @@ function tick(dt){
   if(tut&&tut.done&&state!=='replay'){tut.wait-=dt;if(tut.wait<=0)tutGo(tut.i+1);}   // game time, so pausing holds it
   if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
   for(const p of players){p.wantTackle=false;p.faceBall=false;p.shielding=false;p.faceUp=false;}
-  if(human&&!(net&&net.role==='guest'))gestureUpdate(LC(),dt);   // drops a half-keyed move when play stops
+  if(human&&!(net&&net.role==='guest')){gestureUpdate(LC(),dt);psUpdate(LC(),dt);}   // drops a half-keyed move when play stops
   if(!ball.owner){computeTraj();for(const p of players)calcIntercept(p);}
   if(state==='play'&&shoot){shootUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
   else if(state==='play'){
@@ -3458,7 +3524,7 @@ function updateHud(dt){
   // gauge
   const g=$('#gauge');let shown=false;
   if(human&&controlled&&(ball.owner===controlled||intended===controlled||state==='setpiece')){
-    const L=LC();for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/900,0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
+    const L=LC();if(!L.ps&&!L.act.f)for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/900,0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
   }
   g.hidden=!shown;
   // name tag
@@ -3916,6 +3982,9 @@ const TUT_STEPS=[
    setup(){const p=tutPlace(tutP(0,9),36,0);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-4,0,0);tutBall(p);},
    check(){return tutHas('shot',k=>k==='chip')&&tutHas('shot',k=>k==='low');},
    prog(){return (tutHas('shot',k=>k==='chip')?'로빙슛 ✓ ':'로빙슛 · ')+(tutHas('shot',k=>k==='low')?'낮은 슛 ✓':'낮은 슛');}},
+  {t:'파워 슛',touchSkip:1,x:`${kb('F')}를 누른 채 ${kb('D')}를 누르면 타이밍 막대가 나옵니다. 흰 막대가 <b>초록 구간</b>을 지날 때 ${kb('D')}를 한 번 더 누르세요. 맞히면 강하고 정확한 슛, 놓치면 약하고 크게 빗나갑니다.`,
+   setup(){const p=tutPlace(tutP(0,9),32,0);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-0.6,0,0);tutBall(p);},
+   check(){return tutHas('shot',k=>k==='power');}},
   {t:'개인기 ① 속임 동작',x:`${kb('Shift')}를 <b>누른 채</b> ${kb('↓')} 또는 ${kb('↑')}를 톡: 몸을 한쪽으로 흔든 뒤 반대로 빠집니다. 개인기는 오른쪽으로 달릴 때 기준 방향입니다.`,
    setup(){const p=tutPlace(tutP(0,9),-4,0),d=tutPlace(tutP(1,6),2.6,0,-Math.PI/2);tutStage([p,d]);tut.park.set(d,d.pos.clone());tutBall(p);},
    check(){return tutHas('skill',k=>k!=='basic');}},
@@ -4611,8 +4680,8 @@ function netHostRead(){
   const bits=numIn(g.k,0,(1<<ACTS.length)-1,0);ACTS.forEach((a,i)=>{K.act[a]=!!(bits&(1<<i));});
   if(Array.isArray(g.ev))for(const e of g.ev){if(!Array.isArray(e))continue;const sq=numIn(e[0],0,1e9,0);if(sq<=net.lastSeq)continue;net.lastSeq=sq;
     const a=ACTS[numIn(e[2],0,ACTS.length-1,0)];if(mode!=='match')continue;
-    if(a==='smv'){if(e[1]!==1)K.inq.push({type:'down',act:'smv',code:numIn(e[3],0,99999,0)});continue;}
-    const mb=numIn(e[4],0,7,0),mods={q:!!(mb&1),z:!!(mb&2),c:!!(mb&4)};
+    if(a==='smv'||a==='psh'){if(e[1]!==1)K.inq.push({type:'down',act:a,code:numIn(e[3],0,99999,0)});continue;}
+    const mb=numIn(e[4],0,15,0),mods={q:!!(mb&1),z:!!(mb&2),c:!!(mb&4),f:!!(mb&8)};
     K.inq.push(e[1]===1?{type:'up',act:a,held:clamp(Number(e[3])||0,0,5),mods}:{type:'down',act:a,mods});}
 }
 const STATES=['play','setpiece','dead','goal','replay','halftime','fulltime'],SPT=['kickoff','throw','goalkick','corner','freekick','penalty'];
@@ -4658,7 +4727,7 @@ function netCleanup(){if(!net)return;const r=net.room;net=null;r.leave().catch((
 // ---- guest side ----
 function netLocalEdge(type,a,held){
   if(!net||net.role!=='guest'||mode!=='match')return;
-  const L=LC();net.seq++;net.ev.push([net.seq,type==='up'?1:0,ACTS.indexOf(a),a==='smv'?held|0:Math.round(held*1000)/1000,(L.act.switch?1:0)|(L.act.z?2:0)|(L.act.c?4:0)]);if(net.ev.length>10)net.ev.shift();
+  const L=LC();net.seq++;net.ev.push([net.seq,type==='up'?1:0,ACTS.indexOf(a),a==='smv'||a==='psh'?held|0:Math.round(held*1000)/1000,(L.act.switch?1:0)|(L.act.z?2:0)|(L.act.c?4:0)|(L.act.f?8:0)]);if(net.ev.length>10)net.ev.shift();
 }
 function netGuestFrame(dt){
   gtime+=dt;
@@ -4667,6 +4736,7 @@ function netGuestFrame(dt){
   if(now-net.inT>45){net.inT=now;const mv=withC(LC(),moveInput),L=LC();let bits=0;ACTS.forEach((a,i)=>{if(L.act[a])bits|=1<<i;});
     net.room.presence({g:{mv:[Math.round(mv.x*100)/100,Math.round(mv.z*100)/100],k:bits,ev:net.ev}}).catch(()=>{});}
   if(state==='play')gestureUpdate(LC(),dt);
+  psUpdate(LC(),dt);
   LC().inq.length=0;
   const hp=opponentPeer(),h=hp&&hp.presence&&hp.presence.h;
   if(h&&Array.isArray(h)&&h!==net.lastH){net.lastH=h;net.snaps.push({t:now,a:h});if(net.snaps.length>3)net.snaps.shift();net.lastSnapAt=now;}
@@ -4771,7 +4841,7 @@ window.__game={
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
-  aiShoot(p){aiShoot(p);},
+  aiShoot(p){aiShoot(p);},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
   get tut(){return tut;},tutGo(i){tutGo(i);},startTutorial(){startTutorial();},
   setScore(a,b){score[0]=a;score[1]=b;},get diffs(){return DIFFS;},get teams(){return teams;},get cfg(){return matchCfg;},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
