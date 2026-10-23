@@ -1835,7 +1835,8 @@ function computeTraj(){
 function calcIntercept(p){
   const ms=p.maxSpd()*1.0,boxK=p.isGK&&inBox(p.pos,p.team);
   const reach=boxK?1.2:0.7,hmax=boxK?2.6:p===intended&&ball.lastKind==='pass'?1.45:2.1;   // the receiver of a lofted pass meets it where it drops to chest height
-  for(const q of traj){if(q.y>hmax)continue;const d=Math.hypot(q.x-p.pos.x,q.z-p.pos.z)-reach;
+  const thr=p===intended&&lastPass&&lastPass.open&&lastPass.kind==='through'&&lastPass.team===p.team,fx=thr?p.pos.x*teams[p.team].dir+1.5:0;
+  for(const q of traj){if(q.y>hmax)continue;if(thr&&q.x*teams[p.team].dir<fx&&q.t<traj[traj.length-1].t-0.1)continue;const d=Math.hypot(q.x-p.pos.x,q.z-p.pos.z)-reach;
     if(d<=0||d/ms+0.12<=q.t){p.itT=q.t;p.itPt.set(q.x,0,q.z);return;}}
   const q=traj[traj.length-1];p.itPt.set(q.x,0,q.z);p.itT=q.t+Math.hypot(q.x-p.pos.x,q.z-p.pos.z)/ms;
 }
@@ -2188,8 +2189,16 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
   const tp=new V3();let ground=mode==='ground'||mode==='through';
   if(m){
     if(mode==='through'||o.lead||o.lobThrough){
-      const ahead=new V3(T.dir,0,-m.pos.z/HW*0.2);if(m.vel.lengthSq()>4&&m.vel.x*T.dir>0)ahead.add(m.vel.clone().normalize().multiplyScalar(0.6));ahead.normalize();
-      tp.copy(m.pos).addScaledVector(ahead,o.lead?2.5+power*3.5:(5+power*8)*(o.lead2?1.3:1));clampPitch(tp,1.5);m.runT=2.6;m.runKind='through';m.runUrg=1;m.runTarget.copy(tp);
+      // the line he runs: his run if he is on one, else the way he is going if that is forward, else at goal
+      const ahead=new V3(T.dir,0,-m.pos.z/HW*0.2);
+      if(m.runT>0&&m.runKind&&m.runKind!=='support'){const rx=m.runTarget.x-m.pos.x,rz=m.runTarget.z-m.pos.z;if((rx*T.dir)>0.5)ahead.set(rx,0,rz).normalize().multiplyScalar(1.4).add(new V3(T.dir,0,0));}
+      else if(m.vel.lengthSq()>4&&m.vel.x*T.dir>0)ahead.add(m.vel.clone().normalize().multiplyScalar(1.2));
+      ahead.normalize();
+      let L=o.lead?2.5+power*3.5:(7+power*11)*(o.lead2?1.25:1);
+      if(!o.lead&&!o.lobThrough){   // a ground through ball: put it where he gets to at full speed as it arrives, at least
+        const va=3.8,ms=m.maxSpd()*0.92;
+        for(let k=0;k<3;k++){tmpC.copy(m.pos).addScaledVector(ahead,L);const d=d2(from,tmpC),t=Math.log((va+ROLL*d)/va)/ROLL,reach=Math.max(0,(t-0.25))*ms;if(reach>L)L=Math.min(reach,26);}}
+      tp.copy(m.pos).addScaledVector(ahead,L);clampPitch(tp,1.5);if(tp.x*T.dir>HL-8)tp.x=T.dir*(HL-8);   // not into the keeper's lapm.runT=3.2;m.runKind='through';m.runUrg=1;m.runTarget.copy(tp);
       if(m.trait==='linebreaker'){m.boostT=2.0;m.boostMul=1.13;traitFlash(m);}
     }else tp.copy(m.pos);
   }else{
@@ -2527,6 +2536,9 @@ function resolveTouches(){
     let reach=gkBox?1.25:0.85,hmax=(gkBox?2.7:2.35)*(p.bodyS||1);   // height matters in the air
     // reception assist: the intended receiver controls a pass that comes near him
     if(p===intended){reach=Math.max(reach,1.45);hmax=Math.max(hmax,2.2);}
+    // a through ball is collected in stride: he lets it run past him until it is out in front and slowing
+    if(p===intended&&lastPass&&lastPass.open&&lastPass.kind==='through'&&lastPass.team===p.team){const dr=teams[p.team].dir;
+      const bs=Math.hypot(ball.vel.x,ball.vel.z),ps=Math.hypot(p.vel.x,p.vel.z);if(ball.vel.x*dr>3&&bs>ps+1&&((ball.pos.x-p.pos.x)*dr<1||bs>ps+3))continue;}
     if(wallShot&&!p.isGK&&p.team!==ball.lastTouch.team){reach=0.5;hmax=1.85+p.y*1.4;}
     const d=Math.hypot(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);
     if(d<reach&&ball.pos.y<hmax){const air=ball.pos.y>1.3&&!p.isGK,w=d-(p===intended?0.45:0)-(gkBox?0.3:0)+Math.random()*0.25-(air?(p.st.phy-65)*0.004+(p.runKind==='box'&&p.runT>0&&p.spd>4?0.3:0):0);   /* in the air: strength, and a runner attacking the ball */if(w<bd){bd=w;best=p;}}
@@ -2581,6 +2593,21 @@ function touch(p){
   gainPossession(p);p.gotBack=gotBack&&ball.owner===p;
 }
 
+// what happens to the ball when a tackle gets it: won clean, poked away, or a ricochet that pops up loose
+const tackleCount={};
+function tackleBall(d,o,f,edge){const res=tackleBallR(d,o,f,edge);tackleCount[res]=(tackleCount[res]||0)+1;return res;}
+function tackleBallR(d,o,f,edge){
+  const r=Math.random(),clean=0.42+edge*0.2,poke=clean+0.3;
+  if(r<clean){gainPossession(d);return 'clean';}
+  touched(d);ball.lastTouch=d;ball.lastKind='deflect';if(lastPass)lastPass.open=false;
+  if(r<poke){ball.vel.set(f.x*rnd(4,7)+rnd(-3,3),0.5,f.z*rnd(4,7)+rnd(-3,3));d.noTouch=0.12;}
+  else{   // off the shins: up and anywhere, even back to the man who lost it
+    const a=Math.random()*Math.PI*2,sp=rnd(2.5,7);ball.vel.set(Math.cos(a)*sp+f.x*0.8,rnd(1.8,4.8),Math.sin(a)*sp+f.z*0.8);
+    d.noTouch=rnd(0.2,0.4);o.noTouch=rnd(0.2,0.4);
+    if(Math.random()<0.5)say(pick(['공이 튀어 오릅니다!','경합 끝에 공이 흘러나옵니다!','발에 맞고 공이 튑니다!']));
+    computeTraj();return 'loose';}
+  computeTraj();return 'poke';
+}
 function processTackles(){
   const o=ball.owner;if(!o||o.holding||SP)return;
   for(const d of teams[1-o.team].players){
@@ -2590,10 +2617,8 @@ function processTackles(){
     d.cdTackle=0.55;if(o.protect>0)continue;
     const T=teams[d.team],tm=T.human?1:T.ai.tackle;
     if(Math.random()<0.3*mul*tm*((d.st.def+15)/(o.st.dri+15))){
-      stats.tackles[d.team]++;d.tk++;d.oAnim='tackle';d.oT=0;d.oDur=0.32;releaseBall();
-      if(Math.random()<0.5)gainPossession(d);
-      else{touched(d);const f=fwd(d);ball.vel.set(f.x*rnd(3,6)+rnd(-3,3),0.5,f.z*rnd(3,6)+rnd(-3,3));ball.lastTouch=d;ball.lastKind='deflect';d.noTouch=0.15;if(lastPass)lastPass.open=false;computeTraj();}
-      o.stun=0.5;o.noTouch=0.4;if(isHumanTeam(o.team))autoSwitch(0,true,o.team);return;
+      stats.tackles[d.team]++;d.tk++;d.oAnim='tackle';d.oT=0;d.oDur=0.32;releaseBall();o.stun=0.5;o.noTouch=0.4;
+      tackleBall(d,o,fwd(d),clamp((d.st.def-o.st.dri)/40,-0.5,0.5));if(isHumanTeam(o.team))autoSwitch(0,true,o.team);return;
     }
   }
 }
@@ -2637,10 +2662,8 @@ function tackleUpdate(p,dt){
         const T=teams[p.team],tm=T.human?1:T.ai.tackle,behind=fwd(p).dot(fwd(o))>0.55;
         let pr=0.62*tm*((p.st.def+15)/(o.st.dri+15));if(o.protect>0)pr*=0.45;if(o.shielding)pr*=0.6;if(behind)pr*=wide?1.0:0.6;
         if(Math.random()<clamp(pr,0.1,0.9)){
-          stats.tackles[p.team]++;p.tk++;releaseBall();if(wide)traitFlash(p);
-          if(Math.random()<0.5)gainPossession(p);
-          else{touched(p);ball.vel.set(f.x*rnd(4,7)+rnd(-3,3),0.5,f.z*rnd(4,7)+rnd(-3,3));ball.lastTouch=p;ball.lastKind='deflect';p.noTouch=0.12;if(lastPass)lastPass.open=false;computeTraj();}
-          o.stun=0.6;o.noTouch=0.45;SND.kick(0.35);
+          stats.tackles[p.team]++;p.tk++;releaseBall();if(wide)traitFlash(p);o.stun=0.6;o.noTouch=0.45;
+          tackleBall(p,o,f,clamp((p.st.def-o.st.dri)/40,-0.5,0.5)+(pr>0.75?0.15:0));SND.kick(0.35);
           if(isHumanTeam(o.team))autoSwitch(0,true,o.team);
         }else if(behind&&Math.random()<(wide?0.2:0.45)){o.state='fall';o.stateT=0;o.fallDur=1.0;foul(p,o,'tackle');}
         else o.protect=0.3;
@@ -3027,7 +3050,7 @@ function fkAimUpdate(dt){
     const M=e.mods||{q:K.act.switch,z:K.act.z,c:K.act.c};
     if(e.act==='shoot'){
       if(M.q)fk.qUsed=true;
-      fk.power=clamp(e.held/0.9,0.1,1);
+      fk.power=clamp(e.held/holdFull('shoot'),0.1,1);
       if(fk.pen){fk.chip=M.q;fk.fin=M.z&&!fk.chip;}           // Q+D panenka, Z+D placed finesse
       else{fk.drive=M.q;                                               // Q+D driven free kick
         const alt=M.c&&fk.k2?fk.k2:M.z&&fk.k3?fk.k3:null;if(alt)fkSwapTaker(alt);}   // C+D / Z+D: the called kicker strikes
@@ -3228,6 +3251,8 @@ function withC(K,fn){const pc=C;C=K;try{return fn();}finally{C=pc;}}
 function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.inq.length=0;K.buffer=null;K.consumed={};K.controlled=null;K.switchCD=0;K.remote=false;K.mv.set(0,0,0);K.pend=null;K.g=null;K.firstTouch=null;K.skBuf=null;K.penGuessSet=false;K.psT=0;K.ps=null;K.swallow=false;}C=CTRL[ME];}
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
+// seconds of holding for a full gauge: shots fill faster than passes
+const FULL_HOLD={shoot:0.6};const holdFull=a=>FULL_HOLD[a]||0.9;
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
@@ -3422,7 +3447,7 @@ function handleEdge(p,e,inp){
   if(a==='c'){K.cUsed=false;return;}
   if(!['pass','through','lob','shoot'].includes(a))return;
   if(K.consumed[a]){K.consumed[a]=false;return;}
-  const power=clamp(e.held/0.9,0.08,1);
+  const power=clamp(e.held/holdFull(a),0.08,1);
   if(SP&&(SP.taker!==p||SP.t<0.6))return;
   const mods={q:M.q,z:M.z,c:M.c};if(mods.q)K.qUsed=true;if(mods.z)K.zUsed=true;if(mods.c)K.cUsed=true;
   if(has){
@@ -3645,7 +3670,7 @@ function updateHud(dt){
   // gauge
   const g=$('#gauge');let shown=false;
   if(human&&controlled&&(ball.owner===controlled||intended===controlled||state==='setpiece')){
-    const L=LC();if(!L.ps&&!L.act.f)for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/900,0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
+    const L=LC();if(!L.ps&&!L.act.f)for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/(holdFull(a)*1000),0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
   }
   g.hidden=!shown;
   // name tag
@@ -4962,7 +4987,7 @@ window.__game={
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
-  aiShoot(p){aiShoot(p);},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
+  aiShoot(p){aiShoot(p);},get tackleCount(){return tackleCount;},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
   get tut(){return tut;},tutGo(i){tutGo(i);},startTutorial(){startTutorial();},
   setScore(a,b){score[0]=a;score[1]=b;},get diffs(){return DIFFS;},get teams(){return teams;},get cfg(){return matchCfg;},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
