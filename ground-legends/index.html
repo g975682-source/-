@@ -1860,28 +1860,28 @@ function teamThink(T,dt){
         if(T.secondPress||(danger&&!ctrlNear))T.presser=sorted[0];T.cover=T.presser?sorted[1]:sorted[0];}
     }
   }
-  if(att)offBallThink(T,dt,ctrl);
+  if(att)offBallThink(T,dt,ctrl);else defThink(T,dt,ctrl);
   for(const p of T.players){
     if(p===ctrl||p===ball.owner||p.state!=='normal')continue;
     if(p.isGK){gkThink(p,dt);continue;}
     p.runT-=dt;if(!att&&p.runKind){p.runT=0;p.runKind=null;p.runNext=null;}
     if(p===T.chaser){moveTo(p,p.itPt,1);p.faceBall=d2(p.pos,p.itPt)<3;continue;}
     if(p===T.presser){
-      if(ball.owner){const c=ball.owner;const d=pressMove(p,c,d2(p.pos,c.pos)>3);
-        const db=d2(p.pos,ball.pos);
-        if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*(T.human?1.1:2.0*T.ai.press))startTackle(p,null);
-        else if(!T.human&&db<3.2&&db>1.3&&!inBox(p.pos,p.team)&&Math.random()<dt*0.35*T.ai.press&&p.st.def>60){p.face=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);startSlide(p);}
-      }else if(intended){moveTo(p,intended.pos,0.95);}
+      if(ball.owner){const c=ball.owner;
+        if(!T.human)aiPress(p,c,dt,T);
+        else{pressMove(p,c,d2(p.pos,c.pos)>3);const db=d2(p.pos,ball.pos);if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*1.1)startTackle(p,null);}
+      }else if(intended){moveTo(p,intended.pos,1);}   // jump on the man the pass is going to
       continue;}
     if(p===T.presser2&&ball.owner){const c=ball.owner,v=c.vel.length()>0.5?c.vel:fwd(c);tmpC.set(c.pos.x+v.x*0.45,0,c.pos.z+v.z*0.45);moveTo(p,tmpC,1);p.faceBall=true;
       if(d2(p.pos,ball.pos)<1.6&&!c.holding&&Math.random()<dt*1.4*T.ai.press)startTackle(p,null);continue;}
     if(p===T.cover&&ball.owner){const c=ball.owner,ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1;
       tmpC.set(c.pos.x+gx/gl*Math.min(6,gl*0.4),0,c.pos.z+gz/gl*Math.min(6,gl*0.4));moveTo(p,tmpC,0.8);p.faceBall=true;continue;}
+    if(!att&&p.defJob){const j=p.defJob;const d=moveTo(p,j.pt,d2(p.pos,j.pt)>1.2?(j.kind==='mark'?1:0.92):0.5);p.faceBall=true;continue;}   // mark or screen a lane
     if(att&&p.runT>0){const d=moveTo(p,p.runTarget,p.runUrg||1);if(p.runKind==='box'||p.runKind==='support')p.faceBall=d<2.5;continue;}   // on a run: at the run's own pace
     formTarget(p,tmpA);
     if(!att)applyMarking(p,tmpA);else applyRuns(p,tmpA,dt);
-    const d=d2(p.pos,tmpA);
-    moveTo(p,tmpA,d>12?0.95:d>4?0.6:0.3);
+    const d=d2(p.pos,tmpA),beaten=!att&&(p.pos.x-ball.pos.x)*T.dir>4;   // caught upfield: recovery run
+    moveTo(p,tmpA,beaten||d>12?0.95:d>4?(att?0.6:0.8):0.3);
   }
 }
 function applyMarking(p,tgt){
@@ -1991,6 +1991,60 @@ function passRuns(p,m,mode){
     if(best&&Math.random()<0.38){runBehind(best,'third',T);}}
 }
 
+/* ================= defending off the ball ================= */
+// Out of possession every outfield player has a job, refreshed a few times a second: the nearest man presses,
+// the most dangerous receivers are marked goal-side, and the next passes are screened by standing in their lane
+// (the cover shadow), so the carrier sees his options closed before he plays them. The rest hold the shape.
+function defThink(T,dt,ctrl){
+  T.djT=(T.djT||0)-dt;if(T.djT>0)return;T.djT=0.2;
+  for(const p of T.players)p.defJob=null;
+  if(state!=='play'||SP)return;
+  const o=ball.owner,c=o&&o.team!==T.idx&&!o.holding?o:(!o&&intended&&intended.team!==T.idx?intended:null);
+  if(!c)return;
+  const gx=-T.dir*HL,O=teams[1-T.idx],sm=(T.ai&&T.ai.smart)||0;
+  const free=T.players.filter(p=>!p.isGK&&p!==ctrl&&p!==T.presser&&p!==T.presser2&&p!==T.cover&&p!==T.chaser&&p.state==='normal'&&!p.sentOff);
+  // the options the carrier has, most dangerous first
+  const opts=[];
+  for(const r of O.players){if(r===c||r.isGK||r.sentOff)continue;const dc=d2(r.pos,c.pos);if(dc>38)continue;
+    const dG=Math.hypot(r.pos.x-gx,r.pos.z),cG=Math.hypot(c.pos.x-gx,c.pos.z),lane=laneOpen(c.pos,r.pos,O.idx);
+    const s=(50-dG)*0.05+Math.min(lane,4)*0.25+(dc<22?0.3:0)+(r.runT>0&&r.runKind!=='support'?0.4:0);
+    opts.push({r,s,deep:dG<cG-6,dc});}
+  opts.sort((a,b)=>b.s-a.s);
+  const n=Math.min(opts.length,Math.round(4+sm*1.5)),used=new Set();
+  for(let i=0;i<n;i++){const {r,deep,dc}=opts[i];
+    let pt;
+    if(deep||dc<7){   // mark: goal-side of him, a little toward the ball
+      const ux=gx-r.pos.x,uz=-r.pos.z,ul=Math.hypot(ux,uz)||1;pt=new V3(r.pos.x+ux/ul*1.5+(c.pos.x-r.pos.x)*0.06,0,r.pos.z+uz/ul*1.5+(c.pos.z-r.pos.z)*0.06);}
+    else{             // screen the lane: stand on the pass line, nearer the receiver, shaded goal-side
+      const k=clamp(0.62-4/Math.max(dc,6),0.35,0.62);pt=new V3(c.pos.x+(r.pos.x-c.pos.x)*k+T.dir*-0.8,0,c.pos.z+(r.pos.z-c.pos.z)*k);}
+    let best=null,bc=1e9;
+    for(const p of free){if(used.has(p))continue;
+      // back men take the deep runners, midfielders and forwards take the lanes
+      const cost=d2(p.pos,pt)+(deep?(p.line===1?0:6):(p.line===1?8:0));if(cost<bc){bc=cost;best=p;}}
+    if(!best||bc>26)continue;used.add(best);best.defJob={kind:deep||dc<7?'mark':'lane',r,pt};
+  }
+}
+// the presser: sprint to close him down, slow to a jockey at arm's length, and lunge when the ball gets away from him
+function aiPress(p,c,dt,T){
+  const ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1,d=d2(p.pos,c.pos);
+  tmpC.set(c.pos.x+gx/gl*(d>3?0.6:1.1)+c.vel.x*0.3,0,c.pos.z+gz/gl*(d>3?0.6:1.1)+c.vel.z*0.3);
+  const loose=d2(c.pos,ball.pos)>0.75,backToGoal=fwd(c).x*T.dir>0.5,fresh=gtime-c.gainT<0.7;
+  moveTo(p,tmpC,d>2.4||loose||fresh&&backToGoal?1:0.78);p.faceBall=d<5;
+  const db=d2(p.pos,ball.pos),pr=T.ai.press;
+  // a heavy touch, a man receiving with his back to goal: go in now
+  if(db<2.2&&db>0.4&&!c.holding&&(loose||fresh&&backToGoal)&&Math.random()<dt*3.2*pr)return startTackle(p,null);
+  if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*2.0*pr)return startTackle(p,null);
+  if(db<3.2&&db>1.3&&!inBox(p.pos,p.team)&&Math.random()<dt*0.35*pr&&p.st.def>60){p.face=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);startSlide(p);}
+}
+// players under a dropping ball go up for it together: both jump in a header duel
+function aerialJumps(){
+  if(ball.owner||state!=='play')return;
+  const y=ball.pos.y;if(y<1.45||y>3.3||ball.vel.y>2.5)return;
+  const fx=ball.pos.x+ball.vel.x*0.2,fz=ball.pos.z+ball.vel.z*0.2;
+  for(const p of players){if(p.isGK||p.state!=='normal'||p.oAnim||p.sk||p.sentOff||p.holding)continue;
+    if(isHumanTeam(p.team)&&p===CTRL[p.team].controlled&&p===intended)continue;   // the user's receiver chests it down unless he keys a header
+    if(Math.hypot(fx-p.pos.x,fz-p.pos.z)<1.35&&(p.jumpCD||0)<gtime){p.oAnim='header';p.oT=0;p.oDur=0.5;p.jumpCD=gtime+1.0;}}
+}
 function gkThink(p,dt){
   const T=teams[p.team],gx=-T.dir*HL;
   p.faceBall=true;
@@ -2057,7 +2111,7 @@ function bestPassOption(p){
       else tmpB.set(m.pos.x+T.dir*8,0,m.pos.z*0.9);
       if(Math.abs(tmpB.x)<HL-3){
         const ps=nearestOppDist(m,tmpB),ln=laneOpen(p.pos,tmpB,p.team),dd=d2(p.pos,tmpB),pg=(tmpB.x*T.dir/HL-pxn)*HL;
-        if(ps>4.5&&ln>1.8){const st=pg*0.045+Math.min(ps,7)*0.06+Math.min(ln,3)*0.08-dd*0.01-0.6+(m.trait==='linebreaker'?0.15:0)+(T.ai.smart||0)*0.15+(m.runT>0?0.12:0);if(st>best.s)best={m,s:st,mode:'through'};}   // smart sides look for the run
+        if(ps>4.5&&ln>1.8){const st=pg*0.045+Math.min(ps,7)*0.06+Math.min(ln,3)*0.08-dd*0.01-0.6+(m.trait==='linebreaker'?0.15:0)+(T.ai.smart||0)*0.15+(m.runT>0?0.12:0);if(st>best.s)best={m,s:st,mode:'through',pt:tmpB.clone()};}   // smart sides look for the run
       }
     }
   }
@@ -2097,7 +2151,7 @@ function aiCarrier(p,dt){
   if(pr<2.2)pw+=0.45;else if(pr<4)pw+=0.12;
   if(p.line===1&&xn<-0.3)pw+=0.15;
   const margin=pr<2.2?0:pr<4?0.1:0.22;
-  if(opt&&(pw>dr.s+margin||(pr<3&&Math.random()<0.05))){passTo(p,opt.m,opt.mode,0.7,true);return;}
+  if(opt&&(pw>dr.s+margin||(pr<3&&Math.random()<0.05))){passTo(p,opt.m,opt.mode,0.7,true,null,opt.pt?{pt:opt.pt}:{});return;}   // a through ball goes to the space it was picked for
   p.aiDir.copy(dr.dir);p.aiSprint=dr.open>4.5&&p.stamina>25&&xn>-0.35;
   if(pr<2.4&&(p.st.dri>72||p.trait==='trickster')&&Math.random()<0.2*ai.press*(p.trait==='trickster'?2.2:1)*(1+(ai.smart||0)))aiSkill(p);
   carrierSteer(p,pr);
@@ -2184,11 +2238,11 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
       if(m.runT>0&&m.runKind&&m.runKind!=='support'){const rx=m.runTarget.x-m.pos.x,rz=m.runTarget.z-m.pos.z;if((rx*T.dir)>0.5)ahead.set(rx,0,rz).normalize().multiplyScalar(1.4).add(new V3(T.dir,0,0));}
       else if(m.vel.lengthSq()>4&&m.vel.x*T.dir>0)ahead.add(m.vel.clone().normalize().multiplyScalar(1.2));
       ahead.normalize();
-      let L=o.lead?2.5+power*3.5:(7+power*11)*(o.lead2?1.25:1);
+      let L=o.lead?2.5+power*3.5:(5.5+power*9)*(o.lead2?1.25:1);
       if(!o.lead&&!o.lobThrough){   // a ground through ball: put it where he gets to at full speed as it arrives, at least
-        const va=3.8,ms=m.maxSpd()*0.92;
-        for(let k=0;k<3;k++){tmpC.copy(m.pos).addScaledVector(ahead,L);const d=d2(from,tmpC),t=Math.log((va+ROLL*d)/va)/ROLL,reach=Math.max(0,(t-0.25))*ms;if(reach>L)L=Math.min(reach,26);}}
-      tp.copy(m.pos).addScaledVector(ahead,L);clampPitch(tp,1.5);if(tp.x*T.dir>HL-8)tp.x=T.dir*(HL-8);   // not into the keeper's lapm.runT=3.2;m.runKind='through';m.runUrg=1;m.runTarget.copy(tp);
+        const va=5.5,ms=m.maxSpd()*0.9;
+        for(let k=0;k<3;k++){tmpC.copy(m.pos).addScaledVector(ahead,L);const d=d2(from,tmpC),t=Math.log((va+ROLL*d)/va)/ROLL,reach=Math.max(0,(t-0.3))*ms;if(reach>L)L=Math.min(reach,16);}}
+      tp.copy(m.pos).addScaledVector(ahead,L);if(o.pt&&mode==='through')tp.copy(o.pt);clampPitch(tp,1.5);if(tp.x*T.dir>HL-8)tp.x=T.dir*(HL-8);   // not into the keeper's lapm.runT=3.2;m.runKind='through';m.runUrg=1;m.runTarget.copy(tp);
       if(m.trait==='linebreaker'){m.boostT=2.0;m.boostMul=1.13;traitFlash(m);}
     }else tp.copy(m.pos);
   }else{
@@ -2197,7 +2251,7 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
   }
   let v;
   if(ground){
-    const va=mode==='through'?3.8:4.6;let d=d2(from,tp);
+    const va=mode==='through'?5.5:4.6;let d=d2(from,tp);
     if(m&&mode==='ground'&&!o.lead){for(let k=0;k<2;k++){const v0=va+ROLL*d,t=Math.log(v0/va)/ROLL;tp.copy(m.pos).addScaledVector(m.vel,t*0.75);d=d2(from,tp);}}
     let v0=(va+ROLL*d)*(isAI?1:lerp(0.86,1.16,power))*(o.spd||1);v0=Math.min(v0,o.spd>1?34:31)*(1+gauss()*err*0.07);
     const dir=new V3(tp.x-from.x,0,tp.z-from.z).normalize().applyAxisAngle(new V3(0,1,0),gauss()*err*0.1);
@@ -2325,7 +2379,7 @@ function header(p){
   p.oAnim='header';p.oT=0;p.oDur=0.5;
   const wantShot=isH?((K.buffer&&K.buffer.act==='shoot')||K.act.shoot):(gd<17&&Math.random()<0.8);
   if(wantShot&&gd<24){K.buffer=null;const side=Math.random()<0.5?-1:1;doShoot(p,0.75,isH?null:{tz:side*rnd(1,3),ty:rnd(0.2,1.6)},true,!isH);return;}
-  if(inBox(p.pos,p.team)||(xN(p)<-0.55&&!isH)){const v=new V3(T.dir*rnd(9,13),rnd(5,8),(p.pos.z>0?1:-1)*rnd(2,6));kick(p,v,'clear');return;}
+  if(inBox(p.pos,p.team)||(xN(p)<-0.55&&!isH)){const v=new V3(T.dir*rnd(9,13),rnd(5,8),(p.pos.z>0?1:-1)*rnd(2,6));kick(p,v,'clear');p.oAnim='header';p.oT=0.05;p.oDur=0.5;return;}   // a headed clearance still looks like one
   let dir=isH?moveInput():null;if(!dir||dir.lengthSq()<0.04)dir=new V3(T.dir,0,0);
   const m=choosePassTarget(p,dir,'lob');
   const tp=m?m.pos.clone():p.pos.clone().addScaledVector(dir.normalize(),10);
@@ -2523,12 +2577,12 @@ function resolveTouches(){
     if(p===ball.lastTouch&&ball.lastKind==='touch'&&ball.pos.y>0.95)continue;   // his own flick (rainbow, sombrero): let it drop first
     if(p.state==='dive'&&!(p.save&&p.save.success))continue;
     const gkBox=p.isGK&&inBox(p.pos,p.team);
-    let reach=gkBox?1.25:0.85,hmax=(gkBox?2.7:2.35)*(p.bodyS||1);   // height matters in the air
+    let reach=gkBox?1.25:0.85,hmax=(gkBox?2.7:2.35)*(p.bodyS||1)+(p.isGK?0:(p.y||0)*0.9);   // height matters in the air
     // reception assist: the intended receiver controls a pass that comes near him
     if(p===intended){reach=Math.max(reach,1.45);hmax=Math.max(hmax,2.2);}
     // a through ball is collected in stride: he lets it run past him until it is out in front and slowing
     if(p===intended&&lastPass&&lastPass.open&&lastPass.kind==='through'&&lastPass.team===p.team){const dr=teams[p.team].dir;
-      const bs=Math.hypot(ball.vel.x,ball.vel.z),ps=Math.hypot(p.vel.x,p.vel.z);if(ball.vel.x*dr>3&&bs>ps+1&&((ball.pos.x-p.pos.x)*dr<1||bs>ps+3))continue;}
+      const bs=Math.hypot(ball.vel.x,ball.vel.z),ps=Math.hypot(p.vel.x,p.vel.z);if(ball.vel.x*dr>3&&bs>ps+1.5&&(ball.pos.x-p.pos.x)*dr<0.8)continue;}
     if(wallShot&&!p.isGK&&p.team!==ball.lastTouch.team){reach=0.5;hmax=1.85+p.y*1.4;}
     const d=Math.hypot(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);
     if(d<reach&&ball.pos.y<hmax){const air=ball.pos.y>1.3&&!p.isGK,w=d-(p===intended?0.45:0)-(gkBox?0.3:0)+Math.random()*0.25-(air?(p.st.phy-65)*0.004+(p.runKind==='box'&&p.runT>0&&p.spd>4?0.3:0):0);   /* in the air: strength, and a runner attacking the ball */if(w<bd){bd=w;best=p;}}
@@ -2536,7 +2590,8 @@ function resolveTouches(){
   // a cross met by a defender with an attacker right on him is a header duel, not first come first served
   if(best&&!best.isGK&&ball.pos.y>1.3&&lastPass&&lastPass.open&&lastPass.kind==='cross'&&lastPass.team!==best.team){
     let a=null,ad=2.8;for(const q of teams[lastPass.team].players){if(q.isGK||q.state!=='normal'||q.noTouch>0||q===lastPass.by)continue;const d=Math.hypot(ball.pos.x-q.pos.x,ball.pos.z-q.pos.z);if(d<ad){ad=d;a=q;}}
-    if(a){const pw=0.46-Math.max(0,ad-1.2)*0.13+(a.st.phy-best.st.phy)*0.008+(a===intended?0.1:0)+(a.runKind==='box'&&a.runT>0?0.1:0);if(Math.random()<pw)best=a;}}
+    if(a){const pw=0.46-Math.max(0,ad-1.2)*0.13+(a.st.phy-best.st.phy)*0.008+(a===intended?0.1:0)+(a.runKind==='box'&&a.runT>0?0.1:0),d0=best;if(Math.random()<pw)best=a;
+      const lose=best===a?d0:a;if(lose.state==='normal'&&lose.oAnim!=='header'){lose.oAnim='header';lose.oT=0.08;lose.oDur=0.5;lose.jumpCD=gtime+1;}}}   // the one who loses the duel went up too
   if(best)touch(best);
 }
 
@@ -3562,7 +3617,7 @@ function tick(dt){
   separate();
   if(state==='play')gkSaves(dt);
   ballUpdate(dt);
-  if(state==='play'){resolveTouches();processTackles();checkBounds();advantageUpdate(STEP);
+  if(state==='play'){aerialJumps();resolveTouches();processTackles();checkBounds();advantageUpdate(STEP);
     if(ball.owner){possTeam=ball.owner.team;stats.poss[possTeam]+=dt;}else if(ball.lastTouch)possTeam=ball.lastTouch.team;}
   for(const p of players)syncAnimState(p);
   if(state!=='goal'||goalT<1.3)recordFrame();
