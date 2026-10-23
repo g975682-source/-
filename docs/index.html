@@ -78,6 +78,15 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-
 .lb-card i{font-style:normal;align-self:stretch;display:grid;place-items:center;padding:0 12px;border-left:4px solid #e0273d;font:800 18px var(--f-num)}
 .lb-card .crest{width:24px;height:24px;font-size:8px}
 .lb-card b{font-size:17px;flex:1}.lb-card em{font-style:normal;font:700 14px var(--f-num);color:var(--gold)}
+.lb-card{pointer-events:auto;cursor:pointer;padding-right:0}
+#lbPick{align-self:stretch;width:40px;margin-left:6px;font-size:14px;color:#fff;border-left:1px solid rgba(255,255,255,.12)}
+#lbPick:hover,.lb-card:hover #lbPick{background:rgba(255,255,255,.1)}.lb-card.open #lbPick{transform:rotate(180deg)}
+.lb-pick{position:absolute;right:max(16px,calc((100% - 1420px)/2));bottom:140px;width:300px;max-height:min(420px,calc(100vh - 280px));overflow-y:auto;background:rgba(18,20,24,.95);border:1px solid rgba(255,255,255,.12);pointer-events:auto;box-shadow:0 6px 20px rgba(0,0,0,.5)}
+.lb-pick button{display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 12px 0 0;text-align:left;border-bottom:1px solid rgba(255,255,255,.06)}
+.lb-pick button:hover,.lb-pick button:focus-visible{background:rgba(255,255,255,.08)}
+.lb-pick button.on{background:rgba(224,39,61,.25)}
+.lb-pick i{font-style:normal;width:52px;text-align:center;font:800 15px var(--f-num);border-left:4px solid #e0273d;align-self:stretch;display:grid;place-items:center}
+.lb-pick b{flex:1;font-size:15px}.lb-pick em{font-style:normal;font:700 15px var(--f-num);color:var(--gold)}
 body.prac #hud>*:not(#gauge):not(#psGauge):not(#banner):not(#nameTag):not(#runBadge){display:none!important}
 body.touch #lbPrac{display:none}
 @media (max-width:720px){.lb-stat:not(.lb-bp){display:none}.lb-crest{width:64px;height:64px}.lb-crest .crest{width:44px;height:44px;font-size:13px}.lb-info{height:30px;font-size:15px;gap:8px}.lb-stat i{display:none}.lb-club{display:none}.lb-nav{height:44px}.lb-nav button{font-size:15px;padding:0 14px}.lb-logo{display:none}.lb-bottom nav{justify-content:flex-start}.lb-bottom nav button{font-size:14px;padding:0 12px}.lb-card{min-width:0}.lb-hint{font-size:12px}}
@@ -450,6 +459,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       </nav>
     </div>
   </header>
+  <div class="lb-pick" id="lbPickList" hidden></div>
   <div class="lb-card" id="lbCard" hidden></div>
   <div class="lb-hint" id="lbHint"></div>
   <footer class="lb-bottom">
@@ -3425,7 +3435,7 @@ window.addEventListener('keydown',e=>{
   const a=KEYMAP[e.code];
   if(a&&mode==='menu'&&!prac&&lobbyOpen()&&e.code!=='Space')return;   // watching the AI match: keys do nothing
   if(a){e.preventDefault();if(!e.repeat)actDown(a);return;}
-  if(e.code==='Escape'||e.code==='KeyP'){if(mode==='match'&&!['halftime','fulltime'].includes(state))togglePause();else if(prac&&e.code==='Escape'&&lobbyOpen()&&!modalOpen())stopPractice();}
+  if(e.code==='Escape'||e.code==='KeyP'){if(mode==='match'&&!['halftime','fulltime'].includes(state))togglePause();else if(prac&&e.code==='Escape'&&lobbyOpen()&&!modalOpen()){if(!$('#lbPickList').hidden)togglePracList(false);else stopPractice();}}
   else if(e.code==='Enter'&&mode==='menu'&&!prac&&lobbyOpen()&&!modalOpen()&&!document.body.classList.contains('touch')){e.preventDefault();startPractice();}
   else if((e.code==='BracketLeft'||e.code==='BracketRight')&&prac){e.preventDefault();pracSet(e.code==='BracketLeft'?'fk':'pen');}
   else if(e.code==='KeyR'||e.code==='KeyV'){if(mode==='match'||prac&&lobbyOpen()){e.preventDefault();cycleCam();}}
@@ -4001,7 +4011,8 @@ function startLobby(){if(document.body.classList.contains('touch'))startDemo();e
 function startPractice(){
   mode='menu';paused=false;$('#result').hidden=true;$('#halftime').hidden=true;$('#touch').hidden=true;
   setupMatch({sides:pracSides(),diff:'pro',minutes:90,human:true,firstKick:0,practice:true});
-  const T=teams[0],p=T.players.filter(q=>!q.isGK).sort((a,b)=>(b.line-a.line)||(b.st.sho-a.st.sho))[0];
+  const T=teams[0];let want='';try{want=localStorage.getItem('gl-prac-p')||'';}catch(e){}
+  const p=T.players.find(q=>!q.isGK&&q.name===want)||T.players.filter(q=>!q.isGK).sort((a,b)=>(b.line-a.line)||(b.st.sho-a.st.sho))[0];
   prac={p,goals:0,t:0,park:new Map(),resetT:0};
   document.body.classList.add('prac');$('#hud').hidden=false;$('#keys').hidden=true;
   SND.setCrowd(SND.muted?0:0.03);camMode=0;pracStage(true);updateLobby();
@@ -4042,10 +4053,22 @@ function pracSet(kind){
   for(const q of teams[1].players){if(q.isGK)continue;prac.park.delete(q);q.rig.root.visible=true;}   // the wall
   startSetPiece('freekick',0,new V3(x,BR,z),{taker:p});
 }
+// the ▲ on the player card: pick who to practise with from my side
+function pracPick(p){
+  if(!prac||!p||p===prac.p)return;const o=prac.p;p.pos.copy(o.pos);p.face=o.face;prac.p=p;
+  try{localStorage.setItem('gl-prac-p',p.name);}catch(e){}
+  pracStage(false);updateLobbyCard();
+}
+function renderPracList(){
+  const L=$('#lbPickList');if(!prac){L.hidden=true;return;}
+  const list=teams[0].players.filter(q=>!q.isGK).sort((a,b)=>(b.line-a.line)||(b.ovr-a.ovr));
+  L.innerHTML=list.map(q=>`<button data-pp="${teams[0].players.indexOf(q)}" class="${q===prac.p?'on':''}"><i>${esc(q.label)}</i><b>${esc(q.short)}</b><em>${q.ovr}</em></button>`).join('');
+}
+function togglePracList(open){const L=$('#lbPickList');const o=open??L.hidden;if(o)renderPracList();L.hidden=!o||!prac;$('#lbCard').classList.toggle('open',!L.hidden);}
 function updateLobbyCard(){
   const c=$('#lbCard');if(!c)return;
-  if(prac){const p=prac.p;c.hidden=false;c.innerHTML=`<i>${esc(p.label)}</i><span class="crest" style="--c1:${teams[0].kit.shirt};--c2:${teams[0].kit.trim||'#fff'}">${esc(teams[0].def.code)}</span><b>${esc(p.short)}</b><em>골 ${prac.goals}</em>`;}
-  else c.hidden=true;
+  if(prac){const p=prac.p;c.hidden=false;c.innerHTML=`<i>${esc(p.label)}</i><span class="crest" style="--c1:${teams[0].kit.shirt};--c2:${teams[0].kit.trim||'#fff'}">${esc(teams[0].def.code)}</span><b>${esc(p.short)}</b><em>골 ${prac.goals}</em><button id="lbPick" aria-label="연습 선수 바꾸기" title="연습 선수 바꾸기">▲</button>`;}
+  else{c.hidden=true;$('#lbPickList').hidden=true;}
   $('#lbHint').innerHTML=prac?`<span><kbd>R</kbd> 카메라 변경</span><span><kbd>[</kbd> 또는 <kbd>]</kbd> (현재 위치에서) 프리킥, 페널티킥</span><span><kbd>ESC</kbd> 연습 종료</span>`
     :document.body.classList.contains('touch')?`<span>AI 경기 관전 중</span>`:`<span>AI 경기 관전 중</span><span><kbd>Enter</kbd> 연습 시작</span>`;
   $('#lbPrac').textContent=prac?'연습 종료':'연습 시작';
@@ -4936,6 +4959,10 @@ $('#btnClub').onclick=()=>{SND.init();goClub('home');};
 document.querySelectorAll('#title [data-lb]').forEach(b=>{if(b.id!=='btnClub')b.onclick=()=>{SND.init();goClub(b.dataset.lb);};});
 $('#lbWatch').onclick=()=>{stopPractice();if(!prac&&mode==='menu')startDemo();updateLobby();};
 $('#lbPrac').onclick=e=>{e.currentTarget.blur();SND.init();if(prac)stopPractice();else if(!document.body.classList.contains('touch'))startPractice();else ctoast('연습은 키보드로 할 수 있습니다.');};
+document.body.addEventListener('click',e=>{
+  const pp=e.target.closest('[data-pp]');if(pp){pracPick(teams[0].players[+pp.dataset.pp]);togglePracList(false);pp.blur();return;}
+  if(e.target.closest('#lbCard')){togglePracList();const b=e.target.closest('button');if(b)b.blur();return;}
+  if(!e.target.closest('#lbPickList'))togglePracList(false);});
 $('#lbMute').onclick=e=>{e.currentTarget.blur();SND.init();toggleMute();};
 
 /* ================= online friendlies (room capability) ================= */
