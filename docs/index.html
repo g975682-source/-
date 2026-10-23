@@ -157,6 +157,7 @@ kbd{font-family:var(--f-num);font-weight:700;background:#0a1530;border:1px solid
 #banner b.goal{color:var(--gold);font-family:var(--f-num);font-weight:800;font-style:italic;letter-spacing:.04em;font-size:clamp(72px,15vw,180px)}
 #banner span{background:rgba(5,11,23,.85);padding:6px 16px;font-weight:700;font-size:16px}
 @keyframes bnr{0%{transform:scale(2.2);opacity:0}100%{transform:none;opacity:1}}
+#runBadge{position:absolute;width:18px;height:auto;pointer-events:none;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 #nameTag{position:absolute;transform:translate(-50%,-100%);font-size:12px;font-weight:700;background:rgba(5,11,23,.75);padding:2px 7px;white-space:nowrap;border-bottom:2px solid var(--gold)}
 #btnPause{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));pointer-events:auto;width:38px;height:38px;border:1px solid var(--line);background:rgba(5,11,23,.8);cursor:pointer;font-family:var(--f-num);font-weight:800}
 #hud.replay #btnPause{display:none}
@@ -522,6 +523,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
   </div>
   <div id="banner" hidden><b id="bnBig"></b><span id="bnSmall"></span></div>
   <div id="nameTag" hidden></div>
+  <img id="runBadge" hidden alt="" src="data:image/webp;base64,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">
   <button id="btnPause" aria-label="일시정지">II</button>
 </div>
 
@@ -1920,6 +1922,22 @@ function canRun(p,c,ctrl){return p!==c&&p!==ctrl&&!p.isGK&&p.state==='normal'&&!
 // a run in behind: from the line, diagonally into the channel (centre forward) or inside (wide man)
 // Q tap with the ball: the user asks for a run in behind. With a direction, the runner on that side goes;
 // without one, the forward best placed to break the line. A white arrow marks him for a moment.
+// where to run: of a fan of points ahead, the one with the most room around it and along the way,
+// beyond the line but not miles beyond it, leaning toward pref (the side the user pressed, or the usual diagonal)
+function spaceRun(p,T,pref,minD,maxD){
+  const dir=T.dir,off=offsideLineN(T.idx),O=teams[1-T.idx].players,lim=(off+0.26)*HL;let best=null,bs=-1e9;
+  // where the defenders will be in a moment, not where they are now
+  const P=O.map(o=>[o.pos.x+o.vel.x*0.6,o.pos.z+o.vel.z*0.6,o.isGK]);
+  const room=(x,z)=>{let m=99;for(const q of P){const d=Math.hypot(q[0]-x,q[1]-z)-(q[2]?2:0);if(d<m)m=d;}return m;};
+  for(let a=-1.1;a<=1.101;a+=0.22)for(const L of [minD||9,((minD||9)+(maxD||15))/2,maxD||15]){
+    const ux=Math.cos(a)*dir,uz=Math.sin(a);let x=p.pos.x+ux*L,z=p.pos.z+uz*L;
+    if(x*dir>lim)x=lim*dir;if(Math.abs(x)>HL-3||Math.abs(z)>HW-3)continue;
+    let path=99;for(const f of [0.3,0.55,0.8])path=Math.min(path,room(p.pos.x+(x-p.pos.x)*f,p.pos.z+(z-p.pos.z)*f));   // a run straight into a man is no run
+    let sc=Math.min(room(x,z),12)*0.45+Math.min(path,8)*0.45+(x-p.pos.x)*dir*0.04-Math.abs(z)*0.012;
+    if(pref)sc+=(ux*pref.x+uz*pref.z)*0.8;
+    if(sc>bs){bs=sc;best={x,z};}}
+  return best;
+}
 function requestRun(p,inp){
   const T=teams[p.team],dir=T.dir,off=offsideLineN(p.team),has=inp&&inp.lengthSq()>0.01,d0=has?inp.clone().normalize():null;
   let best=null,bs=-1e9;
@@ -1930,16 +1948,18 @@ function requestRun(p,inp){
     if(d0)s+=((dx*d0.x+dz*d0.z)/dl)*1.6;
     if(s>bs){bs=s;best=m;}}
   if(!best)return;
-  runBehind(best,'behind',T);best.runT=Math.max(best.runT,2.8);
-  if(d0){const k=10;best.runTarget.set(best.pos.x+(d0.x*0.6+dir*0.8)*k,0,best.pos.z+d0.z*k*0.9);clampPitch(best.runTarget,1.5);
-    if(best.runTarget.x*dir>(off+0.26)*HL)best.runTarget.x=(off+0.26)*HL*dir;}
-  T.runHint=best;T.runHintT=gtime+1.6;T.runReq=best;T.runReqT=gtime+3.2;
-  if(isHumanTeam(p.team))say(best.short+' 침투!');
+  const pref=d0?new V3(d0.x*0.6+dir*0.8,0,d0.z).normalize():new V3(dir,0,0);
+  const t=spaceRun(best,T,pref,8,16)||{x:best.pos.x+dir*10,z:best.pos.z};
+  beginRun(best,'behind',t.x,t.z,3.0,1);best.runPref=pref;best.reaimT=gtime+0.5;
+  T.runReq=best;T.runReqT=gtime+3.2;   // W looks for him first; the badge marks him while he runs
 }
 function runBehind(p,kind,T){
   const off=offsideLineN(T.idx),dir=T.dir,zn=p.pos.z*dir/HW;
   const tz=Math.abs(zn)<0.25?(zn>=0?1:-1)*rnd(0.18,0.34):zn*rnd(0.35,0.55);
-  beginRun(p,kind,Math.min(off+rnd(0.13,0.24),0.86)*HL*dir,tz*HW*dir,rnd(2.0,2.7),1);
+  let tx=Math.min(off+rnd(0.13,0.24),0.86)*HL*dir,tzz=tz*HW*dir;
+  const pref=new V3(tx-p.pos.x,0,tzz-p.pos.z).normalize(),sp=spaceRun(p,T,pref,8,15);   // the usual diagonal, bent toward the gap
+  if(sp){tx=sp.x;tzz=sp.z;}
+  beginRun(p,kind,tx,tzz,rnd(2.0,2.7),1);
 }
 // the box when a cross is coming: near post, far post, a late arrival at the penalty spot, the cut-back at the edge
 const BOX_SLOTS=[['near',5.5,2.2],['far',6.5,-4.2],['spot',11,-0.8],['edge',17,4.5]];
@@ -1962,6 +1982,9 @@ function boxRuns(T,c,ctrl,inFlight){
 }
 function offBallThink(T,dt,ctrl){
   T.obT=(T.obT||0)-dt;
+  const rq=T.runReq;
+  if(rq&&rq.runT>0.6&&rq.runKind==='behind'&&rq.runPref&&gtime>rq.reaimT&&rq!==ball.owner){rq.reaimT=gtime+0.5;
+    const h=new V3(rq.runTarget.x-rq.pos.x,0,rq.runTarget.z-rq.pos.z);if(h.lengthSq()>4){h.normalize().add(rq.runPref).normalize();const t=spaceRun(rq,T,h,5,11);if(t)rq.runTarget.set(t.x,0,t.z);}}
   for(const p of T.players){p.runCD=(p.runCD||0)-dt;
     if(p.runT<=0&&p.runNext&&p.state==='normal'){const n=p.runNext;p.runNext=null;n(p);}}
   if(T.obT>0)return;T.obT=0.25;
@@ -3415,7 +3438,7 @@ function manualSwitch(K){
 }
 function autoSwitch(dt,force,ti){
   const K=CTRL[ti];K.switchCD-=dt;
-  const c=K.controlled,T=teams[ti];T.hint=T.runHint&&T.runHintT>gtime&&T.runHint.runT>0&&ball.owner&&ball.owner.team===ti?T.runHint:null;
+  const c=K.controlled,T=teams[ti];T.hint=null;
   if(!isHumanTeam(ti)||!c||state!=='play')return;
   if(ball.owner&&ball.owner.team===ti)return;
   if(intended&&intended.team===ti)return;
@@ -3754,6 +3777,11 @@ function updateHud(dt){
   if(human&&controlled&&state!=='replay'&&!(SP&&SP.fk&&state==='setpiece')){const r=controlled.rig.root.position;tmpA.set(r.x,2.75+controlled.y,r.z).project(camera);
     if(tmpA.z<1){nt.hidden=false;nt.style.left=((tmpA.x+1)/2*innerWidth)+'px';nt.style.top=((1-tmpA.y)/2*innerHeight)+'px';nt.textContent=controlled.num+' '+controlled.short;}else nt.hidden=true;}
   else nt.hidden=true;
+  // the badge for a run the user asked for: small, to the lower right of the runner
+  const rb=$('#runBadge'),TM=teams[ME],rr=TM&&TM.runReq;
+  if(human&&rr&&rr.runT>0&&rr.runKind==='behind'&&TM.runReqT>gtime-1&&state==='play'&&ball.owner!==rr){const r=rr.rig.root.position;tmpA.set(r.x,0.55+rr.y,r.z).project(camera);
+    if(tmpA.z<1){rb.hidden=false;rb.style.left=((tmpA.x+1)/2*innerWidth+9)+'px';rb.style.top=((1-tmpA.y)/2*innerHeight-4)+'px';}else rb.hidden=true;}
+  else rb.hidden=true;
   drawRadar();
   updateTouchLabels();
 }
