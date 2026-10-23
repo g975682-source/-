@@ -34,7 +34,44 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-
 
 /* ---------- screens ---------- */
 .screen{position:fixed;inset:0;z-index:20;overflow-y:auto;padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-#title{display:flex;align-items:center;background:linear-gradient(90deg,rgba(7,16,31,.94) 0%,rgba(7,16,31,.7) 42%,rgba(7,16,31,.05) 78%)}
+#title.lobby{padding:0;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,rgba(0,0,0,.35),transparent 18%,transparent 82%,rgba(0,0,0,.35))}
+.lobby button{pointer-events:auto;cursor:pointer;appearance:none;border:0;background:none;color:#fff;font:inherit}
+.lb-top{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:min(1420px,calc(100% - 32px));display:flex;pointer-events:none}
+.lb-crest{flex:none;width:92px;height:92px;background:#fff;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.35);z-index:1}
+.lb-crest .crest{width:62px;height:62px;font-size:18px}
+.lb-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.lb-info{height:40px;display:flex;align-items:center;gap:12px;padding:0 14px;background:linear-gradient(90deg,rgba(8,10,14,.72),rgba(8,10,14,.45));font-family:var(--f-num);font-size:18px;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);white-space:nowrap;overflow:hidden}
+.lb-info>b{font-family:inherit}
+.lb-lv{background:#1f7ae0;padding:0 8px;font-size:16px;font-weight:700}
+.lb-club{font-size:14px;opacity:.85;overflow:hidden;text-overflow:ellipsis}
+.lb-sp{flex:1}
+.lb-stat{display:flex;align-items:baseline;gap:6px}.lb-stat i{font-style:normal;font-size:14px;opacity:.8}.lb-stat b{font-size:19px}
+.lb-bp b{color:var(--gold)}
+.lb-nav{height:52px;display:flex;align-items:stretch;background:linear-gradient(90deg,#b80f25,#e0273d 35%,#c8102e 70%,#a90d21),repeating-linear-gradient(120deg,rgba(255,255,255,.05) 0 2px,transparent 2px 9px);background-blend-mode:overlay;box-shadow:0 4px 14px rgba(0,0,0,.35);overflow-x:auto;scrollbar-width:none;pointer-events:auto}
+.lb-nav button{flex:none;padding:0 clamp(14px,3.2vw,52px);font-size:18px;font-weight:800;letter-spacing:.02em;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.lb-nav button:hover,.lb-nav button:focus-visible{background:rgba(255,255,255,.14)}
+.lb-logo{margin-left:auto;align-self:center;padding:0 18px;font-family:var(--f-num);font-weight:800;font-size:17px;color:rgba(255,255,255,.9);white-space:nowrap}.lb-logo em{font-style:normal;color:var(--gold);margin-left:2px}
+.lb-bottom{position:absolute;left:0;right:0;bottom:0;height:54px;padding-bottom:env(safe-area-inset-bottom,0px);display:flex;align-items:stretch;background:rgba(30,32,36,.94);border-top:1px solid rgba(255,255,255,.08);pointer-events:auto}
+.lb-bottom nav{flex:1;display:flex;justify-content:center;overflow-x:auto;scrollbar-width:none}
+.lb-bottom nav button{position:relative;flex:none;padding:0 clamp(12px,2.6vw,40px);font-size:16px;font-weight:700}
+.lb-bottom nav button+button::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:1px;background:rgba(255,255,255,.25)}
+.lb-bottom button:hover,.lb-bottom button:focus-visible{background:rgba(255,255,255,.08)}
+.lb-bottom .dot{position:absolute;margin:-6px 0 0 -9px;width:6px;height:6px;border-radius:50%;background:#2bd47d}
+.lb-bottom .dot[hidden]{display:none}
+.lb-icons{display:flex;align-items:stretch;padding-right:max(12px,env(safe-area-inset-right,0px))}
+.lb-icons button{padding:0 14px;font-size:14px;font-weight:700;display:flex;align-items:center}
+#lbPrac{background:rgba(52,194,106,.18);border-left:1px solid rgba(255,255,255,.12)}
+#lbMute.off{opacity:.45}
+.lb-hint{position:absolute;right:max(16px,calc((100% - 1420px)/2));bottom:66px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px 22px;font-size:14px;color:#fff;text-shadow:0 1px 3px #000;max-width:calc(100% - 32px)}
+.lb-hint kbd{display:inline-block;min-width:22px;padding:1px 5px;margin:0 2px;border:1.5px solid rgba(255,255,255,.85);border-radius:3px;font:700 12px var(--f-num);text-align:center;background:rgba(0,0,0,.35)}
+.lb-card{position:absolute;right:max(16px,calc((100% - 1420px)/2));bottom:100px;min-width:300px;height:38px;display:flex;align-items:center;gap:10px;padding-right:14px;background:rgba(18,20,24,.88);color:#fff}
+.lb-card i{font-style:normal;align-self:stretch;display:grid;place-items:center;padding:0 12px;border-left:4px solid #e0273d;font:800 18px var(--f-num)}
+.lb-card .crest{width:24px;height:24px;font-size:8px}
+.lb-card b{font-size:17px;flex:1}.lb-card em{font-style:normal;font:700 14px var(--f-num);color:var(--gold)}
+body.prac #hud>*:not(#gauge):not(#psGauge):not(#banner):not(#nameTag):not(#runBadge){display:none!important}
+body.prac .gauge{left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body.touch #lbPrac{display:none}
+@media (max-width:720px){.lb-stat:not(.lb-bp){display:none}.lb-crest{width:64px;height:64px}.lb-crest .crest{width:44px;height:44px;font-size:13px}.lb-info{height:30px;font-size:15px;gap:8px}.lb-stat i{display:none}.lb-club{display:none}.lb-nav{height:44px}.lb-nav button{font-size:15px;padding:0 14px}.lb-logo{display:none}.lb-bottom nav{justify-content:flex-start}.lb-bottom nav button{font-size:14px;padding:0 12px}.lb-card{min-width:0}.lb-hint{font-size:12px}}
 .title-wrap{max-width:560px;display:flex;flex-direction:column;gap:18px;margin-left:clamp(0px,5vw,72px)}
 .kicker{font-family:var(--f-num);font-weight:600;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);margin:0;font-size:13px}
 .logo{font-family:var(--f-display);font-weight:400;font-size:clamp(56px,10vw,120px);line-height:.9;margin:0;letter-spacing:-.01em;text-wrap:balance;text-shadow:0 6px 40px rgba(0,0,0,.5)}
@@ -384,20 +421,44 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 <canvas id="gl"></canvas>
 <div id="fade"></div>
 
-<section id="title" class="screen">
-  <div class="title-wrap">
-    <p class="kicker">11 vs 11 · 3D Football</p>
-    <h1 class="logo">그라운드<em>레전드</em></h1>
-    <p class="lede">구단을 창단해 리그에서 BP를 벌고, 이적시장과 선수팩으로 스쿼드를 키우세요. 선수마다 특성 하나를 골라 경기에서 발동시킬 수 있습니다.</p>
-    <div class="row">
-      <button class="btn primary big" id="btnClub">구단 운영</button>
-      <button class="btn" id="btnPlay">빠른 경기</button>
-      <button class="btn" id="btnOnline">온라인 친선전</button>
-      <button class="btn" id="btnTut">튜토리얼</button>
-      <button class="btn" id="btnHelp">조작법</button>
+<section id="title" class="screen lobby">
+  <header class="lb-top">
+    <div class="lb-crest" title="그라운드 레전드"><span class="crest" id="lbCrestIn"></span></div>
+    <div class="lb-main">
+      <div class="lb-info">
+        <b id="lbNick"></b><span class="lb-lv" id="lbLv">LV 1</span><span class="lb-club" id="lbClubName"></span>
+        <span class="lb-sp"></span>
+        <span class="lb-stat"><i>구단 OVR</i><b id="lbOvr">—</b></span>
+        <span class="lb-stat"><i id="lbSeason">구단 없음</i></span>
+        <span class="lb-stat lb-bp"><i>BP</i><b id="lbBp">—</b></span>
+      </div>
+      <nav class="lb-nav">
+        <button id="btnClub" data-lb="home">구단 관리</button>
+        <button data-lb="cups">대회</button>
+        <button data-lb="squad">팀 관리</button>
+        <button data-lb="market">이적시장</button>
+        <button id="btnHelp">플레이 가이드</button>
+        <span class="lb-logo">그라운드<em>레전드</em></span>
+      </nav>
     </div>
-    <p class="foot">배경 화면은 실시간 <b>AI 대 AI</b> 경기입니다. 모든 구단과 선수는 가상입니다.</p>
-  </div>
+  </header>
+  <div class="lb-card" id="lbCard" hidden></div>
+  <div class="lb-hint" id="lbHint"></div>
+  <footer class="lb-bottom">
+    <nav>
+      <button id="btnPlay">빠른 경기</button>
+      <button id="btnOnline">온라인 친선전</button>
+      <button data-lb="packs">선수팩</button>
+      <button data-lb="enhance">선수 강화</button>
+      <button data-lb="facility">구단 시설</button>
+      <button id="lbWatch">관전</button>
+      <button id="btnTut"><i class="dot" id="lbTutDot"></i>튜토리얼</button>
+    </nav>
+    <div class="lb-icons">
+      <button id="lbPrac">연습 종료</button>
+      <button id="lbMute" aria-label="소리"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button>
+    </div>
+  </footer>
 </section>
 
 <section id="squad" class="screen" hidden>
@@ -1394,7 +1455,7 @@ function gestOpen(g){
 function gestDefending(p){return ball.owner!==p&&!receiving(p)&&!(ball.owner&&ball.owner.team===p.team)&&!(!ball.owner&&d2(p.pos,ball.pos)<3);}
 function gestureUpdate(L,dt){
   const p=L.controlled;
-  if(mode!=='match'||state!=='play'||!p||paused){L.g=null;L.skPress=false;return;}
+  if((mode!=='match'&&!prac)||state!=='play'||!p||paused){L.g=null;L.skPress=false;return;}
   const sh=L.act.skill,B=scrBasis();
   if(!L.g){if(!sh&&!L.skPress)return;L.skPress=false;const d0=sh?gestTok(L,B):-1;
     // only keys pressed while Shift is down make the move; a key held from running is ignored until pressed again,
@@ -1789,7 +1850,7 @@ function setupMatch(cfg){
   controlled=null;intended=null;offCheck=null;lastPass=null;assistRec=null;recCount=0;recHead=0;
   firstKick=cfg.firstKick!=null?cfg.firstKick:(Math.random()<0.5?0:1);
   kickoff(firstKick);
-  if(human){SND.whistle(1);say('킥오프! '+defs[0].name+' 대 '+defs[1].name+'의 경기가 시작됩니다.');}
+  if(human&&!cfg.practice){SND.whistle(1);say('킥오프! '+defs[0].name+' 대 '+defs[1].name+'의 경기가 시작됩니다.');}
   refreshPtag();
   setupHudTeams();drawBigScreen();
 }
@@ -2440,7 +2501,7 @@ function callOffside(p){
 }
 
 function foul(off,vic,kind,force){
-  if(tut)return;   // no fouls while learning
+  if(tut||prac)return;   // no fouls while learning or practising
   if(state!=='play')return;
   stats.fouls[off.team]++;
   const pos=clampPitch((ball.owner===vic?ball.pos:vic.pos).clone(),0.8);
@@ -2833,6 +2894,7 @@ function checkBounds(){
       goalScored(teams[0].dir===s?0:1);return;}
     if(shoot){shootResult(false,ball.lastTouch&&ball.lastTouch.isGK&&ball.lastTouch!==shoot.kicker?'save':'miss');return;}
     if(tut){tutOut();return;}
+    if(prac){pracOut();return;}
     const defT=teams[0].dir===-s?teams[0]:teams[1],atkT=teams[1-defT.idx];
     const zs=Math.sign(b.pos.z)||1;
     if(b.lastTouch&&b.lastTouch.team===defT.idx){
@@ -2847,6 +2909,7 @@ function checkBounds(){
   if(Math.abs(b.pos.z)>HW+BR){
     if(shoot){shootResult(false,'miss');return;}
     if(tut){tutOut();return;}
+    if(prac){pracOut();return;}
     const ti=b.lastTouch?1-b.lastTouch.team:0;
     const pos=new V3(clamp(b.pos.x,-HL+1,HL-1),BR,Math.sign(b.pos.z)*(HW-0.05));
     setDead(0.9,()=>startSetPiece('throw',ti,pos));
@@ -3257,6 +3320,7 @@ function kickoff(ti){
 function goalScored(ti){
   if(shoot){shootResult(true);return;}
   if(tut){tutGoal(ti);return;}
+  if(prac){pracGoal();return;}
   const s=Math.sign(ball.pos.x);
   score[ti]++;
   const scorer=ball.lastTouch;const own=scorer&&scorer.team!==ti;
@@ -3345,15 +3409,18 @@ const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
   if(a==='shoot'&&L.act.f&&psCan(L))psStart(L);
-  if(mode==='match'&&!paused)L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
-function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;if(a==='shoot'&&L.swallow){L.swallow=false;return;}const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused)L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
+  if(mode==='match'&&!paused||prac&&lobbyOpen())L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
+function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;if(a==='shoot'&&L.swallow){L.swallow=false;return;}const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused||prac&&lobbyOpen())L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
 window.addEventListener('keydown',e=>{
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')&&e.target.offsetParent!==null)return;
   if(state==='replay'&&mode==='match'&&!paused&&!(net&&net.role==='guest')){e.preventDefault();endReplay();return;}
   const a=KEYMAP[e.code];
+  if(a&&mode==='menu'&&!prac&&lobbyOpen()&&e.code!=='Space')return;   // watching the AI match: keys do nothing
   if(a){e.preventDefault();if(!e.repeat)actDown(a);return;}
-  if(e.code==='Escape'||e.code==='KeyP'){if(mode==='match'&&!['halftime','fulltime'].includes(state))togglePause();}
-  else if(e.code==='KeyR'||e.code==='KeyV'){if(mode==='match'){e.preventDefault();cycleCam();}}
+  if(e.code==='Escape'||e.code==='KeyP'){if(mode==='match'&&!['halftime','fulltime'].includes(state))togglePause();else if(prac&&e.code==='Escape'&&lobbyOpen()&&!modalOpen())stopPractice();}
+  else if(e.code==='Enter'&&mode==='menu'&&!prac&&lobbyOpen()&&!modalOpen()&&!document.body.classList.contains('touch')){e.preventDefault();startPractice();}
+  else if((e.code==='BracketLeft'||e.code==='BracketRight')&&prac){e.preventDefault();pracSet(e.code==='BracketLeft'?'fk':'pen');}
+  else if(e.code==='KeyR'||e.code==='KeyV'){if(mode==='match'||prac&&lobbyOpen()){e.preventDefault();cycleCam();}}
   else if(e.code==='KeyM'){toggleMute();}
   else if(e.code==='KeyH'){cycleGuide();}
 });
@@ -3613,7 +3680,7 @@ function pollPad(){
 // F held + D starts it on this screen. The white bar sweeps across the red; a second D while it is over the green
 // strikes it clean (harder, truer). Missing the green, or letting it run out, still shoots: weaker and wild.
 const PS_DUR=0.8;
-function psCan(L){const p=L.controlled;return mode==='match'&&!paused&&state==='play'&&!SP&&!!p&&ball.owner===p&&!p.holding&&!p.sk&&p.state==='normal';}
+function psCan(L){const p=L.controlled;return (mode==='match'||!!prac)&&!paused&&state==='play'&&!SP&&!!p&&ball.owner===p&&!p.holding&&!p.sk&&p.state==='normal';}
 function psStart(L){const p=L.controlled,w=clamp(0.1+(p.st.sho-50)/50*0.12,0.1,0.22),c=rnd(0.4+w/2,0.92-w/2);
   L.ps={t:0,w,c,wall:performance.now()};const el=$('#psGauge');el.hidden=false;el.className='';
   $('#psGreen').style.left=((c-w/2)*100).toFixed(1)+'%';$('#psGreen').style.width=(w*100).toFixed(1)+'%';$('#psLbl').textContent='파워 슛';psDraw(L);}
@@ -3624,11 +3691,11 @@ function psHit(L,timeout){
   $('#psCur').style.left=(x*100).toFixed(1)+'%';
   const el=$('#psGauge');el.className=q>=92?'perfect':q?'good':'miss';$('#psLbl').textContent=q>=92?'PERFECT!':q?'GOOD':'MISS';
   clearTimeout(psHit.tm);psHit.tm=setTimeout(()=>{if(!LC().ps)el.hidden=true;},650);
-  if(net&&net.role==='guest')netLocalEdge('down','psh',q);else if(mode==='match')L.inq.push({type:'down',act:'psh',code:q});
+  if(net&&net.role==='guest')netLocalEdge('down','psh',q);else if(mode==='match'||prac)L.inq.push({type:'down',act:'psh',code:q});
 }
 function psUpdate(L,dt){const s=L.ps;if(!s)return;
   const p=L.controlled;
-  if(!p||ball.owner!==p||state!=='play'||mode!=='match'){L.ps=null;$('#psGauge').hidden=true;return;}   // lost the ball: no shot
+  if(!p||ball.owner!==p||state!=='play'||(mode!=='match'&&!prac)){L.ps=null;$('#psGauge').hidden=true;return;}   // lost the ball: no shot
   s.t+=dt;s.wall=performance.now();if(s.t>=PS_DUR){psHit(L,true);return;}psDraw(L);}
 
 /* ================= main tick ================= */
@@ -3640,18 +3707,19 @@ function tick(dt){
   if(state==='halftime'){halfT+=dt;if((!human&&halfT>2.5)||(net&&halfT>4))startSecondHalf();return;}
   if(state==='fulltime'){halfT+=dt;if(mode==='menu'&&halfT>4)startDemo();return;}
   if(tut&&tut.done&&state!=='replay'){tut.wait-=dt;if(tut.wait<=0)tutGo(tut.i+1);}   // game time, so pausing holds it
-  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
+  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut&&!prac){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
   for(const p of players){p.wantTackle=false;p.faceBall=false;p.shielding=false;p.faceUp=false;}
   if(human&&!(net&&net.role==='guest')){gestureUpdate(LC(),dt);psUpdate(LC(),dt);}   // drops a half-keyed move when play stops
   if(!ball.owner){computeTraj();for(const p of players)calcIntercept(p);}
   if(state==='play'&&shoot){shootUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
   else if(state==='play'){
-    for(const ti of [0,1])if(isHumanTeam(ti)&&!tut)autoSwitch(dt,false,ti);
+    for(const ti of [0,1])if(isHumanTeam(ti)&&!tut&&!prac)autoSwitch(dt,false,ti);
     teamThink(teams[0],dt);teamThink(teams[1],dt);
     const o=ball.owner,oh=o&&isHumanTeam(o.team)&&o===CTRL[o.team].controlled;
     if(o){if(o.holding){if(!oh&&o.holdT>1.5)aiGKDistribute(o);}else if(!oh&&!(tut&&o===tut.carrier))aiCarrier(o,dt);}
     for(const ti of [0,1])if(isHumanTeam(ti))withC(CTRL[ti],()=>humanUpdate(dt));
     if(tut)tutTick(dt);
+    if(prac)pracTick(dt);
   }else if(state==='setpiece')setPieceUpdate(dt);
   else if(state==='dead')deadUpdate(dt);
   else if(state==='goal'){goalUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
@@ -3698,7 +3766,8 @@ function updateCamera(dt){
     P_.set(b.x-ux*8.2-uz*1.0,2.6,b.z-uz*8.2+ux*1.0);L_.set(b.x+ux*16,1.2,b.z+uz*16);fov=46;}
   else if(state==='play'&&cam.fkUntil&&gtime<cam.fkUntil){const d=cam.fkDir,b=ball.pos;P_.set(b.x-d.x*9,3.2,b.z-d.z*9);L_.set(b.x+d.x*8,1,b.z+d.z*8);fov=46;}
   else if(state==='replay'){const s=rp?rp.side:1,k2=clamp((rp?rp.t:0)/6,0,1);P_.set(F.x-s*lerp(14,6,k2),lerp(6,3.2,k2),F.z+lerp(15,9,k2));L_.set(f.x,0.7,f.z);fov=34;}
-  else if(mode==='menu'){P_.set(F.x*0.85+Math.sin(gtime*0.07)*8,21,46+F.z*0.4);L_.set(F.x-6,0,F.z*0.7);fov=40;}
+  else if(mode==='menu'&&!prac){P_.set(F.x*0.85+Math.sin(gtime*0.07)*8,21,46+F.z*0.4);L_.set(F.x-6,0,F.z*0.7);fov=40;}
+  else if(prac&&camMode===0){const d=teams[0].dir;P_.set(F.x-d*7,17,F.z*0.6+21);L_.set(F.x+d*7,0,F.z*0.85-1);fov=40;}   // practice: high and close, the goal ahead
   else if(camMode===0){P_.set(F.x*0.92,15.5,30+F.z*0.52);L_.set(F.x,0,F.z*0.84-1);fov=38;}
   else if(camMode===1){const d=teams[ME].dir;P_.set(F.x-d*20,10.5,F.z*0.85);L_.set(F.x+d*14,0,F.z*0.92);fov=52;}
   else{P_.set(F.x*0.88,60,F.z*0.25+22);L_.set(F.x,0,F.z*0.85);fov=38;}
@@ -3873,7 +3942,7 @@ $('#squad').addEventListener('click',e=>{
   else return;
   saveSel();renderSquad();
 });
-function showScreen(id){for(const s of ['#title','#squad','#club','#online'])$(s).hidden=s!==id;}
+function showScreen(id){for(const s of ['#title','#squad','#club','#online'])$(s).hidden=s!==id;if(id==='#title')updateLobby();}
 $('#btnPlay').onclick=()=>{SND.init();renderSquad();showScreen('#squad');};
 $('#btnBack').onclick=()=>showScreen('#title');
 const openHelp=()=>{$('#help').hidden=false;};
@@ -3881,6 +3950,7 @@ $('#btnHelp').onclick=openHelp;$('#btnHelp2').onclick=openHelp;$('#btnHelp3').on
 $('#btnHelpClose').onclick=()=>{$('#help').hidden=true;};
 $('#btnKick').onclick=()=>{SND.init();if(SND.ctx&&SND.ctx.state==='suspended')SND.ctx.resume();startMatch();};
 function beginMatch(cfg){
+  if(prac){prac=null;document.body.classList.remove('prac');}
   showScreen(null);$('#result').hidden=true;$('#halftime').hidden=true;
   mode='match';paused=false;$('#hud').hidden=false;
   $('#touch').hidden=!(document.body.classList.contains('touch')&&cfg.human);
@@ -3896,14 +3966,101 @@ function startMatch(){
   delete sel.firstKick;
 }
 
+/* ================= lobby: practice pitch ================= */
+// The main screen is a practice pitch: the user's striker and the other side's keeper, the rest stood down.
+// Dribble, shoot, try skills; [ takes a free kick and ] a penalty from where he stands; Esc ends practice and
+// the lobby shows a live AI match instead (Enter starts practice again).
+let prac=null;
+function modalOpen(){return !!document.querySelector('.modal:not([hidden])');}
+function lobbyOpen(){return !$('#title').hidden&&!modalOpen();}
+function clubRoster(){
+  const form=club.form,slots=FORMATIONS[form];
+  return slots.map((s,i)=>{const p=byId(club.lineup[i]),pen=posPen(p.label,s[0]),es=estats(p),st={};
+    for(const k in es)st[k]=k==='gk'?(s[0]==='GK'?es.gk:20):clamp(es[k]-pen,20,120);
+    if(s[0]==='GK'&&p.label!=='GK')st.gk=28;
+    return Object.assign({},p,{label:s[0],line:LINE[s[0]],ovr:eo(p)-pen,st});});
+}
+function pracSides(){
+  loadClub();const oi=(sel.home+2)%TEAMS.length,opp={def:TEAMS[oi],form:'4-3-3',roster:rosterFor(TEAMS[oi],'4-3-3',false)};
+  if(club&&Array.isArray(club.lineup)&&club.lineup.length){try{fixLineup();return [{def:clubDef(),form:club.form,roster:clubRoster()},opp];}catch(e){}}
+  return [{def:TEAMS[sel.home],form:sel.formH,roster:rosterFor(TEAMS[sel.home],sel.formH,true)},opp];
+}
+function startLobby(){if(document.body.classList.contains('touch'))startDemo();else startPractice();showScreen('#title');}
+function startPractice(){
+  mode='menu';paused=false;$('#result').hidden=true;$('#halftime').hidden=true;$('#touch').hidden=true;
+  setupMatch({sides:pracSides(),diff:'pro',minutes:90,human:true,firstKick:0,practice:true});
+  const T=teams[0],p=T.players.filter(q=>!q.isGK).sort((a,b)=>(b.line-a.line)||(b.st.sho-a.st.sho))[0];
+  prac={p,goals:0,t:0,park:new Map(),resetT:0};
+  document.body.classList.add('prac');$('#hud').hidden=false;$('#keys').hidden=true;
+  SND.setCrowd(SND.muted?0:0.03);camMode=0;pracStage(true);updateLobby();
+}
+function stopPractice(){if(!prac)return;prac=null;document.body.classList.remove('prac');$('#hud').hidden=true;startDemo();updateLobby();}
+function pracStage(place){
+  const p=prac.p,g=teams[1].gk,dir=teams[0].dir;prac.park.clear();let k=0;
+  for(const q of ACTORS){if(q===p||q===g)continue;const spot=new V3(-HL-6-Math.floor(k/14)*2,0,-HW+3+(k%14)*4);k++;
+    q.pos.copy(spot);q.rig.root.visible=false;prac.park.set(q,spot.clone());}
+  for(const q of [p,g]){resetTransient(q);q.vel.set(0,0,0);q.wantVel.set(0,0,0);q.state='normal';q.stun=0;q.holding=false;q.rig.root.visible=true;}
+  SP=null;state='play';releaseBall();ball.vel.set(0,0,0);intended=null;offCheck=null;lastPass=null;foulSeq=null;advantage=null;shoot=null;
+  for(const K of CTRL){K.inq.length=0;K.pend=null;K.buffer=null;K.g=null;K.ps=null;K.psT=0;}
+  if(place||Math.abs(p.pos.x)>HL-3||Math.abs(p.pos.z)>HW-2||p.pos.x*dir<0)p.pos.set(dir*(HL-24),0,rnd(-5,5));
+  p.face=Math.atan2(dir,0);g.pos.set(dir*(HL-1.2),0,0);g.face=Math.atan2(-dir,0);
+  ball.pos.set(p.pos.x+Math.sin(p.face)*0.5,BR,p.pos.z+Math.cos(p.face)*0.5);gainPossession(p);setControlled(p);prac.resetT=0;
+}
+// the ball is gone (saved, wide, dead in the net): it comes back to him where he is
+function pracReset(){if(prac)pracStage(false);}
+function pracGoal(){prac.goals++;banner('GOAL','연습 골 '+prac.goals,'goal');SND.roar();releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.4;deadFn=pracReset;updateLobbyCard();}
+function pracOut(){releaseBall();ball.vel.set(0,0,0);state='dead';deadT=0.7;deadFn=pracReset;}
+function pracTick(dt){
+  for(const [q,s] of prac.park){q.pos.copy(s);q.vel.set(0,0,0);q.wantVel.set(0,0,0);}
+  offCheck=null;
+  if(!lobbyOpen()){const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;}   // another screen is open: he stands still
+  const p=prac.p,g=teams[1].gk;
+  if(g.holding||ball.owner===g){prac.resetT+=dt;if(prac.resetT>1.0)pracReset();return;}
+  if(!ball.owner){const far=d2(ball.pos,p.pos);if((ball.vel.length()<1&&far>5)||far>40)prac.resetT+=dt;else prac.resetT=0;if(prac.resetT>2.0)pracReset();}
+  else prac.resetT=0;
+}
+// [ : a free kick from here (at least 18 m out), ] : a penalty
+function pracSet(kind){
+  if(!prac||state!=='play'||!lobbyOpen())return;
+  const p=prac.p,dir=teams[0].dir;
+  if(kind==='pen'){pracStage(false);startSetPiece('penalty',0,new V3(dir*(HL-11),BR,0),{taker:p});return;}
+  let x=p.pos.x,z=clamp(p.pos.z,-HW+4,HW-4);const gd=Math.hypot(dir*HL-x,z);
+  if(gd<18||Math.abs(z)<BOX_W&&x*dir>HL-BOX_D){const ux=(x-dir*HL)/(gd||1),uz=z/(gd||1);x=dir*HL+ux*20;z=uz*20;if(x*dir>HL-BOX_D-1)x=dir*(HL-BOX_D-2);}
+  pracStage(false);
+  for(const q of teams[1].players){if(q.isGK)continue;prac.park.delete(q);q.rig.root.visible=true;}   // the wall
+  startSetPiece('freekick',0,new V3(x,BR,z),{taker:p});
+}
+function updateLobbyCard(){
+  const c=$('#lbCard');if(!c)return;
+  if(prac){const p=prac.p;c.hidden=false;c.innerHTML=`<i>${esc(p.label)}</i><span class="crest" style="--c1:${teams[0].kit.shirt};--c2:${teams[0].kit.trim||'#fff'}">${esc(teams[0].def.code)}</span><b>${esc(p.short)}</b><em>골 ${prac.goals}</em>`;}
+  else c.hidden=true;
+  $('#lbHint').innerHTML=prac?`<span><kbd>R</kbd> 카메라 변경</span><span><kbd>[</kbd> 또는 <kbd>]</kbd> (현재 위치에서) 프리킥, 페널티킥</span><span><kbd>ESC</kbd> 연습 종료</span>`
+    :document.body.classList.contains('touch')?`<span>AI 경기 관전 중</span>`:`<span>AI 경기 관전 중</span><span><kbd>Enter</kbd> 연습 시작</span>`;
+  $('#lbPrac').textContent=prac?'연습 종료':'연습 시작';
+}
+function updateLobby(){
+  loadClub();const has=!!club;
+  $('#lbNick').textContent=nick;
+  const played=has&&club.league?(club.season-1)*14+(club.league.week||0):0;
+  $('#lbLv').textContent='LV '+(1+Math.floor(played/3));
+  $('#lbBp').textContent=has?Number(club.money||0).toLocaleString():'—';
+  let ovr='—';if(has){try{ovr=clubOvr();}catch(e){}}$('#lbOvr').textContent=ovr;
+  $('#lbSeason').textContent=has?'시즌 '+club.season:'구단 없음';
+  const cr=$('#lbCrestIn'),k=has?club.kit:TEAMS[sel.home].home;cr.textContent=has?club.code:TEAMS[sel.home].code;cr.style.setProperty('--c1',k.shirt);cr.style.setProperty('--c2',k.trim||'#ffffff');
+  $('#lbClubName').textContent=has?club.name:TEAMS[sel.home].name;
+  let tv='1';try{tv=localStorage.getItem(TUT_KEY);}catch(e){}$('#lbTutDot').hidden=tv==='1';   // a green dot until the tutorial is done
+  updateLobbyCard();
+}
+
 function startDemo(){
+  if(prac){prac=null;document.body.classList.remove('prac');}
   mode='menu';$('#hud').hidden=true;$('#touch').hidden=true;$('#result').hidden=true;$('#halftime').hidden=true;
   let h=Math.floor(Math.random()*TEAMS.length),a=(h+1+Math.floor(Math.random()*(TEAMS.length-1)))%TEAMS.length;
   const forms=Object.keys(FORMATIONS);
   setupMatch({home:h,away:a,formH:pick(forms),formA:pick(forms),diff:'world',demoDiff:'world',minutes:4,human:false});
   SND.setCrowd(0);
 }
-function goMenu(){$('#pause').hidden=true;paused=false;netCleanup();startDemo();showScreen('#title');}
+function goMenu(){$('#pause').hidden=true;paused=false;netCleanup();startLobby();}
 $('#btnMenu').onclick=goMenu;
 $('#btnQuit').onclick=()=>{
   if(tut){tutQuit();return;}
@@ -3916,9 +4073,9 @@ $('#btnResume').onclick=()=>togglePause();
 $('#onAsk').addEventListener('keydown',e=>e.stopPropagation());
 $('#btnPause').onclick=()=>togglePause();
 const CAMS=['중계','다이내믹','탑뷰'];
-function cycleCam(){camMode=(camMode+1)%3;$('#btnCam').textContent='카메라: '+CAMS[camMode];if(mode==='match')say('카메라: '+CAMS[camMode]);}
+function cycleCam(){camMode=(camMode+1)%3;$('#btnCam').textContent='카메라: '+CAMS[camMode];if(mode==='match')say('카메라: '+CAMS[camMode]);else if(prac)banner(CAMS[camMode],'카메라');}
 $('#btnCam').onclick=cycleCam;
-function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+(SND.muted?'꺼짐':'켜짐');SND.setCrowd(SND.muted?0:0.12);}
+function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+(SND.muted?'꺼짐':'켜짐');SND.setCrowd(SND.muted?0:mode==='match'?0.12:0.03);const lm=$('#lbMute');if(lm)lm.classList.toggle('off',SND.muted);}
 $('#btnMute').onclick=toggleMute;
 $('#btnTut').onclick=()=>{startTutorial();};
 $('#tutStart').onclick=()=>{$('#tutAsk').hidden=true;startTutorial();};
@@ -4142,11 +4299,8 @@ function refreshMarket(force){
 }
 function startClubMatch(){
   fixLineup();const fx=nextFixture();if(!fx)return;
-  const lt=club.league.teams[fx.opp],oppBase=TEAMS[lt.id],form=club.form,slots=FORMATIONS[form];
-  const myRoster=slots.map((s,i)=>{const p=byId(club.lineup[i]),pen=posPen(p.label,s[0]),es=estats(p),st={};
-    for(const k in es)st[k]=k==='gk'?(s[0]==='GK'?es.gk:20):clamp(es[k]-pen,20,120);
-    if(s[0]==='GK'&&p.label!=='GK')st.gk=28;
-    return Object.assign({},p,{label:s[0],line:LINE[s[0]],ovr:eo(p)-pen,st});});
+  const lt=club.league.teams[fx.opp],oppBase=TEAMS[lt.id],form=club.form;
+  const myRoster=clubRoster();
   const oppForm=pick(Object.keys(FORMATIONS)),oppT=Object.assign({},oppBase,{ovr:leagueOvr(lt.id)});
   beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:oppT,form:oppForm,roster:rosterFor(oppT,oppForm,false)}],
     diff:club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
@@ -4767,6 +4921,10 @@ function openPack(pk){
 $('#pkKeep').onclick=()=>{$('#packOpen').hidden=true;renderClub();ctoast(packPlayer.name+' 스쿼드 합류');};
 $('#pkSell').onclick=()=>{const p=packPlayer;if(club.players.includes(p)){club.money+=sellPrice(p);club.players=club.players.filter(q=>q!==p);fixLineup();saveClub();}$('#packOpen').hidden=true;renderClub();ctoast(p.name+' 판매 · +'+fmtBP(sellPrice(p))+' BP');};
 $('#btnClub').onclick=()=>{SND.init();goClub('home');};
+document.querySelectorAll('#title [data-lb]').forEach(b=>{if(b.id!=='btnClub')b.onclick=()=>{SND.init();goClub(b.dataset.lb);};});
+$('#lbWatch').onclick=()=>{stopPractice();if(!prac&&mode==='menu')startDemo();updateLobby();};
+$('#lbPrac').onclick=e=>{e.currentTarget.blur();SND.init();if(prac)stopPractice();else if(!document.body.classList.contains('touch'))startPractice();else ctoast('연습은 키보드로 할 수 있습니다.');};
+$('#lbMute').onclick=e=>{e.currentTarget.blur();SND.init();toggleMute();};
 
 /* ================= online friendlies (room capability) ================= */
 // The challenger hosts: its browser runs the match and streams snapshots through room presence;
@@ -5066,7 +5224,7 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 drawBigScreen();
-startDemo();
+startLobby();
 requestAnimationFrame(frame);
 // first visit: offer the tutorial
 try{if(!localStorage.getItem(TUT_KEY))setTimeout(()=>{if(mode!=='match')$('#tutAsk').hidden=false;},900);}catch(e){}
