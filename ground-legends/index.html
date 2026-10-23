@@ -180,9 +180,9 @@ kbd{font-family:var(--f-num);font-weight:700;background:#0a1530;border:1px solid
 #psGauge{position:absolute;left:0;top:0;transform:translate(-50%,-100%);width:128px;pointer-events:none;text-align:center}   /* over the shooter's head, moved each frame */
 #psGauge b{display:block;font-family:var(--f-num);font-size:12px;letter-spacing:.05em;color:#fff;text-shadow:0 1px 3px #000;margin-bottom:2px}
 #psGauge .psBar{position:relative;height:10px;background:linear-gradient(180deg,#e2453c,#a3221c);border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.5)}
-#psGreen{position:absolute;top:0;bottom:0;background:linear-gradient(180deg,#46e58e,#17a457);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+#psGreen{position:absolute;inset:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -2px 3px rgba(0,0,0,.25)}
 #psCur{position:absolute;top:-3px;bottom:-3px;width:3px;margin-left:-1.5px;background:#fff;box-shadow:0 0 6px #fff,0 0 2px #000}
-#psGauge.perfect b{color:#5dffa6}#psGauge.good b{color:#b8f5cf}#psGauge.miss b{color:#ff8a80}
+#psGauge.perfect b{color:#5dffa6}#psGauge.good b{color:#ffe46b}#psGauge.bad b{color:#ffb066}#psGauge.miss b{color:#ff8a80}
 #psGauge.perfect .psBar{box-shadow:0 0 16px #46e58e}
 #radar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));width:230px;height:149px;opacity:.92}
 .keys{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font-size:11px;color:var(--mute);background:rgba(5,11,23,.7);padding:8px 10px;line-height:1.75;text-align:right}
@@ -621,8 +621,8 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td><kbd>W</kbd></td><td>스루 패스</td></tr>
       <tr><td><kbd>A</kbd> · <kbd>A</kbd>×2 · <kbd>A</kbd>×3</td><td>로빙 패스 · 크로스 / 땅볼 크로스 / 낮은 크로스</td></tr>
       <tr><td><kbd>D</kbd> · <kbd>D</kbd> 후 <kbd>D</kbd> 톡</td><td>슛 / 낮고 빠르게 깔리는 슛 (D를 떼고 바로 한 번 더)</td></tr>
-      <tr><td><kbd>D</kbd> 후 <kbd>S</kbd> · <kbd>A</kbd> 후 <kbd>S</kbd></td><td>슛 페이크 · 크로스 페이크 (S와 방향키로 빠질 쪽, 뒤로 = 스쿱 턴)</td></tr>
-      <tr><td><kbd>F</kbd>+<kbd>D</kbd> 후 <kbd>D</kbd></td><td>파워 슛: 흰 막대가 초록 구간을 지날 때 D를 한 번 더. 맞히면 강하고 정확, 놓치면 약하고 크게 빗나감</td></tr>
+      <tr><td><kbd>D</kbd>·<kbd>A</kbd> 중 <kbd>S</kbd></td><td>슛 페이크 · 크로스 페이크: D나 A를 누르고 있는 동안이나 차는 동작 중에 S (방향키로 빠질 쪽, 뒤로 = 스쿱 턴)</td></tr>
+      <tr><td><kbd>F</kbd>+<kbd>D</kbd> 후 <kbd>D</kbd></td><td>파워 슛: 흰 막대가 지날 때 D를 한 번 더. 초록 100% · 노랑 70% · 주황 50% · 빨강 30% (힘과 정확도)</td></tr>
       <tr><td><kbd>E</kbd> · 방향 없이 <kbd>E</kbd></td><td>전력 질주 · 공 멈추기</td></tr>
       <tr><td><kbd>Ctrl</kbd>+방향</td><td>퍼스트터치·치고 달리기 (방향키와 함께만 쓰세요)</td></tr>
       <tr><th colspan="2">공격 · 기술 키</th></tr>
@@ -2263,7 +2263,10 @@ function aiCarrier(p,dt){
   if(p.decT>0&&!(pr<1.3&&p.decT>0.15&&Math.random()<0.03)){carrierSteer(p,pr);return;}
   p.decT=ai.react*rnd(0.7,1.3);
   const gx=T.dir*HL,dG=Math.hypot(gx-p.pos.x,p.pos.z);
-  if(dG<30){let want=shotQuality(p)*ai.shootIQ*0.8;if(dG<14)want+=0.3;if(dG<9)want+=0.4;if(Math.random()<want){aiShoot(p);return;}}
+  if(dG<30){let want=shotQuality(p)*ai.shootIQ*0.8;if(dG<14)want+=0.3;if(dG<9)want+=0.4;
+    const f=fwd(p),fa=Math.acos(clamp((f.x*(gx-p.pos.x)-f.z*p.pos.z)/dG,-1,1))*180/Math.PI;
+    if(Math.random()<want){if(fa<=60||pr<1.2&&fa<=95){aiShoot(p);return;}   // square enough: hit it (crowded: take what he has)
+      p.aiDir.set(gx-p.pos.x,0,-p.pos.z).normalize();p.aiSprint=false;p.decT=0.18+fa/900;carrierSteer(p,pr);return;}}   // back to goal: turn first, then look again
   const xn=xN(p);
   if(xn<-0.55&&pr<2.6&&Math.random()<0.45){const zs=Math.sign(p.pos.z)||1;kick(p,new V3(T.dir*rnd(13,20),rnd(8,12),zs*rnd(3,11)),'clear');say(p.short+'이(가) 걷어냅니다.');return;}
   if(xn>0.6&&Math.abs(p.pos.z)>HW*0.36){const T_=teams[p.team],gx=T_.dir*HL;
@@ -2410,7 +2413,8 @@ function flightTo(bp,v,spin,gx){
 function doShoot(p,power,aim,isHeader,isAI,opts={}){
   const T=teams[p.team],gx=T.dir*HL,bp=ball.pos.clone();
   let tz,ty;
-  const pw=opts.power&&!isHeader,pOK=pw&&opts.pq>=50,pk=pOK?clamp((opts.pq-70)/30,0,1):0;
+  const pw=opts.power&&!isHeader,pf=pw?clamp((opts.pq||0)/100,0.2,1):1;   // power-shot timing: 1 green, .7 yellow, .5 orange, .3 red
+  const pTab=[[0.2,3.4],[0.3,3.0],[0.5,1.6],[0.7,0.8],[1,0.35]],pSig=f=>{for(let i=1;i<pTab.length;i++)if(f<=pTab[i][0]){const a=pTab[i-1],b=pTab[i],u=(f-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*u;}return 0.35;};
   if(aim){tz=aim.tz;ty=aim.ty;}
   else{const inp=moveInput();let lat=inp.z;if(Math.abs(lat)<0.25)lat=-Math.sign(p.pos.z||1)*0.5;tz=clamp(lat,-1,1)*3.0;ty=0.22+power*power*2.45;}
   const d=Math.hypot(gx-bp.x,tz-bp.z);
@@ -2418,19 +2422,27 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?T.ai.errMul*2.2:1);
   if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
   if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;if(opts.fin)ty=clamp(ty,0.45,1.85);
-    if(pw)ty=pOK?rnd(0.45,1.7):rnd(1.7,2.8);}   // a clean power strike stays under the bar, a miss tends to fly
+    if(pw)ty=rnd(0.45,1.7)+(1-pf)*rnd(0.3,1.5);}   // a clean power strike stays under the bar, a poor one tends to fly
   if(opts.fin)sig*=0.75;if(opts.flair)sig*=1.25;
-  if(pw)sig*=pOK?0.55-0.2*pk:3.0;
+  if(pw)sig*=pSig(pf);
   const acro=p.trait==='acrobatic'&&(gtime-p.gainT<0.2||isHeader||bp.y>0.45);
   const laser=p.trait==='laser'&&!isHeader&&!opts.pen&&gtime-p.gainT<0.2&&laserReady(p);
   if(laser){ty=clamp(Math.min(ty,0.25+power*0.6),0.15,0.85);sig*=0.6;}
   if(acro)sig*=isHeader?0.6:0.55;
   if(p.fightT>0)sig*=1.45;
+  // body shape: hitting it back across himself or with his back to goal is a snatched, weak shot.
+  // Square on (within 40°) costs nothing; side-on costs some; a turn and shoot from facing away costs a lot.
+  let turn=0;
+  if(!opts.pen){const f=fwd(p),hx=gx-bp.x,hz=tz-bp.z,hl=Math.hypot(hx,hz)||1,ang=Math.acos(clamp((f.x*hx+f.z*hz)/hl,-1,1))*180/Math.PI;
+    const away=clamp(-(p.vel.x*hx+p.vel.z*hz)/hl/8,0,0.25);   // and running away from where he is shooting
+    turn=clamp(Math.pow(clamp((ang-35)/100,0,1),1.2)+away,0,1)*(1-clamp((p.st.dri-55)/100,0,0.45))*(acro?0.35:1)*(isHeader?0.5:1);
+    sig*=1+turn*4;ty+=turn*rnd(0.5,2.0);tz+=gauss()*turn*(2.2+d*0.12);}   // a miscue goes wide whatever his finishing
   tz+=gauss()*sig*0.85;ty+=gauss()*sig*0.55;ty=Math.max(0.12,ty);
   let spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
   if(laser)spd*=1.18;
   if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.9;if(opts.low)spd*=1.2;}
-  if(pw)spd*=pOK?0.98+0.08*pk:0.8;
+  if(pw)spd*=0.71+0.35*pf;
+  spd*=1-turn*0.38;
   // finesse (Z+D): start it outside the post, the spin builds and hooks it back in late.
   // The kick direction is solved by flying the ball forward, so it ends where it was aimed.
   let spin=null,bend=0;
@@ -2455,8 +2467,8 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
-  planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
-  say((pw?(pOK?'완벽한 파워 슛! ':'파워 슛이 빗맞습니다! '):opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
+  planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend,turn}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
+  say((turn>0.45?'무리한 터닝 슛! ':pw?(pf>=0.95?'완벽한 파워 슛! ':pf>=0.65?'파워 슛! ':'파워 슛이 빗맞습니다! '):opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
 }
 
 function startSlide(p,dirIn){
@@ -2644,6 +2656,7 @@ function planSave(gk,shooter,opts){
   const q0=traj[ai-1],q1=traj[ai],vAt=atGk&&q0?Math.hypot(q1.x-q0.x,q1.y-q0.y,q1.z-q0.z)/(q1.t-q0.t):spd;   // pace when it reaches him: a long drive has slowed
   let prob=0.3+gkr*0.0088-Math.max(0,reach-0.7)*0.17-Math.max(0,vAt-20)*0.017-(P.t<0.32?0.22:0)+clamp((P.t-0.75)*0.2,0,0.14);   // and a long flight gives him time
   if(P.y<0.45&&Math.abs(dz)>1.5)prob-=0.03;
+  if(opts.turn)prob+=opts.turn*0.25;   // a snatched shot on the turn is easy to read
   if(P.y>2.15)prob-=(P.y-2.15)*(Math.abs(gk.pos.x-gx)>2.5?0.85:0.25);   // over his head: off his line he has to back-pedal and leap   // hard and low by the post: awkward to get down to
   if(Math.abs(P.z)>GW-0.6&&P.y>1.55)prob-=0.15;
   if(opts.fin)prob-=clamp(0.03+(opts.bend||0)*0.02,0,0.1);   // it starts outside the post: the keeper moves late
@@ -3002,7 +3015,7 @@ function updatePlayer(p,dt){
     else if(sp>0.7)tgt=Math.atan2(p.vel.x,p.vel.z);
     else if(p.holding)tgt=p.face;
     else tgt=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);
-    const rate=(ball.owner===p?(p.trait==='trickster'&&nearestOppDist(p)<3.5?18:7.5):10)*dt;p.face+=clamp(angDiff(p.face,tgt),-rate,rate);
+    const rate=(ball.owner===p?(p.trait==='trickster'&&nearestOppDist(p)<3.5?18:7.5):10)*dt*((p.plantT||0)>gtime?0.3:1);p.face+=clamp(angDiff(p.face,tgt),-rate,rate);   // winding up a shot: the standing foot is planted
   }
   const sprinting=sp>p.maxSpd()*0.82&&p.state==='normal';
   p.stamina=clamp(p.stamina+(sprinting?-(7.2-p.st.phy*0.03)*dt:2.4*dt),0,100);
@@ -3562,7 +3575,8 @@ function humanUpdate(dt){
     if(A_.pass){pressMove(p,c,A_.sprint||d2(p.pos,c.pos)>4);p.wantTackle=true;return;}}
   if(has&&A_.c){shieldBall(p,inp,A_.sprint);return;}
   if(has&&A_.sprint&&inp.lengthSq()<0.01){p.wantVel.set(0,0,0);p.vel.multiplyScalar(Math.exp(-5*dt));return;}   // E alone: stop the ball
-  if(inp.lengthSq()>0.01){const sprint=A_.sprint&&p.stamina>3;const sp_=p.maxSpd()*(sprint?1:0.7)*Math.min(1,inp.length());p.wantVel.copy(inp).normalize().multiplyScalar(sp_);}
+  const plant=has&&(A_.shoot&&!K.consumed.shoot&&!A_.f||K.pend&&K.pend.act==='shoot');if(plant)p.plantT=gtime+0.05;   // charging or swinging at a shot
+  if(inp.lengthSq()>0.01){const sprint=A_.sprint&&p.stamina>3;const sp_=p.maxSpd()*(sprint?1:0.7)*Math.min(1,inp.length())*(plant?0.6:1);p.wantVel.copy(inp).normalize().multiplyScalar(sp_);}
   else if(!has&&!ball.owner&&A_.pass){moveTo(p,p.itPt,1);}
   else if(has&&p.postSkT>0){p.wantVel.copy(p.vel);}
   else p.wantVel.set(0,0,0);
@@ -3592,7 +3606,9 @@ function handleEdge(p,e,inp){
     if(a==='through'){if(p.holding&&!SP){gkDrop(p);K.consumed.through=true;}return;}
     if(a==='tackle'){if(!has&&live)startTackle(p,inp);return;}
     if(a==='pass'){
-      if(has&&live&&K.pend&&(K.pend.act==='shoot'||K.pend.act==='lob')){const cr=K.pend.act==='lob';K.pend=null;K.consumed.pass=true;if(A_.c)K.cUsed=true;fakeShot(p,inp,A_.c,cr);return;}
+      // S during the shot or cross motion (D/A still held and charging, or the back-swing after release): fake it
+      const chg=!K.pend&&!p.sk&&((K.act.shoot&&!K.consumed.shoot&&!M.f)?'shoot':(K.act.lob&&!K.consumed.lob)?'lob':null);
+      if(has&&live&&(chg||K.pend&&(K.pend.act==='shoot'||K.pend.act==='lob'))){const cr=(chg||K.pend.act)==='lob';if(chg)K.consumed[chg]=true;K.pend=null;K.consumed.pass=true;if(A_.c)K.cUsed=true;fakeShot(p,inp,A_.c,cr);return;}
       if(SP&&SP.taker===p&&SP.type==='throw'&&K.pend&&K.pend.act==='lob'){K.pend=null;K.consumed.pass=true;p.oAnim='throw';p.oT=0;p.oDur=0.5;say(p.short+'의 페이크 스로우');return;}
       // S without the ball: switch player (holding it keeps pressing). Never a pass, so its release is swallowed.
       if(!has&&live&&!receiving(p)){smartSwitch(K);K.consumed.pass=true;}
@@ -3626,8 +3642,8 @@ function handleEdge(p,e,inp){
   if(SP&&(SP.taker!==p||SP.t<0.6))return;
   const mods={q:M.q,z:M.z,c:M.c};if(mods.q)K.qUsed=true;if(mods.z)K.zUsed=true;if(mods.c)K.cUsed=true;
   if(has){
-    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.2,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.06;p.oDur=0.45;return;}   // 0.2 s back-swing leaves time for the second D tap
-    if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:SP||crossZone(p)?0.24:0.2,count:1,dir:inp.clone()};return;}   // room for A-taps and the S fake
+    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.24,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.1;p.oDur=0.5;return;}   // 0.24 s back-swing: time for the second D tap or an S fake
+    if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:0.24,count:1,dir:inp.clone()};return;}   // room for A-taps and the S fake
     humanBallAction(p,a,power,inp,mods);
   }
   else if(!ball.owner&&state==='play'&&(receiving(p)||d2(p.pos,ball.pos)<7))K.buffer={act:a,power,ttl:1.1,mods:a==='shoot'&&xN(p)<-0.3&&!receiving(p)?Object.assign({},mods,{clear:true}):mods};   // D on a loose ball deep in our half: clear it
@@ -3700,15 +3716,22 @@ function pollPad(){
 // strikes it clean (harder, truer). Missing the green, or letting it run out, still shoots: weaker and wild.
 const PS_DUR=0.8;
 function psCan(L){const p=L.controlled;return (mode==='match'||!!prac)&&!paused&&state==='play'&&!SP&&!!p&&ball.owner===p&&!p.holding&&!p.sk&&p.state==='normal';}
+// bands out from the centre: green (100%), yellow (70%), orange (50%), red (30%); a better shooter gets a wider green
+const PS_BAND=[[1,100,'#3fdc82'],[0,70,'#f5d63d'],[0,50,'#f39436'],[0,30,'#e2453c']];
+function psBands(w){const g=w/2,y=g+0.075,o=y+0.075;return [g,y,o];}
 function psStart(L){const p=L.controlled,w=clamp(0.1+(p.st.sho-50)/50*0.12,0.1,0.22),c=rnd(0.4+w/2,0.92-w/2);
   L.ps={t:0,w,c,wall:performance.now()};const el=$('#psGauge');el.hidden=false;el.className='';
-  $('#psGreen').style.left=((c-w/2)*100).toFixed(1)+'%';$('#psGreen').style.width=(w*100).toFixed(1)+'%';$('#psLbl').textContent='파워 슛';psDraw(L);}
+  const [g,y,o]=psBands(w),P=v=>(clamp(v,0,1)*100).toFixed(1)+'%',R='#e2453c',O='#f39436',Y='#f5d63d',G='#3fdc82';
+  const e=0.014,st=[[c-o,R,O],[c-y,O,Y],[c-g,Y,G],[c+g,G,Y],[c+y,Y,O],[c+o,O,R]].map(([x,a,b])=>`${a} ${P(x-e)},${b} ${P(x+e)}`).join(',');   // soft edges: a gradient, with the bands still readable
+  $('#psGreen').style.background=`linear-gradient(90deg,${R} 0,${st},${R} 100%)`;
+  $('#psLbl').textContent='파워 슛';psDraw(L);}
+function psQuality(s,x){const d=Math.abs(x-s.c),[g,y,o]=psBands(s.w);return d<=g?100:d<=y?70:d<=o?50:30;}
 function psDraw(L){if(L.ps)$('#psCur').style.left=(clamp(L.ps.t/PS_DUR,0,1)*100).toFixed(1)+'%';}
 function psHit(L,timeout){
   const s=L.ps;L.ps=null;let q=0,x=1;
-  if(!timeout){x=clamp((s.t+Math.min(0.03,(performance.now()-s.wall)/1000))/PS_DUR,0,1);const d=Math.abs(x-s.c)/(s.w/2);q=d<=1?Math.round(100-d*30):0;}
+  if(!timeout){x=clamp((s.t+Math.min(0.03,(performance.now()-s.wall)/1000))/PS_DUR,0,1);q=psQuality(s,x);}else q=20;   // ran out: worse than any band
   $('#psCur').style.left=(x*100).toFixed(1)+'%';
-  const el=$('#psGauge');el.className=q>=92?'perfect':q?'good':'miss';$('#psLbl').textContent=q>=92?'PERFECT!':q?'GOOD':'MISS';
+  const el=$('#psGauge');el.className=q>=100?'perfect':q>=70?'good':q>=50?'bad':'miss';$('#psLbl').textContent=q>=100?'PERFECT! 100%':q>=70?'GOOD 70%':q>=50?'BAD 50%':q>=30?'MISS 30%':'MISS';
   clearTimeout(psHit.tm);psHit.tm=setTimeout(()=>{if(!LC().ps)el.hidden=true;},650);
   if(net&&net.role==='guest')netLocalEdge('down','psh',q);else if(mode==='match'||prac)L.inq.push({type:'down',act:'psh',code:q});
 }
@@ -4414,7 +4437,7 @@ const TUT_STEPS=[
    setup(){const p=tutPlace(tutP(0,9),36,0);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-4,0,0);tutBall(p);},
    check(){return tutHas('shot',k=>k==='chip')&&tutHas('shot',k=>k==='low');},
    prog(){return (tutHas('shot',k=>k==='chip')?'로빙슛 ✓ ':'로빙슛 · ')+(tutHas('shot',k=>k==='low')?'낮은 슛 ✓':'낮은 슛');}},
-  {t:'파워 슛',touchSkip:1,x:`${kb('F')}를 누른 채 ${kb('D')}를 누르면 타이밍 막대가 나옵니다. 흰 막대가 <b>초록 구간</b>을 지날 때 ${kb('D')}를 한 번 더 누르세요. 맞히면 강하고 정확한 슛, 놓치면 약하고 크게 빗나갑니다.`,
+  {t:'파워 슛',touchSkip:1,x:`${kb('F')}를 누른 채 ${kb('D')}를 누르면 타이밍 막대가 나옵니다. 흰 막대가 가운데 <b>초록</b>을 지날 때 ${kb('D')}를 한 번 더 누르세요. 초록 100% · 노랑 70% · 주황 50% · 빨강 30%로 슛의 힘과 정확도가 정해집니다.`,
    setup(){const p=tutPlace(tutP(0,9),32,0);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-0.6,0,0);tutBall(p);},
    check(){return tutHas('shot',k=>k==='power');}},
   {t:'개인기 ① 속임 동작',x:`${kb('Shift')}를 <b>누른 채</b> ${kb('↓')} 또는 ${kb('↑')}를 톡: 몸을 한쪽으로 흔든 뒤 반대로 빠집니다. 개인기는 오른쪽으로 달릴 때 기준 방향입니다.`,
