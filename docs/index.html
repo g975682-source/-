@@ -79,7 +79,6 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-
 .lb-card .crest{width:24px;height:24px;font-size:8px}
 .lb-card b{font-size:17px;flex:1}.lb-card em{font-style:normal;font:700 14px var(--f-num);color:var(--gold)}
 body.prac #hud>*:not(#gauge):not(#psGauge):not(#banner):not(#nameTag):not(#runBadge){display:none!important}
-body.prac .gauge{left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 body.touch #lbPrac{display:none}
 @media (max-width:720px){.lb-stat:not(.lb-bp){display:none}.lb-crest{width:64px;height:64px}.lb-crest .crest{width:44px;height:44px;font-size:13px}.lb-info{height:30px;font-size:15px;gap:8px}.lb-stat i{display:none}.lb-club{display:none}.lb-nav{height:44px}.lb-nav button{font-size:15px;padding:0 14px}.lb-logo{display:none}.lb-bottom nav{justify-content:flex-start}.lb-bottom nav button{font-size:14px;padding:0 12px}.lb-card{min-width:0}.lb-hint{font-size:12px}}
 .title-wrap{max-width:560px;display:flex;flex-direction:column;gap:18px;margin-left:clamp(0px,5vw,72px)}
@@ -176,9 +175,9 @@ kbd{font-family:var(--f-num);font-weight:700;background:#0a1530;border:1px solid
 .pt-meta{font-family:var(--f-num);color:var(--mute);font-size:12px;letter-spacing:.08em}
 .stam{height:4px;background:#1b2a4a}
 .stam i{display:block;height:100%;background:var(--turf);width:100%}
-.gauge{position:absolute;left:max(16px,env(safe-area-inset-left,0px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:210px;height:14px;background:rgba(5,11,23,.86);border:1px solid var(--line)}
+.gauge{position:absolute;left:0;top:0;transform:translate(-50%,-100%);width:92px;height:9px;background:rgba(5,11,23,.82);border:1px solid rgba(255,255,255,.55);box-shadow:0 1px 4px rgba(0,0,0,.5)}   /* over the player's head, moved each frame */
 .gauge i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--turf),var(--gold) 70%,var(--alert))}
-.gauge span{position:absolute;right:-46px;top:-3px;font-family:var(--f-num);font-weight:700;font-size:14px;color:var(--gold)}
+.gauge span{position:absolute;left:100%;margin-left:5px;top:50%;transform:translateY(-50%);font-family:var(--f-num);font-weight:700;font-size:12px;color:var(--gold);text-shadow:0 1px 2px #000;white-space:nowrap}
 #psGauge{position:absolute;left:50%;bottom:calc(190px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(300px,calc(100vw - 32px));pointer-events:none;text-align:center}
 #psGauge b{display:block;font-family:var(--f-num);font-size:15px;letter-spacing:.06em;color:#fff;text-shadow:0 1px 3px #000;margin-bottom:4px}
 #psGauge .psBar{position:relative;height:16px;background:linear-gradient(180deg,#e2453c,#a3221c);border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.5)}
@@ -214,7 +213,6 @@ body.touch .ptag{bottom:auto;top:calc(56px + env(safe-area-inset-top,0px));min-w
 body.touch .pt-meta{display:none}
 body.touch .pt-num{font-size:20px;min-width:36px;padding:0 8px}
 body.touch .pt-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.touch .gauge{bottom:auto;top:calc(104px + env(safe-area-inset-top,0px));width:150px}
 body.touch #ticker{bottom:auto;top:calc(126px + env(safe-area-inset-top,0px));max-width:calc(100vw - 196px)}
 body.touch #ticker div{font-size:12px}
 body.touch #radar{width:140px;height:91px;bottom:auto;top:calc(56px + env(safe-area-inset-top,0px));left:auto;right:max(16px,env(safe-area-inset-right,0px));transform:none}
@@ -3827,7 +3825,7 @@ function refreshPtag(){
 }
 let hudT=0;
 function updateHud(dt){
-  if(mode!=='match'||!teams.length)return;
+  if((mode!=='match'&&!prac)||!teams.length)return;
   hudT-=dt;
   if(hudT<=0){hudT=0.2;
     $('#sbS0').textContent=score[0];$('#sbS1').textContent=score[1];
@@ -3840,6 +3838,8 @@ function updateHud(dt){
   if(human&&controlled&&(ball.owner===controlled||intended===controlled||state==='setpiece')){
     const L=LC();if(!L.ps&&!L.act.f)for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/(holdFull(a)*1000),0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
   }
+  if(shown){const r=controlled.rig.root.position;tmpA.set(r.x,2.75+controlled.y,r.z).project(camera);   // just above the name tag
+    if(tmpA.z<1){g.style.left=((tmpA.x+1)/2*innerWidth)+'px';g.style.top=((1-tmpA.y)/2*innerHeight-27)+'px';}else shown=false;}
   g.hidden=!shown;
   // name tag
   const nt=$('#nameTag');
