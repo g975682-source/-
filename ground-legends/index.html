@@ -171,6 +171,21 @@ body.touch #spHint{top:auto;bottom:calc(244px + env(safe-area-inset-bottom,0px))
 #traitToast i{font-style:normal;color:var(--gold);margin-right:6px;letter-spacing:.04em}
 #traitToast.show{animation:tt 1.8s ease-out forwards}
 body[data-guide="1"] #keys,body[data-guide="2"] #keys,body[data-guide="2"] #spHint{display:none!important}
+#tutBox{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:12;width:min(600px,calc(100vw - 32px));background:rgba(5,11,23,.92);border:1px solid var(--gold);border-left-width:4px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+#tutBox .tt-head{display:flex;gap:10px;align-items:baseline}
+#tutBox .tt-head span{font-size:11px;letter-spacing:.08em;color:var(--mute)}
+#tutBox .tt-head b{font-size:17px;color:var(--gold)}
+#tutBox p{margin:0;font-size:14px;line-height:1.6}
+#tutBox .tt-prog{font-size:13px;min-height:18px;color:var(--ink)}
+#tutBox .tt-dots{display:flex;gap:4px;flex-wrap:wrap}
+#tutBox .tt-dots i{width:16px;height:4px;background:rgba(255,255,255,.18)}
+#tutBox .tt-dots i.on{background:var(--gold)}
+#tutBox .tt-dots i.cur{background:#fff}
+#tutBox .row{gap:6px}
+#tutBox .btn{padding:6px 12px;font-size:13px;min-height:0}
+body.touch #tutBox{top:calc(150px + env(safe-area-inset-top,0px));padding:9px 11px}
+body.touch #tutBox p{font-size:13px;line-height:1.5}
+@media (orientation:landscape){body.touch #tutBox{bottom:auto;top:calc(48px + env(safe-area-inset-top,0px));width:min(460px,calc(100vw - 440px))}}
 #pkTrack{position:absolute;left:50%;top:calc(96px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(5,11,23,.88);border:1px solid var(--line);padding:6px 12px;display:flex;flex-direction:column;gap:4px;pointer-events:none}
 #pkTrack div{display:flex;align-items:center;gap:5px;font-family:var(--f-num);font-size:13px}
 #pkTrack b{min-width:34px;border-left:4px solid var(--c);padding-left:5px}
@@ -370,6 +385,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <button class="btn primary big" id="btnClub">구단 운영</button>
       <button class="btn" id="btnPlay">빠른 경기</button>
       <button class="btn" id="btnOnline">온라인 친선전</button>
+      <button class="btn" id="btnTut">튜토리얼</button>
       <button class="btn" id="btnHelp">조작법</button>
     </div>
     <p class="foot">배경 화면은 실시간 <b>AI 대 AI</b> 경기입니다. 모든 구단과 선수는 가상입니다.</p>
@@ -440,6 +456,21 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     </div>
   </div>
 </section>
+<div class="modal" id="tutAsk" hidden>
+  <div class="card" style="max-width:460px">
+    <h3>그라운드 레전드에 오신 걸 환영합니다</h3>
+    <p style="margin:0;line-height:1.65">처음이시라면 튜토리얼로 조작을 익혀 보세요. 이동·패스·슛부터 개인기, 수비, 골키퍼, 프리킥까지 직접 해 보면서 한 단계씩 배웁니다. 언제든 건너뛸 수 있고, 메인 화면의 <b>튜토리얼</b> 버튼으로 다시 할 수 있습니다.</p>
+    <div class="row end"><button class="btn" id="tutLater">나중에</button><button class="btn primary" id="tutStart">튜토리얼 시작</button></div>
+  </div>
+</div>
+<div class="modal" id="tutDone" hidden>
+  <div class="card" style="max-width:460px">
+    <h3>튜토리얼 완료!</h3>
+    <p style="margin:0;line-height:1.65">기본기를 모두 익혔습니다. 이제 <b>구단 운영</b>에서 팀을 창단해 리그와 유로파·챔피언스 리그·월드컵에 도전하거나, <b>빠른 경기</b>로 마음껏 연습해 보세요. 경기 중 <kbd>H</kbd>로 화면 안내를 끄거나 켤 수 있고, 모든 키는 <b>조작법</b>에 정리되어 있습니다.</p>
+    <div class="row end"><button class="btn" id="tdClose">메인으로</button><button class="btn" id="tdPlay">빠른 경기</button><button class="btn primary" id="tdClub">구단 운영 시작</button></div>
+  </div>
+</div>
+<div id="tutBox" hidden></div>
 <div class="modal" id="onAsk" hidden>
   <div class="card" style="max-width:440px">
     <h3>친선전 신청</h3>
@@ -1420,7 +1451,7 @@ function dirSwitch(K,deg){
   for(const m of teams[K.team].players){if(m===cur||m.isGK||m.sentOff||m.state==='fall')continue;
     const vx=m.pos.x-cur.pos.x,vz=m.pos.z-cur.pos.z,d=Math.hypot(vx,vz)||1,c=(vx*dx+vz*dz)/d;if(c<0.5)continue;
     const sc=d*(1.6-c);if(sc<bs){bs=sc;best=m;}}
-  if(best){setControlled(best);K.switchCD=1.4;}
+  if(best){setControlled(best);K.switchCD=1.4;tutEv('switch');}
 }
 function performSkill(p,id,s,opt={}){
   const m=SKILLS[id];
@@ -1434,7 +1465,7 @@ function performSkill(p,id,s,opt={}){
   p.protect=Math.max(p.protect,Math.min(m.dur*(m.beat||0.55),1)+0.12);
   if(m.st>=2||m.show){netFx(['k',id,p.short,p.team]);showSkillToast(id,p.short,p.team);}
   if(p.trait==='trickster'&&m.st>=2)traitFlash(p);
-  skillCount[m.k]=(skillCount[m.k]||0)+1;
+  skillCount[m.k]=(skillCount[m.k]||0)+1;if(p.team===0)tutEv('skill',m.k);
   return true;
 }
 const skillCount={};
@@ -1782,7 +1813,7 @@ function computeTraj(){
 
 function calcIntercept(p){
   const ms=p.maxSpd()*1.0,boxK=p.isGK&&inBox(p.pos,p.team);
-  const reach=boxK?1.2:0.7,hmax=boxK?2.6:2.1;
+  const reach=boxK?1.2:0.7,hmax=boxK?2.6:p===intended&&ball.lastKind==='pass'?1.45:2.1;   // the receiver of a lofted pass meets it where it drops to chest height
   for(const q of traj){if(q.y>hmax)continue;const d=Math.hypot(q.x-p.pos.x,q.z-p.pos.z)-reach;
     if(d<=0||d/ms+0.12<=q.t){p.itT=q.t;p.itPt.set(q.x,0,q.z);return;}}
   const q=traj[traj.length-1];p.itPt.set(q.x,0,q.z);p.itT=q.t+Math.hypot(q.x-p.pos.x,q.z-p.pos.z)/ms;
@@ -2067,7 +2098,7 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
     v=dir.multiplyScalar(hs);v.y=vy;
   }
   stats.passes[p.team]++;p.pa++;
-  lastPass={by:p,team:p.team,open:true};
+  lastPass={by:p,team:p.team,open:true,kind:o.lobThrough?'lob':mode};
   kick(p,v,mode==='throw'?'throw':'pass');
   if(o.flair){p.oAnim='volley';p.oT=0.05;p.oDur=0.5;}
   intended=m||null;
@@ -2109,14 +2140,14 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
-  planSave(teams[1-p.team].gk,p,opts);
+  planSave(teams[1-p.team].gk,p,opts);if(p.team===0)tutEv('shot',opts.pen?'pen':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
   say((opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
 }
 
 function startSlide(p,dirIn){
   if(p.state!=='normal')return;
   if(dirIn&&dirIn.lengthSq()>0.04)p.face=Math.atan2(dirIn.x,dirIn.z);
-  p.state='slide';p.stateT=0;p.slideHit=false;
+  p.state='slide';p.stateT=0;p.slideHit=false;if(isHumanTeam(p.team)&&p===CTRL[p.team].controlled)tutEv('slide');
   const f=fwd(p),s=Math.max(Math.hypot(p.vel.x,p.vel.z),4)+3;p.vel.set(f.x*s,0,f.z*s);
 }
 // Laser Shooter fires on a first-time strike of a ball rolling at the player from the goal side, within shooting range
@@ -2131,7 +2162,7 @@ function gainPossession(p){
   const prevTeam=possTeam;
   if(offCheck&&p.team===offCheck.team&&offCheck.set.has(p)){callOffside(p);return;}
   offCheck=null;touched(p);
-  if(lastPass&&lastPass.open){lastPass.open=false;if(p.team===lastPass.team&&p!==lastPass.by){stats.passOk[p.team]++;lastPass.by.pc++;assistRec={by:lastPass.by,to:p,t:gtime};}}
+  if(lastPass&&lastPass.open){lastPass.open=false;if(p.team===lastPass.team&&p!==lastPass.by){stats.passOk[p.team]++;if(p.team===0)tutEv('pass',lastPass.kind);lastPass.by.pc++;assistRec={by:lastPass.by,to:p,t:gtime};}}
   if(lastOwner&&lastOwner!==p&&lastOwner.team!==p.team&&gtime-lastOwnerT<1.5)lastOwner.lostT=gtime;
   p.recvVel.copy(ball.vel);p.recvY=ball.pos.y;
   ball.owner=p;ball.lastTouch=p;p.protect=0.4;p.gainT=gtime;p.slowT=0;intended=null;possTeam=p.team;clearSaves();
@@ -2174,6 +2205,7 @@ function callOffside(p){
 }
 
 function foul(off,vic,kind,force){
+  if(tut)return;   // no fouls while learning
   if(state!=='play')return;
   stats.fouls[off.team]++;
   const pos=clampPitch((ball.owner===vic?ball.pos:vic.pos).clone(),0.8);
@@ -2379,6 +2411,9 @@ function touch(p){
       touched(p);offCheck=null;if(lastPass)lastPass.open=false;K.buffer=null;ball.lastTouch=p;p.gainT=gtime;withC(K,()=>doShoot(p,0.8,isH?null:aiAim(p),false,!isH));return;}
   }
   if(gkBox&&back&&isHumanTeam(p.team)&&p.team===ME)say('백패스라 골키퍼가 손을 쓸 수 없습니다. 발로 처리하세요.');
+  // a lofted pass to the user's player is chested down unless he has a first-time action keyed in
+  if(isInt&&ball.pos.y>1.3&&ball.pos.y<2.4&&!offs&&isHumanTeam(p.team)&&p===CTRL[p.team].controlled){const K=CTRL[p.team];
+    if(!K.buffer&&!K.act.shoot&&!K.act.pass&&!K.act.through&&!K.act.lob){touched(p);offCheck=null;gainPossession(p);p.oAnim='header';p.oT=0.3;p.oDur=0.5;return;}}
   if(ball.pos.y>(isInt?1.9:1.3)){if(offs){callOffside(p);return;}touched(p);offCheck=null;if(lastPass)lastPass.open=false;ball.lastTouch=p;header(p);return;}
   const gotBack=back;
   const sp=ball.vel.length();
@@ -2528,6 +2563,7 @@ function checkBounds(){
         return;}
       goalScored(teams[0].dir===s?0:1);return;}
     if(shoot){shootResult(false,ball.lastTouch&&ball.lastTouch.isGK&&ball.lastTouch!==shoot.kicker?'save':'miss');return;}
+    if(tut){tutOut();return;}
     const defT=teams[0].dir===-s?teams[0]:teams[1],atkT=teams[1-defT.idx];
     const zs=Math.sign(b.pos.z)||1;
     if(b.lastTouch&&b.lastTouch.team===defT.idx){
@@ -2541,6 +2577,7 @@ function checkBounds(){
   }
   if(Math.abs(b.pos.z)>HW+BR){
     if(shoot){shootResult(false,'miss');return;}
+    if(tut){tutOut();return;}
     const ti=b.lastTouch?1-b.lastTouch.team:0;
     const pos=new V3(clamp(b.pos.x,-HL+1,HL-1),BR,Math.sign(b.pos.z)*(HW-0.05));
     setDead(0.9,()=>startSetPiece('throw',ti,pos));
@@ -2897,7 +2934,7 @@ function executeFK(p,aim,power,curve,top,isAI,isPen,o={}){
   if(!isPen){ball.sp.s=curve*7;ball.sp.top=top>0?0.9:o.drive?1.2:0;ball.fkShot=true;
     for(const q of teams[1-p.team].players){if(q.inWall&&!isHumanTeam(q.team)&&Math.random()<0.65)startJump(q);}}
   ball.shotBy=p;
-  planSave(teams[1-p.team].gk,p,{pen:isPen});
+  planSave(teams[1-p.team].gk,p,{pen:isPen});if(p.team===0)tutEv('shot',isPen?'pen':'fk');
   say(isPen?(o.chip?p.short+'의 파넨카!':p.short+'의 페널티킥!'):o.drive?p.short+'의 무회전 드라이브 프리킥!':Math.abs(curve)>0.3?p.short+'의 감아차기 프리킥!':top>0?p.short+'의 드롭 프리킥!':p.short+'의 프리킥!');
 }
 function aiDirectFK(p){
@@ -2950,6 +2987,7 @@ function kickoff(ti){
 /* ================= goal, periods, replay ================= */
 function goalScored(ti){
   if(shoot){shootResult(true);return;}
+  if(tut){tutGoal(ti);return;}
   const s=Math.sign(ball.pos.x);
   score[ti]++;
   const scorer=ball.lastTouch;const own=scorer&&scorer.team!==ti;
@@ -3102,6 +3140,7 @@ function switchScore(m,ti){
 }
 // S while defending: take the player best placed to win the ball (keeps the current one if he already is)
 function smartSwitch(K){
+  tutEv('switch');
   const {m:best,t:bt}=bestDefender(K.team),cur=K.controlled;
   if(best&&best!==cur&&(!cur||cur.isGK||cur.state!=='normal'||stopTime(cur)-bt>0.15)){setControlled(best);K.switchCD=1.2;return true;}
   return false;
@@ -3111,7 +3150,7 @@ function smartSwitch(K){
 function manualSwitch(K){
   const T=teams[K.team];let best=null,bd=1e9;const bxn=ball.pos.x*T.dir/HL;
   for(const m of T.players){if(m===K.controlled||m.isGK)continue;let d=d2(m.pos,ball.pos);if(possTeam!==K.team&&xN(m)>bxn+0.03)d+=6;if(d<bd){bd=d;best=m;}}
-  if(best){setControlled(best);K.switchCD=1.4;}
+  if(best){setControlled(best);K.switchCD=1.4;tutEv('switch');}
 }
 function autoSwitch(dt,force,ti){
   const K=CTRL[ti];K.switchCD-=dt;
@@ -3299,17 +3338,19 @@ function tick(dt){
   if(state==='replay'){replayUpdate(dt);return;}
   if(state==='halftime'){halfT+=dt;if((!human&&halfT>2.5)||(net&&halfT>4))startSecondHalf();return;}
   if(state==='fulltime'){halfT+=dt;if(mode==='menu'&&halfT>4)startDemo();return;}
-  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
+  if(tut&&tut.done&&state!=='replay'){tut.wait-=dt;if(tut.wait<=0)tutGo(tut.i+1);}   // game time, so pausing holds it
+  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
   for(const p of players){p.wantTackle=false;p.faceBall=false;p.shielding=false;p.faceUp=false;}
   if(human&&!(net&&net.role==='guest'))gestureUpdate(LC(),dt);   // drops a half-keyed move when play stops
   if(!ball.owner){computeTraj();for(const p of players)calcIntercept(p);}
   if(state==='play'&&shoot){shootUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
   else if(state==='play'){
-    for(const ti of [0,1])if(isHumanTeam(ti))autoSwitch(dt,false,ti);
+    for(const ti of [0,1])if(isHumanTeam(ti)&&!tut)autoSwitch(dt,false,ti);
     teamThink(teams[0],dt);teamThink(teams[1],dt);
     const o=ball.owner,oh=o&&isHumanTeam(o.team)&&o===CTRL[o.team].controlled;
-    if(o){if(o.holding){if(!oh&&o.holdT>1.5)aiGKDistribute(o);}else if(!oh)aiCarrier(o,dt);}
+    if(o){if(o.holding){if(!oh&&o.holdT>1.5)aiGKDistribute(o);}else if(!oh&&!(tut&&o===tut.carrier))aiCarrier(o,dt);}
     for(const ti of [0,1])if(isHumanTeam(ti))withC(CTRL[ti],()=>humanUpdate(dt));
+    if(tut)tutTick(dt);
   }else if(state==='setpiece')setPieceUpdate(dt);
   else if(state==='dead')deadUpdate(dt);
   else if(state==='goal'){goalUpdate(dt);CTRL[0].inq.length=0;CTRL[1].inq.length=0;}
@@ -3559,6 +3600,7 @@ function startDemo(){
 function goMenu(){$('#pause').hidden=true;paused=false;netCleanup();startDemo();showScreen('#title');}
 $('#btnMenu').onclick=goMenu;
 $('#btnQuit').onclick=()=>{
+  if(tut){tutQuit();return;}
   if(net&&mode==='match'){netLeaveMatch(true);return;}
   if(matchCfg&&matchCfg.club&&mode==='match'&&!matchCfg.club.done){matchCfg.club.done=true;clubResult(true);$('#pause').hidden=true;paused=false;goClub(matchCfg.club.cup?'cups':'home','기권패(0:3)로 처리되었습니다.');return;}
   goMenu();};
@@ -3572,13 +3614,21 @@ function cycleCam(){camMode=(camMode+1)%3;$('#btnCam').textContent='카메라: '
 $('#btnCam').onclick=cycleCam;
 function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+(SND.muted?'꺼짐':'켜짐');SND.setCrowd(SND.muted?0:0.12);}
 $('#btnMute').onclick=toggleMute;
+$('#btnTut').onclick=()=>{startTutorial();};
+$('#tutStart').onclick=()=>{$('#tutAsk').hidden=true;startTutorial();};
+$('#tutLater').onclick=()=>{$('#tutAsk').hidden=true;try{localStorage.setItem(TUT_KEY,'later');}catch(e){}};
+$('#tdClose').onclick=()=>{$('#tutDone').hidden=true;};
+$('#tdPlay').onclick=()=>{$('#tutDone').hidden=true;$('#btnPlay').click();};
+$('#tdClub').onclick=()=>{$('#tutDone').hidden=true;$('#btnClub').click();};
+document.body.addEventListener('click',e=>{const b=e.target.closest('[data-tut]');if(!b||!tut)return;b.blur();const a=b.dataset.tut;
+  if(a==='retry')tutRetry();else if(a==='skip')tutGo(tut.i+1);else if(a==='quit')tutQuit();});
 // on-screen guides: 0 everything · 1 set-piece hints only (no key panel) · 2 off (also the suggested-player arrow)
 const GUIDES=['전체','세트피스만','끄기'];let guideMode=0;
 try{guideMode=clamp(parseInt(localStorage.getItem('gl-guide')||'0',10)||0,0,2);}catch(e){}
 function applyGuide(){document.body.dataset.guide=String(guideMode);$('#btnGuide').textContent='가이드: '+GUIDES[guideMode];}
 function cycleGuide(){guideMode=(guideMode+1)%3;try{localStorage.setItem('gl-guide',String(guideMode));}catch(e){}applyGuide();if(mode==='match')say('가이드 표시: '+GUIDES[guideMode]+' (H로 변경)');}
 $('#btnGuide').onclick=cycleGuide;applyGuide();
-function togglePause(){if(net){$('#pause').hidden=!$('#pause').hidden;$('#btnQuit').textContent='경기 나가기 (기권)';$('#btnResume').textContent='경기로 돌아가기';return;}$('#btnResume').textContent='계속하기';paused=!paused;$('#pause').hidden=!paused;$('#btnQuit').textContent=matchCfg&&matchCfg.club?'기권하고 구단으로 (0:3 패)':'경기 포기 · 메인으로';const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;if(SND.ctx){paused?SND.ctx.suspend():SND.ctx.resume();}}
+function togglePause(){if(net){$('#pause').hidden=!$('#pause').hidden;$('#btnQuit').textContent='경기 나가기 (기권)';$('#btnResume').textContent='경기로 돌아가기';return;}$('#btnResume').textContent='계속하기';paused=!paused;$('#pause').hidden=!paused;$('#btnQuit').textContent=tut?'튜토리얼 끝내기':matchCfg&&matchCfg.club?'기권하고 구단으로 (0:3 패)':'경기 포기 · 메인으로';const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;if(SND.ctx){paused?SND.ctx.suspend():SND.ctx.resume();}}
 
 /* ================= seasons (80+ OVR cards) ================= */
 const SEASONS=[
@@ -3819,6 +3869,132 @@ function applyClubResult(forfeit){
   refreshMarket(true);saveClub();
   return {lines,total,season,res};
 }
+/* ================= tutorial ================= */
+// A practice match where each step sets up a small situation, tells the player what to press, and moves on
+// when he has done it. Players not needed for a step are parked and frozen; the clock does not run.
+let tut=null;
+const TUT_KEY='gl-tut-v1';
+const kb=k=>`<kbd>${k}</kbd>`;
+function tutEv(type,val){if(tut&&!tut.done)tut.ev.push({type,val,t:tut.t});}
+function tutHas(type,f){return tut.ev.some(e=>e.type===type&&(!f||f(e.val)));}
+function tutP(ti,slot){return teams[ti].players.find(p=>p.slot===slot);}
+// everyone stands aside unless the step uses him
+function tutStage(use){
+  tut.park=new Map();let k=0;
+  for(const p of players){if(use.includes(p))continue;
+    const side=p.team===0?-1:1,spot=new V3(clamp(-30+(k%11)*6,-HL+2,HL-2),0,side*(HW-1.5));k++;
+    p.pos.copy(spot);tut.park.set(p,spot.clone());}
+  for(const p of players){resetTransient(p);p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.state='normal';p.stun=0;p.holding=false;}
+  SP=null;state='play';releaseBall();ball.vel.set(0,0,0);intended=null;offCheck=null;lastPass=null;foulSeq=null;advantage=null;
+  for(const K of CTRL){K.inq.length=0;K.pend=null;K.buffer=null;K.g=null;}
+  teams[1].gk.st.gk=34;teams[1].gk.state='normal';   // a forgiving keeper while learning
+  tutRing.visible=false;tut.carrier=null;tut.acc=0;updateSpHint();
+}
+function tutBall(p){ball.pos.set(p.pos.x+Math.sin(p.face)*0.5,BR,p.pos.z+Math.cos(p.face)*0.5);gainPossession(p);setControlled(p);}
+function tutPlace(p,x,z,face){p.pos.set(x,0,z);p.face=face??Math.PI/2;return p;}
+function tutMark(x,z){tutRing.position.set(x,0.04,z);tutRing.visible=true;tut.mark=new V3(x,0,z);}
+const TUT_STEPS=[
+  {t:'이동과 질주',x:`${kb('←↑↓→')} 방향키로 공을 몰고 <b>노란 원</b>까지 가 보세요. ${kb('E')}를 누르고 있으면 전력 질주합니다.`,
+   setup(){const p=tutPlace(tutP(0,9),-10,0);tutStage([p]);tutBall(p);tutMark(14,-9);},
+   check(){return d2(controlled.pos,tut.mark)<2.2&&ball.owner===controlled;}},
+  {t:'짧은 패스',x:`${kb('S')}를 눌러 가까운 동료에게 땅볼 패스. 방향키로 받을 동료 쪽을 가리키고 누르면 그 선수에게 갑니다. 누르는 시간이 길수록 세집니다.`,
+   setup(){const a=tutPlace(tutP(0,5),-6,0),b=tutPlace(tutP(0,9),4,6,-Math.PI/2);tutStage([a,b]);tutBall(a);},
+   check(){return tutHas('pass',m=>m==='ground');}},
+  {t:'스루 패스',x:`앞으로 뛰어 들어가는 동료가 있을 때 ${kb('W')}로 <b>그 선수 앞 빈 공간</b>에 찔러 주세요.`,
+   setup(){const a=tutPlace(tutP(0,5),-4,0),b=tutPlace(tutP(0,9),2,-7);tutStage([a,b]);tutBall(a);b.runT=6;b.runTarget.set(26,0,-6);},
+   check(){return tutHas('pass',m=>m==='through');}},
+  {t:'로빙 패스 · 크로스',x:`수비수가 길을 막고 있으면 ${kb('A')}로 공을 띄워 넘기세요. 측면 깊은 곳에서는 크로스가 됩니다.`,
+   setup(){const a=tutPlace(tutP(0,5),-12,-4),b=tutPlace(tutP(0,9),14,6,-Math.PI/2),d=tutPlace(tutP(1,6),1,1,-Math.PI/2);tutStage([a,b,d]);tut.park.set(d,d.pos.clone());tutBall(a);},
+   check(){return tutHas('pass',m=>m==='lob'||m==='cross');}},
+  {t:'슛',x:`${kb('D')}를 누르고 있다가 떼면 슛. 길게 누를수록 강하고 높게 갑니다. 방향키로 좌우 코스를 정하세요. 골을 넣어 보세요!`,
+   setup(){const p=tutPlace(tutP(0,9),36,2);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-0.6,0,0);tutBall(p);},
+   check(){return tut.goals>0;}},
+  {t:'감아차기',touchSkip:1,x:`${kb('Z')}를 누른 채 ${kb('D')}: 골대 바깥을 보고 차서 안으로 휘어 들어가는 감아차기입니다.`,
+   setup(){const p=tutPlace(tutP(0,9),33,-9);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-0.6,0,0);tutBall(p);},
+   check(){return tutHas('shot',k=>k==='fin');}},
+  {t:'로빙슛 · 낮은 슛',x:`${kb('Q')}를 누른 채 ${kb('D')}는 골키퍼 키를 넘기는 <b>로빙슛</b>, ${kb('D')}를 떼고 바로 한 번 더 ${kb('D')}는 <b>낮고 빠른 슛</b>입니다. 둘 다 해 보세요.`,
+   setup(){const p=tutPlace(tutP(0,9),36,0);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-4,0,0);tutBall(p);},
+   check(){return tutHas('shot',k=>k==='chip')&&tutHas('shot',k=>k==='low');},
+   prog(){return (tutHas('shot',k=>k==='chip')?'로빙슛 ✓ ':'로빙슛 · ')+(tutHas('shot',k=>k==='low')?'낮은 슛 ✓':'낮은 슛');}},
+  {t:'개인기 ① 속임 동작',x:`${kb('Shift')}를 <b>누른 채</b> ${kb('↓')} 또는 ${kb('↑')}를 톡: 몸을 한쪽으로 흔든 뒤 반대로 빠집니다. 개인기는 오른쪽으로 달릴 때 기준 방향입니다.`,
+   setup(){const p=tutPlace(tutP(0,9),-4,0),d=tutPlace(tutP(1,6),2.6,0,-Math.PI/2);tutStage([p,d]);tut.park.set(d,d.pos.clone());tutBall(p);},
+   check(){return tutHas('skill',k=>k!=='basic');}},
+  {t:'개인기 ② 스텝오버 · 룰렛',x:`${kb('Shift')}를 누른 채 ${kb('→')}${kb('↘')}${kb('↓')} 순서로 쓸어 누르면 <b>스텝오버</b>, ${kb('←')}${kb('↑')}${kb('→')}${kb('↓')} 으로 한 바퀴 돌리면 <b>룰렛</b>입니다. 별이 높은 선수일수록 화려한 개인기가 나갑니다. 전체 목록은 메인 화면의 조작법에 있습니다.`,
+   setup(){const p=tutPlace(tutP(0,9),-4,0),d=tutPlace(tutP(1,6),2.6,0,-Math.PI/2);tutStage([p,d]);tut.park.set(d,d.pos.clone());tutBall(p);},
+   check(){return tut.ev.filter(e=>e.type==='skill'&&e.val!=='basic'&&e.val!=='bodyfeint').length>0;}},
+  {t:'공 지키기',x:`등 뒤에 수비수가 붙었습니다. ${kb('C')}를 누르고 있으면 몸으로 공을 가립니다. 2초 동안 지켜 보세요.`,
+   setup(){const p=tutPlace(tutP(0,9),0,0),d=tutPlace(tutP(1,6),-1.3,0,Math.PI/2);tutStage([p,d]);tutBall(p);},
+   tick(dt){if(controlled&&controlled.shielding&&ball.owner===controlled)tut.acc+=dt;},check(){return tut.acc>2;},prog(){return '지킨 시간 '+Math.min(2,tut.acc).toFixed(1)+' / 2.0초';}},
+  {t:'수비 ① 선수 전환',x:`상대가 공을 몰고 옵니다. ${kb('S')}를 누르면 <b>막기 가장 좋은 선수</b>로 커서가 바뀝니다 (머리 위 흰 화살표). ${kb('Shift')}+방향키는 그 방향의 선수로 바꿉니다.`,
+   setup(){const c=tutPlace(tutP(1,9),8,0,-Math.PI/2),a=tutPlace(tutP(0,2),-6,1),b=tutPlace(tutP(0,8),12,-20);tutStage([c,a,b]);tutBall(c);setControlled(b);tut.carrier=c;},
+   check(){return tutHas('switch');}},
+  {t:'수비 ② 스탠딩 태클',x:`공을 가진 상대에게 붙어서 ${kb('D')}로 스탠딩 태클! 공을 빼앗아 보세요. ${kb('D')}나 ${kb('S')}를 누르고 있으면 따라붙어 압박합니다.`,
+   setup(){const c=tutPlace(tutP(1,9),6,0,-Math.PI/2),a=tutPlace(tutP(0,2),-4,0.5);tutStage([c,a]);tutBall(c);setControlled(a);tut.carrier=c;},
+   check(){return ball.owner&&ball.owner.team===0;}},
+  {t:'수비 ③ 견제',x:`바로 덤비면 제쳐집니다. ${kb('C')}를 누르고 있으면 골문 쪽에 서서 버티는 <b>견제</b>입니다. 2초 버텨 보세요.`,
+   setup(){const c=tutPlace(tutP(1,9),8,0,-Math.PI/2),a=tutPlace(tutP(0,2),-2,0);tutStage([c,a]);tutBall(c);setControlled(a);tut.carrier=c;},
+   tick(dt){if(controlled&&controlled.jockeyT>0)tut.acc+=dt;},check(){return tut.acc>2;},prog(){return '견제 '+Math.min(2,tut.acc).toFixed(1)+' / 2.0초';}},
+  {t:'수비 ④ 슬라이딩 태클',x:`${kb('A')}는 슬라이딩 태클. 멀리서 공을 쳐낼 수 있지만, 뒤에서 들어가거나 놓치면 반칙이 됩니다. 한 번 해 보세요.`,
+   setup(){const c=tutPlace(tutP(1,9),8,0,-Math.PI/2),a=tutPlace(tutP(0,2),-1,2);tutStage([c,a]);tutBall(c);setControlled(a);tut.carrier=c;},
+   check(){return tutHas('slide');}},
+  {t:'골키퍼',x:`골키퍼가 공을 잡았습니다. 방향키로 박스 안을 걸어 나간 뒤 ${kb('S')}로 던지거나 ${kb('D')}·${kb('A')}로 길게 차세요. ${kb('W')}는 공을 내려놓습니다.`,
+   setup(){const g=teams[0].gk,a=tutPlace(tutP(0,2),-30,10);tutStage([g,a]);g.pos.set(-HL+2,0,0);g.face=Math.PI/2;tutBall(g);g.holding=true;g.holdT=-30;tut.gk0=g.pos.clone();},
+   check(){return tutHas('gkout');}},
+  {t:'직접 프리킥',x:`방향키로 노란 조준점을 옮기고 ${kb('D')}를 길게 눌렀다 떼면 도움닫기 후 슛. 달리는 동안 ${kb('←')}${kb('→')}로 감아차기, ${kb('↑')}로 드롭슛.`,
+   setup(){const p=tutPlace(tutP(0,9),20,0);tutStage([p,teams[1].gk]);startSetPiece('freekick',0,new V3(HL-24,BR,5));tut.park.clear();},
+   check(){return tutHas('shot',k=>k==='fk');}},
+  {t:'페널티킥',x:`방향키로 구석을 노리고 ${kb('D')}. ${kb('Q')}+${kb('D')}는 가운데로 띄우는 칩슛입니다. 막을 때는 ←→로 움직이고 차는 순간 방향키로 다이브합니다.`,
+   setup(){tutStage([]);tut.park.clear();startSetPiece('penalty',0,new V3(HL-11,BR,0));},
+   check(){return tutHas('shot',k=>k==='pen');}},
+];
+function startTutorial(){
+  SND.init();showScreen(null);
+  beginMatch({sides:[{def:TEAMS[0],form:'4-3-3',roster:rosterFor(TEAMS[0],'4-3-3',false)},{def:TEAMS[2],form:'4-3-3',roster:rosterFor(TEAMS[2],'4-3-3',false)}],
+    diff:'amateur',minutes:30,human:true,firstKick:0,tutorial:true});
+  tut={i:0,ev:[],t:0,goals:0,done:false,park:new Map(),acc:0};
+  $('#tutBox').hidden=false;tutGo(0);
+}
+function tutGo(i){
+  if(i>=TUT_STEPS.length){tutFinish();return;}
+  if(TUT_STEPS[i].touchSkip&&document.body.classList.contains('touch')){tutGo(i+1);return;}   // needs a key the touch pad does not have
+  tut.i=i;tut.ev=[];tut.t=0;tut.goals=0;tut.done=false;tut.acc=0;tut.gk0=null;tut.gkHeld=false;tut.gkWalk=0;
+  TUT_STEPS[i].setup();renderTut();banner('STEP '+(i+1),TUT_STEPS[i].t);
+}
+function tutRetry(){if(!tut)return;if(tut.done){tutGo(tut.i+1);return;}TUT_STEPS[tut.i].setup();renderTut();}
+function renderTut(){
+  const S=TUT_STEPS[tut.i],box=$('#tutBox');
+  box.innerHTML=`<div class="tt-head"><span>튜토리얼 ${tut.i+1} / ${TUT_STEPS.length}</span><b>${S.t}</b></div><p>${S.x}</p>
+    <div class="tt-prog">${tut.done?'<b class="pos">성공! 다음 단계로 넘어갑니다</b>':S.prog?esc(S.prog()):''}</div>
+    <div class="tt-dots">${TUT_STEPS.map((s,k)=>`<i class="${k<tut.i||k===tut.i&&tut.done?'on':k===tut.i?'cur':''}"></i>`).join('')}</div>
+    <div class="row"><button class="btn" data-tut="retry">다시 하기</button><button class="btn" data-tut="skip">건너뛰기</button><button class="btn ghost" data-tut="quit">튜토리얼 끝내기</button></div>`;
+}
+function tutTick(dt){
+  tut.t+=dt;offCheck=null;
+  for(const [p,s] of tut.park){p.pos.copy(s);p.vel.set(0,0,0);p.wantVel.set(0,0,0);}
+  const S=TUT_STEPS[tut.i];
+  // the attacker in the defending steps just runs at goal; reaching the box resets the step
+  const c=tut.carrier;
+  if(c&&ball.owner===c&&state==='play'){const T=teams[c.team],gx=T.dir*HL;tmpA.set(gx-c.pos.x,0,-c.pos.z).normalize();c.wantVel.copy(tmpA).multiplyScalar(c.maxSpd()*0.5);c.face=Math.atan2(tmpA.x,tmpA.z);
+    if(inOppBox(c.pos,c.team)&&!tut.done){say('상대가 박스까지 들어왔습니다. 다시 해 보세요.');tutRetry();return;}}
+  if(S.tick)S.tick(dt);
+  // attacking steps: if the other side ends up with the ball (a save, an interception) set it up again
+  if(!c&&!tut.done&&!SP&&ball.owner&&ball.owner.team===1&&state==='play'){say(pick(['막혔습니다! 다시 해 보세요.','상대가 공을 잡았습니다. 다시!']));releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.0;deadFn=tutRetry;return;}
+  const g=teams[0].gk;if(tut.gk0&&g.holding){tut.gkHeld=true;tut.gkWalk=Math.max(tut.gkWalk||0,d2(g.pos,tut.gk0));}
+  if(tut.gkHeld&&!g.holding&&ball.owner!==g){tut.gkHeld=false;if((tut.gkWalk||0)>2)tutEv('gkout');else say('먼저 방향키로 조금 걸어 나간 뒤 던져 보세요.');}
+  if(!tut.done&&S.check()){tut.done=true;tut.wait=1.5;SND.ooh();renderTut();}
+  else if(S.prog&&Math.floor(tut.t*4)!==Math.floor((tut.t-dt)*4))renderTut();
+}
+function tutGoal(ti){tut.goals++;banner('GOAL','',ti===0?'goal':'');SND.roar();releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.6;deadFn=tutRetry;}
+function tutOut(){releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.0;deadFn=tutRetry;}
+function tutFinish(){
+  try{localStorage.setItem(TUT_KEY,'1');}catch(e){}
+  $('#tutBox').hidden=true;tut=null;
+  goMenu();$('#tutDone').hidden=false;
+}
+function tutQuit(){try{localStorage.setItem(TUT_KEY,'1');}catch(e){}$('#tutBox').hidden=true;tut=null;goMenu();}
+const tutRing=new THREE.Mesh(new THREE.RingGeometry(1.2,1.55,40),new THREE.MeshBasicMaterial({color:0xffd84a,transparent:true,opacity:0.85,depthWrite:false}));
+tutRing.rotation.x=-Math.PI/2;tutRing.visible=false;scene.add(tutRing);
+
 /* ================= penalty shoot-out (knockout ties in competitions) ================= */
 // Five kicks each, alternating, the user's side first; stops as soon as one side cannot catch up, then sudden death.
 // Every kick is a normal penalty: the user aims and shoots his own, and is the keeper for the other side's.
@@ -4582,6 +4758,8 @@ function frame(now){
 drawBigScreen();
 startDemo();
 requestAnimationFrame(frame);
+// first visit: offer the tutorial
+try{if(!localStorage.getItem(TUT_KEY))setTimeout(()=>{if(mode!=='match')$('#tutAsk').hidden=false;},900);}catch(e){}
 
 /* test hooks */
 window.__game={
@@ -4594,6 +4772,7 @@ window.__game={
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
   aiShoot(p){aiShoot(p);},
+  get tut(){return tut;},tutGo(i){tutGo(i);},startTutorial(){startTutorial();},
   setScore(a,b){score[0]=a;score[1]=b;},get diffs(){return DIFFS;},get teams(){return teams;},get cfg(){return matchCfg;},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
   foul(card){const o=ball.owner||teams[0].players[9];const d=teams[1-o.team].players.filter(q=>!q.isGK).sort((a,b)=>d2(a.pos,o.pos)-d2(b.pos,o.pos))[0];d.pos.set(o.pos.x-teams[o.team].dir*0.8,0,o.pos.z);foul(d,o,'slide',card);return d.short;},
