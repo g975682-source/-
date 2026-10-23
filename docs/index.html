@@ -320,6 +320,17 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 .tchip{font-size:11px;font-weight:700;padding:2px 6px;background:rgba(244,198,74,.15);color:var(--gold);white-space:nowrap}
 .xi{font-family:var(--f-num);font-size:11px;font-weight:800;color:var(--turf);min-width:18px;text-align:right}
 .mini-pitch .pcard.sel{outline:3px solid var(--ink);outline-offset:2px}
+.pcard.swap-out::after,.pcard.swap-in::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit}
+.pcard.swap-out::after{background:rgba(255,92,92,.38)}.pcard.swap-in::after{background:rgba(80,230,150,.38)}
+.mini-pitch .pcard.swap-in{outline:3px solid #50e696;outline-offset:2px}
+.prow.swap-out{background:rgba(255,92,92,.2);border-color:rgba(255,120,120,.7)}.prow.swap-in{background:rgba(80,230,150,.2);border-color:rgba(80,230,150,.8)}
+.swapbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;margin-top:10px;background:rgba(5,11,23,.6);border:1px solid var(--line);font-size:14px}
+.swapbar i{font-style:normal;font:800 11px var(--f-num);padding:1px 5px;margin-right:6px}
+.swapbar .so i{background:#d94545}.swapbar .si i{background:#2fb36b}
+.swapbar .so{background:rgba(255,92,92,.16);padding:4px 8px}.swapbar .si{background:rgba(80,230,150,.14);padding:4px 8px}
+.swapbar b{font-family:var(--f-num)}.swapbar em{font-style:normal;opacity:.75;font-size:12px}
+.swapbar .sx{font-size:18px;opacity:.8}
+.swapbar .btn{padding:8px 16px;font-size:14px}.swapbar .btn[disabled]{opacity:.45;cursor:default}
 .mini-pitch .pcard.pen b{color:#9b1c1c}
 .detail{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}
 .detail .info{display:flex;flex-direction:column;gap:10px;flex:1;min-width:200px}
@@ -3964,7 +3975,7 @@ $('#squad').addEventListener('click',e=>{
   else return;
   saveSel();renderSquad();
 });
-function showScreen(id){for(const s of ['#title','#squad','#club','#online'])$(s).hidden=s!==id;if(id==='#title')updateLobby();}
+function showScreen(id){for(const s of ['#title','#squad','#club','#online'])$(s).hidden=s!==id;if(id==='#title'){updateLobby();if(prac&&pracSig()!==prac.sig)startPractice();}}
 $('#btnPlay').onclick=()=>{SND.init();renderSquad();showScreen('#squad');};
 $('#btnBack').onclick=()=>showScreen('#title');
 const openHelp=()=>{$('#help').hidden=false;};
@@ -4002,6 +4013,8 @@ function clubRoster(){
     if(s[0]==='GK'&&p.label!=='GK')st.gk=28;
     return Object.assign({},p,{label:s[0],line:LINE[s[0]],ovr:eo(p)-pen,st});});
 }
+// what the practice side is built from: when the club or its line-up changes, the pitch is rebuilt with the new starters
+function pracSig(){return club?JSON.stringify([club.code,club.form,club.lineup]):'q'+sel.home+sel.formH;}
 function pracSides(){
   loadClub();const oi=(sel.home+2)%TEAMS.length,opp={def:TEAMS[oi],form:'4-3-3',roster:rosterFor(TEAMS[oi],'4-3-3',false)};
   if(club&&Array.isArray(club.lineup)&&club.lineup.length){try{fixLineup();return [{def:clubDef(),form:club.form,roster:clubRoster()},opp];}catch(e){}}
@@ -4013,7 +4026,7 @@ function startPractice(){
   setupMatch({sides:pracSides(),diff:'pro',minutes:90,human:true,firstKick:0,practice:true});
   const T=teams[0];let want='';try{want=localStorage.getItem('gl-prac-p')||'';}catch(e){}
   const p=T.players.find(q=>!q.isGK&&q.name===want)||T.players.filter(q=>!q.isGK).sort((a,b)=>(b.line-a.line)||(b.st.sho-a.st.sho))[0];
-  prac={p,goals:0,t:0,park:new Map(),resetT:0};
+  prac={p,goals:0,t:0,park:new Map(),resetT:0,sig:pracSig()};
   document.body.classList.add('prac');$('#hud').hidden=false;$('#keys').hidden=true;
   SND.setCrowd(SND.muted?0:0.03);camMode=0;pracStage(true);updateLobby();
 }
@@ -4228,7 +4241,7 @@ $('#tpClose').onclick=()=>{$('#traitPick').hidden=true;};
 
 /* ================= club management ================= */
 const CLUB_KEY='gl-club-v1';
-let club=null,clubTab='home',selSlot=-1,selPid=null,resetArm=false;
+let club=null,clubTab='home',selSlot=-1,selPid=null,swapPid=null,resetArm=false;   // selSlot: the place being changed, swapPid: who goes in
 const KIT_CHOICES=TEAMS.map(t=>t.home).concat([
   {shirt:'#0f7a4a',trim:'#f4c64a',pat:'solid',shorts:'#ffffff',socks:'#0f7a4a',num:'#ffffff'},
   {shirt:'#6b2fd6',trim:'#ffffff',pat:'stripes',shorts:'#1b1033',socks:'#6b2fd6',num:'#ffffff'},
@@ -4785,23 +4798,32 @@ function clubHomeHtml(fx){
       <div style="overflow-x:auto"><table class="lt"><tr><th>#</th><th>구단</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득실</th><th>승점</th></tr>${table}</table></div>
     </div></div>`;
 }
+// the swap being set up: who comes off (red tint), who goes on (green tint), and the button that does it
+function swapBar(slots){
+  if(selSlot<0)return '';
+  const out=byId(club.lineup[selSlot]),inn=swapPid!=null?byId(swapPid):null,ix=inn?club.lineup.indexOf(inn.id):-1;
+  return `<div class="swapbar"><span class="so"><i>OUT</i>${esc(slots[selSlot][0])} ${esc(out.name)} <b>${eo(out)}</b></span><span class="sx">⇄</span>
+    <span class="si">${inn?`<i>IN</i>${esc(slots[selSlot][0])} ${esc(inn.name)} <b>${eo(inn)-posPen(inn.label,slots[selSlot][0])}</b>${ix>=0?` <em>(${esc(slots[ix][0])}에서)</em>`:' <em>(벤치)</em>'}`:'<em>들어갈 선수를 고르세요</em>'}</span>
+    <button class="btn primary" data-act="swap" ${inn?'':'disabled'}>선수 교체</button><button class="btn ghost" data-act="swapcancel">취소</button></div>`;
+}
 function clubSquadHtml(){
   fixLineup();const slots=FORMATIONS[club.form],inXI=new Set(club.lineup);
   const cards=slots.map((s,i)=>{const p=byId(club.lineup[i]),pen=posPen(p.label,s[0]),top=s[0]==='GK'?89:clamp(80-(s[1]+0.72)/0.86*68,11,80),left=50+s[2]*41;
-    return pcardMarkup(p,eo(p)-pen,s[0],club.kit,`pick ${selSlot===i?'sel':''} ${pen?'pen':''}`,`data-slot="${i}" role="button" tabindex="0"`,`left:${left}%;top:${top}%;`,`${p.name} · ${p.label} → ${s[0]}`);}).join('');
-  const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''}" data-pid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
+    return pcardMarkup(p,eo(p)-pen,s[0],club.kit,`pick ${selSlot===i?'sel swap-out':''} ${swapPid!=null&&club.lineup[i]===swapPid?'swap-in':''} ${pen?'pen':''}`,`data-slot="${i}" role="button" tabindex="0"`,`left:${left}%;top:${top}%;`,`${p.name} · ${p.label} → ${s[0]}`);}).join('');
+  const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''} ${selSlot>=0&&club.lineup[selSlot]===p.id?'swap-out':''} ${swapPid===p.id?'swap-in':''}" data-pid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
   const sp=selPid!=null?byId(selPid):null;
   const detail=sp?`<div class="panel"><h3>선수 정보</h3><div class="detail">${bigCard(sp)}<div class="info">
       <div class="kv"><span>포지션</span><b>${sp.label}</b><span>키 · 체형</span><b>${bodyOf(sp).cm}cm · ${bodyLabel(bodyOf(sp))}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
       <p style="margin:0;font-size:13px;line-height:1.6"><b style="color:var(--gold)">${TRAITS[sp.trait]?TRAITS[sp.trait].name:'특성 없음'}</b><br>${TRAITS[sp.trait]?TRAITS[sp.trait].desc:''}</p>
-      <div class="row"><button class="btn primary" data-act="trait">특성 변경</button><button class="btn" data-act="toenh">강화하기</button>${selSlot>=0?`<button class="btn" data-act="place">${slots[selSlot][0]} 자리에 배치</button>`:''}<button class="btn" data-act="sell">${resetArm==='sell'+sp.id?'한 번 더 누르면 판매':'판매 '+fmtBP(sellPrice(sp))+' BP'}</button></div>
+      <div class="row"><button class="btn primary" data-act="trait">특성 변경</button><button class="btn" data-act="toenh">강화하기</button><button class="btn" data-act="sell">${resetArm==='sell'+sp.id?'한 번 더 누르면 판매':'판매 '+fmtBP(sellPrice(sp))+' BP'}</button></div>
     </div></div></div>`:`<div class="panel"><h3>선수 정보</h3><p class="foot">오른쪽 목록에서 선수를 고르면 능력치와 특성을 볼 수 있습니다. 경기장 위 카드를 누른 뒤 목록의 선수를 누르면 그 자리에 배치됩니다.</p></div>`;
   return `<div class="cgrid">
     <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
       <div class="panel"><h3>선발 라인업 · 팀 OVR ${clubOvr()}</h3>
         <div class="form-pick">${Object.keys(FORMATIONS).map(f=>`<button class="chip ${f===club.form?'on':''}" data-form="${f}">${f}</button>`).join('')}<button class="chip" data-act="auto">자동 배치</button></div>
         <div class="mini-pitch">${cards}</div>
-        <p class="foot">${selSlot>=0?'<b>'+slots[selSlot][0]+'</b> 자리를 골랐습니다. 목록에서 들어갈 선수를 누르세요.':'원래 포지션이 아닌 자리에 서면 능력치가 깎이고 카드 숫자가 붉게 표시됩니다.'}</p>
+        ${swapBar(slots)}
+        <p class="foot">${selSlot<0?'카드를 눌러 바꿀 자리를 고른 뒤, 경기장의 다른 카드나 목록에서 들어갈 선수를 고르고 <b>선수 교체</b>를 누르세요. 원래 포지션이 아닌 자리에 서면 능력치가 깎이고 카드 숫자가 붉게 표시됩니다.':swapPid==null?'<b>'+slots[selSlot][0]+'</b> 자리를 골랐습니다. 들어갈 선수를 경기장이나 목록에서 고르세요.':'붉은 선수가 나가고 초록 선수가 들어갑니다. 선발끼리 고르면 두 선수의 자리가 바뀝니다.'}</p>
       </div>
       ${detail}
     </div>
@@ -4894,10 +4916,14 @@ $('#clubBody').addEventListener('click',e=>{
   if(d.cupplay){startCupMatch(d.cupplay);return;}
   if(d.cdiff){club.diff=d.cdiff;saveClub();renderClub();return;}
   if(d.cmin){club.minutes=+d.cmin;saveClub();renderClub();return;}
-  if(d.form){club.form=d.form;selSlot=-1;saveClub();renderClub();return;}
-  if(d.slot!==undefined){const i=+d.slot;selSlot=selSlot===i?-1:i;selPid=club.lineup[i];resetArm=false;renderClub();return;}
+  if(d.form){club.form=d.form;selSlot=-1;swapPid=null;saveClub();renderClub();return;}
+  if(d.slot!==undefined){const i=+d.slot;resetArm=false;
+    if(selSlot<0){selSlot=i;swapPid=null;}                    // the place to change
+    else if(selSlot===i){selSlot=-1;swapPid=null;}             // tapped again: off
+    else swapPid=club.lineup[i];                               // another starter: swap the two
+    selPid=club.lineup[i];renderClub();return;}
   if(d.pid!==undefined){const id=+d.pid;resetArm=false;
-    if(selSlot>=0){placePlayer(id,selSlot);selSlot=-1;}
+    if(selSlot>=0)swapPid=club.lineup[selSlot]===id?null:id;   // who goes in (nothing moves until 선수 교체)
     selPid=id;renderClub();return;}
   if(d.buy!==undefined){buyPlayer(+d.buy);return;}
   if(d.epid!==undefined){const id=+d.epid;
@@ -4913,8 +4939,9 @@ $('#clubBody').addEventListener('click',e=>{
   if(a==='enhgo'){runEnhance();return;}
   if(a==='enhclear'){enhTarget=null;enhMats=[];renderClub();return;}
   if(a==='toenh'&&selPid!=null){enhTarget=selPid;enhMats=[];clubTab='enhance';renderClub();return;}
-  if(a==='auto'){autoLineup();saveClub();renderClub();ctoast('가장 강한 라인업으로 배치했습니다.');return;}
-  if(a==='place'&&selPid!=null&&selSlot>=0){placePlayer(selPid,selSlot);selSlot=-1;renderClub();return;}
+  if(a==='auto'){selSlot=-1;swapPid=null;autoLineup();saveClub();renderClub();ctoast('가장 강한 라인업으로 배치했습니다.');return;}
+  if(a==='swap'&&selSlot>=0&&swapPid!=null){placePlayer(swapPid,selSlot);selPid=swapPid;selSlot=-1;swapPid=null;renderClub();return;}
+  if(a==='swapcancel'){selSlot=-1;swapPid=null;renderClub();return;}
   if(a==='trait'&&selPid!=null){const p=byId(selPid);openTraitPicker(p,k=>{p.trait=k;saveClub();renderClub();ctoast(p.short+' 특성: '+TRAITS[k].name);});return;}
   if(a==='sell'&&selPid!=null){const p=byId(selPid);
     if(club.players.length<=16){ctoast('선수가 16명 이하라 더 팔 수 없습니다.');return;}
@@ -4928,7 +4955,7 @@ $('#clubBody').addEventListener('click',e=>{
 function placePlayer(id,slot){
   const cur=club.lineup.indexOf(id),prev=club.lineup[slot];
   if(cur>=0)club.lineup[cur]=prev;club.lineup[slot]=id;saveClub();
-  const p=byId(id);ctoast(p.short+' → '+FORMATIONS[club.form][slot][0]);
+  const p=byId(id),q=byId(prev);ctoast(p.short+' IN · '+(q?q.short+(cur>=0?' → '+FORMATIONS[club.form][cur][0]:' OUT'):'')+' ('+FORMATIONS[club.form][slot][0]+')');
 }
 function buyPlayer(i){
   const p=club.market[i];if(!p)return;
