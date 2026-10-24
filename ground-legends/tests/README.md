@@ -118,6 +118,19 @@ page (`__relayRecv`). No server or network is involved.
 * It happens after a forced knockout result and the result screen. Possibly the shoot-out or result flow no
   longer shows that button where the test expects it. This is unconfirmed.
 
+### `t115.js`: tutorial, asserts its result
+
+* Unlike most legacy tests, `t115.js` checks its own result. It prints `T115 PASS`, or `T115 FAIL: ...` on
+  stderr with exit code 1, when a step fails, the done screen does not show, or the page throws.
+* Key holds are set exactly (`downAt` before the release), not left to `await wait(ms)`. The game measures a
+  hold by the wall clock, and on a busy machine a 250 ms wait could pass 0.3 s, which is a full-power shot.
+* In the shooting steps (5 to 7b) it presses 다시 하기 when the ball is loose, as a player would. A shot off
+  the bar or a keeper's parry leaves the ball loose, and the step does not reset itself then. Before this,
+  one such shot failed every later step.
+* Still open: in some runs step 10 (shield) or 12 (standing tackle) failed every try, and the later steps
+  with it. One try at either succeeds only part of the time (in 20 tries: shield 14, tackle 8), and no less
+  often than on `a73268a` (7 and 9). Why every try failed in those runs is not confirmed. Not handled yet.
+
 ### `t31.js`: club management, intermittent
 
 * It once stopped at `page.click('[data-trait=acrobatic]')` (30-second timeout). Six later runs, three on the
