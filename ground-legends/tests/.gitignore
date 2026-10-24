@@ -1,0 +1,4 @@
+node_modules/
+legacy/out/
+# a few legacy tests save screenshots in the folder they are run from
+legacy/*.png

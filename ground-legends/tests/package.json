@@ -1,0 +1,9 @@
+{
+  "name": "ground-legends-tests",
+  "private": true,
+  "description": "Headless browser tests for Ground Legends (see README.md). Not needed to play the game.",
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "three": "0.128.0"
+  }
+}
