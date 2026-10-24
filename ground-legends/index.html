@@ -3450,7 +3450,7 @@ function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 // seconds of holding for a full gauge: shots fill faster than passes
-const FULL_HOLD={shoot:0.6};const holdFull=a=>FULL_HOLD[a]||0.9;
+const FULL_HOLD={shoot:0.42};const holdFull=a=>FULL_HOLD[a]||0.9;
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out

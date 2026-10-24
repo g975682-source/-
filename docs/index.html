@@ -1704,7 +1704,12 @@ function callShort(p){
   say(best.short+'이(가) 짧게 받으러 옵니다');
 }
 
-function applyPose(r,aid,t,phase,spd,side){
+// A pose is computed as a set of joint values (poseValues) and then put on a rig (applyPoseValues).
+// The values are in this rig's own joint space: angles in radians on the same axes the rig uses, hipN the
+// hip height as a fraction of the standing height (the rig scales it by hipK). applyPose does both, exactly
+// as before; a different body (an external model) can take the same values through its own mapping.
+// poseValues only reads r.g (gait) from the rig; out is filled and returned (pass your own object to keep it).
+function poseValues(r,aid,t,phase,spd,side,out){
   let hipY=0.95,tX=0,tZ=0,toX=0.04,toY=0,hdX=0;
   let lT=0,rT=0,lK=0.08,rK=0.08,lA=0,rA=0,lE=-0.25,rE=-0.25,lAz=0.1,rAz=-0.1,lTz=0.02,rTz=-0.02;
   const g=r.g||{arm:1,lean:0.06,knee:1,bounce:1,seed:0};
@@ -1750,10 +1755,19 @@ function applyPose(r,aid,t,phase,spd,side){
     case A.advantage:{const q=clamp(t/0.25,0,1);lA=rA=-1.45*q;lE=rE=0;lAz=0.35;rAz=-0.35;break;}
     case A.jump:{const q=clamp(t/0.62,0,1),e=Math.sin(q*Math.PI);lK=rK=0.2+0.6*(1-e);lT=rT=-0.12;lA=rA=-0.3;lE=rE=-1.4;lAz=-0.05;rAz=0.05;toX=0.08;break;}
   }
-  r.hips.position.y=hipY*(r.hipK||1);r.hips.rotation.set(tX,0,tZ);r.torso.rotation.set(toX,toY,0);r.head.rotation.x=hdX-toX*0.4;
-  r.legL.rotation.set(lT,0,lTz);r.legR.rotation.set(rT,0,rTz);r.kneeL.rotation.x=lK;r.kneeR.rotation.x=rK;
-  r.armL.rotation.set(lA,0,lAz);r.armR.rotation.set(rA,0,rAz);r.elbowL.rotation.x=lE;r.elbowR.rotation.x=rE;
+  out.hipN=hipY;out.pelvisX=tX;out.pelvisZ=tZ;out.spineX=toX;out.spineY=toY;out.headX=hdX-toX*0.4;
+  out.thighLX=lT;out.thighLZ=lTz;out.thighRX=rT;out.thighRZ=rTz;out.kneeL=lK;out.kneeR=rK;
+  out.armLX=lA;out.armLZ=lAz;out.armRX=rA;out.armRZ=rAz;out.elbowL=lE;out.elbowR=rE;
+  return out;
 }
+// the procedural rig: the joints applyPose has always set, nothing else (rigLife adds the rest)
+function applyPoseValues(r,v){
+  r.hips.position.y=v.hipN*(r.hipK||1);r.hips.rotation.set(v.pelvisX,0,v.pelvisZ);r.torso.rotation.set(v.spineX,v.spineY,0);r.head.rotation.x=v.headX;
+  r.legL.rotation.set(v.thighLX,0,v.thighLZ);r.legR.rotation.set(v.thighRX,0,v.thighRZ);r.kneeL.rotation.x=v.kneeL;r.kneeR.rotation.x=v.kneeR;
+  r.armL.rotation.set(v.armLX,0,v.armLZ);r.armR.rotation.set(v.armRX,0,v.armRZ);r.elbowL.rotation.x=v.elbowL;r.elbowR.rotation.x=v.elbowR;
+}
+const POSE_TMP={};   // scratch for applyPose, so a frame allocates nothing
+function applyPose(r,aid,t,phase,spd,side){applyPoseValues(r,poseValues(r,aid,t,phase,spd,side,POSE_TMP));}
 
 /* ball */
 const ballMesh=(function(){
@@ -3446,7 +3460,7 @@ function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 // seconds of holding for a full gauge: shots fill faster than passes
-const FULL_HOLD={shoot:0.6};const holdFull=a=>FULL_HOLD[a]||0.9;
+const FULL_HOLD={shoot:0.42};const holdFull=a=>FULL_HOLD[a]||0.9;
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
