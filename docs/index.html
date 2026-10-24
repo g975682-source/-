@@ -3460,7 +3460,7 @@ function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 // seconds of holding for a full gauge: shots fill faster than passes
-const FULL_HOLD={shoot:0.42};const holdFull=a=>FULL_HOLD[a]||0.9;
+const FULL_HOLD={shoot:0.3};const holdFull=a=>FULL_HOLD[a]||0.9;
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
@@ -3593,6 +3593,7 @@ function humanUpdate(dt){
   if(has&&A_.skill){const s=Math.min(p.vel.length(),p.maxSpd()*0.55);p.wantVel.copy(fwd(p)).multiplyScalar(s);return;}
   // FC-style pass reception: the receiver runs onto the ball by himself
   if(!has&&!ball.owner&&intended===p){moveTo(p,p.itPt,d2(p.pos,p.itPt)>2.5?1:0.8);p.faceBall=true;return;}
+  if(!has&&!ball.owner&&K.buffer&&K.buffer.chase){moveTo(p,p.itPt,1);p.faceBall=true;return;}   // a loose ball he has pressed a key for: get to it
   if(!has&&oppBall){const c=ball.owner;
     if(A_.c){jockey(p,c,inp,A_.sprint);return;}
     if(A_.shoot){pressMove(p,c,A_.sprint||d2(p.pos,c.pos)>4);p.wantTackle=true;if(d2(p.pos,c.pos)<1.7&&!c.holding)startTackle(p,inp);return;}
@@ -3600,6 +3601,7 @@ function humanUpdate(dt){
   if(has&&A_.c){shieldBall(p,inp,A_.sprint);return;}
   if(has&&A_.sprint&&inp.lengthSq()<0.01){p.wantVel.set(0,0,0);p.vel.multiplyScalar(Math.exp(-5*dt));return;}   // E alone: stop the ball
   const plant=has&&(A_.shoot&&!K.consumed.shoot&&!A_.f||K.pend&&K.pend.act==='shoot');if(plant)p.plantT=gtime+0.05;   // charging or swinging at a shot
+  if(plant){const s=Math.min(p.vel.length(),p.maxSpd()*0.3);p.wantVel.copy(fwd(p)).multiplyScalar(s);return;}   // heading locked, the arrows only aim the shot
   if(inp.lengthSq()>0.01){const sprint=A_.sprint&&p.stamina>3;const sp_=p.maxSpd()*(sprint?1:0.7)*Math.min(1,inp.length())*(plant?0.6:1);p.wantVel.copy(inp).normalize().multiplyScalar(sp_);}
   else if(!has&&!ball.owner&&A_.pass){moveTo(p,p.itPt,1);}
   else if(has&&p.postSkT>0){p.wantVel.copy(p.vel);}
@@ -3608,6 +3610,8 @@ function humanUpdate(dt){
 
 // "receiving": the ball is on its way to this player, so S/W/A/D become a first-time pass or shot
 function receiving(p){return !ball.owner&&intended===p;}
+// a loose ball near him (nobody has it): D, S and A play it instead of tackling, switching or sliding
+function looseNear(p){return !ball.owner&&state==='play'&&!SP&&ball.pos.y<2.2&&d2(p.pos,ball.pos)<9;}
 function handleEdge(p,e,inp){
   const K=C,has=ball.owner===p,live=!SP&&state==='play'&&!p.holding,a=e.act;
   const M=e.mods||{q:K.act.switch,z:K.act.z,c:K.act.c,f:K.act.f},A_=Object.assign({},K.act,{switch:M.q,z:M.z,c:M.c});
@@ -3635,19 +3639,19 @@ function handleEdge(p,e,inp){
       if(has&&live&&(chg||K.pend&&(K.pend.act==='shoot'||K.pend.act==='lob'))){const cr=(chg||K.pend.act)==='lob';if(chg)K.consumed[chg]=true;K.pend=null;K.consumed.pass=true;if(A_.c)K.cUsed=true;fakeShot(p,inp,A_.c,cr);return;}
       if(SP&&SP.taker===p&&SP.type==='throw'&&K.pend&&K.pend.act==='lob'){K.pend=null;K.consumed.pass=true;p.oAnim='throw';p.oT=0;p.oDur=0.5;say(p.short+'의 페이크 스로우');return;}
       // S without the ball: switch player (holding it keeps pressing). Never a pass, so its release is swallowed.
-      if(!has&&live&&!receiving(p)){smartSwitch(K);K.consumed.pass=true;}
+      if(!has&&live&&!receiving(p)&&!looseNear(p)){smartSwitch(K);K.consumed.pass=true;}
       return;}
     if(a==='lob'){
       if(p.state==='fall'){p.stateT=Math.max(p.stateT,p.fallDur-0.22);K.consumed.lob=true;return;}   // A: get up quickly
       if(K.pend&&K.pend.act==='lob'&&(has||SP&&SP.taker===p)){K.pend.count=Math.min(3,K.pend.count+1);K.pend.ttl=0.24;K.consumed.lob=true;return;}
-      if(!has&&live&&!receiving(p)){startSlide(p,inp);K.consumed.lob=true;}
+      if(!has&&live&&!receiving(p)&&!looseNear(p)){startSlide(p,inp);K.consumed.lob=true;}
       return;}
     if(a==='psh'){K.psT=0;if(has&&live&&!p.sk&&p.state==='normal'){K.pend=null;doShoot(p,0.95,null,false,false,{power:true,pq:clamp(e.code|0,0,100)});}return;}
     if(a==='shoot'&&M.f&&has&&live&&!p.sk){K.pend=null;K.consumed.shoot=true;K.psT=gtime;return;}   // F + D: wind up, the timing bar runs on the player's screen
     if(a==='shoot'){
       if(has&&K.pend&&K.pend.act==='shoot'){K.pend.low=true;K.consumed.shoot=true;return;}           // D then tap D: low shot
       // D while defending: standing tackle when close enough (holding it keeps pressing)
-      if(!has&&live&&!receiving(p)){K.consumed.shoot=true;const c=ball.owner;if(c&&c.team!==p.team&&!c.holding&&d2(p.pos,c.pos)<2.6)startTackle(p,inp);}
+      if(!has&&live&&!receiving(p)&&!looseNear(p)){K.consumed.shoot=true;const c=ball.owner;if(c&&c.team!==p.team&&!c.holding&&d2(p.pos,c.pos)<2.6)startTackle(p,inp);}
       return;}
     // Z + back: drag back
     if((a==='left'||a==='right'||a==='up'||a==='down')&&has&&live&&A_.z&&!A_.skill&&!p.sk&&inp.lengthSq()>0.01&&inp.clone().normalize().dot(fwd(p))<-0.5){
@@ -3670,7 +3674,7 @@ function handleEdge(p,e,inp){
     if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:0.24,count:1,dir:inp.clone()};return;}   // room for A-taps and the S fake
     humanBallAction(p,a,power,inp,mods);
   }
-  else if(!ball.owner&&state==='play'&&(receiving(p)||d2(p.pos,ball.pos)<7))K.buffer={act:a,power,ttl:1.1,mods:a==='shoot'&&xN(p)<-0.3&&!receiving(p)?Object.assign({},mods,{clear:true}):mods};   // D on a loose ball deep in our half: clear it
+  else if(!ball.owner&&state==='play'&&(receiving(p)||looseNear(p)))K.buffer={act:a,power,ttl:receiving(p)?1.1:1.8,chase:!receiving(p),mods:a==='shoot'&&xN(p)<-0.3&&!receiving(p)?Object.assign({},mods,{clear:true}):mods};   // D on a loose ball deep in our half: clear it
 }
 
 function humanBallAction(p,a,power,inp,mods={}){
