@@ -3897,7 +3897,7 @@ function updateHud(dt){
   if(controlled)$('#ptStam').style.width=controlled.stamina.toFixed(0)+'%';
   // gauge
   const g=$('#gauge');let shown=false;
-  if(human&&controlled&&(ball.owner===controlled||intended===controlled||state==='setpiece')){
+  if(human&&controlled&&(ball.owner===controlled||intended===controlled||state==='setpiece'||looseNear(controlled))){   // a loose ball he can hit counts too
     const L=LC();if(!L.ps&&!L.act.f)for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]){const v=clamp((performance.now()-L.downAt[a])/(holdFull(a)*1000),0,1);$('#gaugeFill').style.width=(v*100).toFixed(0)+'%';$('#gaugeLbl').textContent={shoot:'슛',pass:'패스',through:'스루',lob:'로빙'}[a];shown=true;break;}
   }
   if(shown){const r=controlled.rig.root.position;tmpA.set(r.x,2.75+controlled.y,r.z).project(camera);   // just above the name tag
