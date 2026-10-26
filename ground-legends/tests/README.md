@@ -9,7 +9,7 @@ events, and prints what happened.
 | Path | What it is |
 |---|---|
 | `anim_baseline.js` | Animation baseline: joint values of every animation state and skill move, compared exactly. |
-| `anim_baseline.json` | The recorded baseline (digests only), taken from commit `a73268a`. |
+| `anim_baseline.json` | The recorded baseline (digests only), taken from commit `d1f5d54`. Up to `a73268a` the kick had no left-foot (side −1) form; that commit mirrored it, and nothing else changed. |
 | `legacy/` | The earlier tests, copied from the working session that wrote them. |
 | `legacy/paths.js` | Where the legacy tests find Playwright, three.js, the game page, the mock room and the output folder. |
 | `legacy/harness.js` | Opens the game page for a test (shared by most legacy tests). |
