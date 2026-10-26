@@ -1,12 +1,12 @@
 {
  "counts": {
-  "A": 49920,
+  "A": 52416,
   "B": 25200,
-  "C": 420
+  "C": 426
  },
- "states": 20,
+ "states": 21,
  "skills": 50,
- "all": "b7d7a1ee",
+ "all": "1fb36ed2",
  "per": {
   "A|idle": "fdf958e5",
   "A|run": "41a55891",
@@ -28,6 +28,7 @@
   "A|jump": "9bc565e5",
   "A|volley": "2ad83f35",
   "A|advantage": "df4b0d85",
+  "A|stagger": "eedbc795",
   "B|basic": "7cdc834c",
   "B|bodyfeint": "b060ca51",
   "B|sidestep": "6708aa31",
@@ -98,6 +99,7 @@
   "C|jump": "4903ef65",
   "C|volley": "21bc23ba",
   "C|advantage": "5ea74eb6",
+  "C|stagger": "70c38601",
   "C|skill:basic+": "a30f5eeb",
   "C|skill:basic-": "5a72ce0d",
   "C|skill:bodyfeint+": "915c7e4d",
@@ -199,6 +201,6 @@
   "C|skill:fakecross+": "445f5c56",
   "C|skill:fakecross-": "9ac68452"
  },
- "ref": "d1f5d54",
- "recorded": "2026-10-26T03:19:56.144Z"
+ "ref": "04d0cd0",
+ "recorded": "2026-10-26T05:52:03.413Z"
 }
