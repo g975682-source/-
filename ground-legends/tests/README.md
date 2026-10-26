@@ -127,9 +127,17 @@ page (`__relayRecv`). No server or network is involved.
 * In the shooting steps (5 to 7b) it presses 다시 하기 when the ball is loose, as a player would. A shot off
   the bar or a keeper's parry leaves the ball loose, and the step does not reset itself then. Before this,
   one such shot failed every later step.
-* Still open: in some runs step 10 (shield) or 12 (standing tackle) failed every try, and the later steps
-  with it. One try at either succeeds only part of the time (in 20 tries: shield 14, tackle 8), and no less
-  often than on `a73268a` (7 and 9). Why every try failed in those runs is not confirmed. Not handled yet.
+* In the defending steps 10 (shield) and 12 (standing tackle) every try starts from the step's setup. Before a
+  try, if the state is not the one the step started in, it presses 다시 하기 and checks what that restored:
+  same step, ball owned, everyone where the step started, and exactly the same as the first restore. If not,
+  the step fails with `다시 하기 did not restore ...` instead of trying on. Each try is printed as a
+  `defence try` line: step number (as the tutorial box shows it), start state, input, result, end state.
+* `SEED=<positive integer> node t115.js` replays a run: the game loop stops as soon as the page is up and
+  `Math.random` in the page draws from a fixed sequence. Two runs with the same seed print the same output,
+  also with other tests running. Without `SEED` the test runs with the browser's own random numbers.
+* Still open: the standing tackle wins the ball cleanly only about one try in three (9 of 26 tries over 10
+  runs). With 8 fresh tries a run can still lose all of them: 1 of 10 runs did, and `SEED=10` does every
+  time. This is the game's tackle chance, not a broken reset.
 
 ### `t31.js`: club management, intermittent
 
