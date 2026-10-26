@@ -3047,6 +3047,31 @@ function showTraitToast(tr,short,ti){
   const t=$('#traitToast');t.textContent='';const i=document.createElement('i');i.textContent=TRAITS[tr].name;t.appendChild(i);t.appendChild(document.createTextNode(String(short)));t.style.borderColor=teams[ti].kit.shirt;
   t.classList.remove('show');void t.offsetWidth;t.classList.add('show');
 }
+// a sharp change of direction (over 25°) by the player being steered: the run turns within about a tenth of a
+// second instead of arcing round, and pays in speed for how far round it goes (45° keeps 81%, 90° 43%, 135° 17%,
+// straight back 12%), then picks up again slowly for a moment, with or without the ball. With the ball each turn
+// costs a little more speed, less for a good dribbler and a trickster.
+const CUT_MIN=25*Math.PI/180,CUT_RATE=28;
+function cutKeep(p,th){const b=0.12+0.88*Math.pow((1+Math.cos(th))/2,1.5);
+  const e=ball.owner===p?Math.max(1,1.35-(p.st.dri-50)*0.006)*(p.trait==='trickster'?0.85:1):1;return Math.pow(b,e);}
+function cutTurn(p,want,dt){   // true while the turn is still under way: no speed is picked up then
+  // only a run the arrows set this tick. Moves the game makes for him (jockeying, closing down, running onto a pass)
+  // and every AI player keep the smooth steering: their targets shift every moment, and cuts made them stutter.
+  const steered=p.steered;p.steered=false;
+  if(!steered||!(isHumanTeam(p.team)&&CTRL[p.team].controlled===p))return false;
+  const going=(p.cutT||0)>gtime,ws=Math.hypot(want.x,want.z),cur=Math.hypot(p.vel.x,p.vel.z);
+  if(going?ws<1||cur<0.25:ws<3||cur<2)return false;
+  const a=Math.atan2(p.vel.x,p.vel.z),d=angDiff(a,Math.atan2(want.x,want.z)),th=Math.abs(d);
+  if(th<=CUT_MIN)return false;
+  // nearly straight back: keep turning the way it started, or it would swing to and fro across the line
+  const sg=th>2.8&&(p.cutT||0)>gtime&&p.cutSg?p.cutSg:Math.sign(d)||1;p.cutSg=sg;
+  const step=Math.min(th-CUT_MIN*0.5,CUT_RATE*dt),na=a+sg*step;
+  let s=cur*cutKeep(p,th)/cutKeep(p,th-step);   // shares of the whole turn's loss, so it costs the same however it is split
+  if(cur>5.5&&th>Math.PI/4)s*=Math.pow(5.5/cur,step/Math.PI*1.4);   // flat out it is harder still
+  p.vel.x=Math.sin(na)*s;p.vel.z=Math.cos(na)*s;
+  p.cutT=gtime+0.3;if(th>Math.PI/4)p.cutRecT=Math.max(p.cutRecT||0,gtime+(th-Math.PI/4)/(Math.PI*3/4)*0.8*clamp(cur/5.5,1,1.5));
+  return true;
+}
 function updatePlayer(p,dt){
   if(p.sentOff){
     if(p.rig.root.visible){const dz=HW+8-p.pos.z;p.vel.set(0,0,Math.sign(dz)*1.7);if(Math.abs(dz)<0.5){p.rig.root.visible=false;p.vel.set(0,0,0);}
@@ -3066,8 +3091,9 @@ function updatePlayer(p,dt){
   }else if(p.sk){skillTick(p,dt);
   }else{
     let want=p.wantVel;if(p.stun>0)want=tmpB.copy(want).multiplyScalar(0.3);
+    const cutting=cutTurn(p,want,dt);
     const dv=tmpC.subVectors(want,p.vel),cur=p.vel.length();
-    const maxA=(want.length()>cur?10+p.st.pac*0.05:17)*dt*(p.boostT>0||p.chaseOn?1.5:1)*(ball.owner===p&&p.trait==='trickster'?1.35:1)*(p.faceUp?1.25:1);
+    const maxA=(want.length()>cur?(cutting?0:(10+p.st.pac*0.05)*((p.cutRecT||0)>gtime?0.3:1)):17)*dt*(p.boostT>0||p.chaseOn?1.5:1)*(ball.owner===p&&p.trait==='trickster'?1.35:1)*(p.faceUp?1.25:1);
     if(dv.length()>maxA)dv.setLength(maxA);p.vel.add(dv);p.vel.y=0;
     p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:0;
   }
@@ -3081,7 +3107,7 @@ function updatePlayer(p,dt){
     else if(sp>0.7)tgt=Math.atan2(p.vel.x,p.vel.z);
     else if(p.holding)tgt=p.face;
     else tgt=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);
-    const rate=(ball.owner===p?(p.trait==='trickster'&&nearestOppDist(p)<3.5?18:7.5):10)*dt*((p.plantT||0)>gtime?0.3:1);p.face+=clamp(angDiff(p.face,tgt),-rate,rate);   // winding up a shot: the standing foot is planted
+    const rate=(ball.owner===p?(p.trait==='trickster'&&nearestOppDist(p)<3.5?18:7.5):10)*dt*((p.plantT||0)>gtime?0.3:(p.cutT||0)>gtime?2.2:1);p.face+=clamp(angDiff(p.face,tgt),-rate,rate);   // winding up a shot: the standing foot is planted; a cut turns the body with it
   }
   const sprinting=sp>p.maxSpd()*0.82&&p.state==='normal';
   p.stamina=clamp(p.stamina+(sprinting?-(7.2-p.st.phy*0.03)*dt:2.4*dt),0,100);
@@ -3644,7 +3670,7 @@ function humanUpdate(dt){
   if(has&&A_.sprint&&inp.lengthSq()<0.01){p.wantVel.set(0,0,0);p.vel.multiplyScalar(Math.exp(-5*dt));return;}   // E alone: stop the ball
   const plant=has&&(A_.shoot&&!K.consumed.shoot&&!A_.f||K.pend&&K.pend.act==='shoot');if(plant)p.plantT=gtime+0.05;   // charging or swinging at a shot
   if(plant){const s=Math.min(p.vel.length(),p.maxSpd()*0.3);p.wantVel.copy(fwd(p)).multiplyScalar(s);return;}   // heading locked, the arrows only aim the shot
-  if(inp.lengthSq()>0.01){const sprint=A_.sprint&&p.stamina>3;const sp_=p.maxSpd()*(sprint?1:0.7)*Math.min(1,inp.length())*(plant?0.6:1);p.wantVel.copy(inp).normalize().multiplyScalar(sp_);}
+  if(inp.lengthSq()>0.01){const sprint=A_.sprint&&p.stamina>3;const sp_=p.maxSpd()*(sprint?1:0.7)*Math.min(1,inp.length())*(plant?0.6:1);p.wantVel.copy(inp).normalize().multiplyScalar(sp_);p.steered=true;}   // the arrows set this run: it may cut
   else if(!has&&!ball.owner&&A_.pass){moveTo(p,p.itPt,1);}
   else if(has&&p.postSkT>0){p.wantVel.copy(p.vel);}
   else p.wantVel.set(0,0,0);
