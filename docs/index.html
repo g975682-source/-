@@ -772,8 +772,11 @@ function hashStr(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt
 const HL=52.5,HW=34,GW=3.66,GH=2.44,BR=0.11,GRAV=9.81,ROLL=0.72,AIR=0.03,BOX_D=16.5,BOX_W=20.16,STEP=1/60;
 
 const DIFFS={
-  amateur:{label:'아마추어',react:0.62,errMul:1.65,tackle:0.55,spd:0.92,shootIQ:0.45,gk:-14,press:0.6,offIQ:0.6},
-  semipro:{label:'세미프로',react:0.48,errMul:1.3,tackle:0.78,spd:0.96,shootIQ:0.6,gk:-7,press:0.8,offIQ:0.75},
+  // amateur and semi-pro are for someone who has just picked the game up: slow to decide, loose with the ball,
+  // shy in the tackle and in the duel, a poor keeper. A beginner who only runs at goal and shoots should win on
+  // amateur and have a close game on semi-pro. duel: body-duel strength.
+  amateur:{label:'아마추어',react:1.3,errMul:4.4,tackle:0.12,spd:0.76,shootIQ:0.12,gk:-46,press:0.15,offIQ:0.3,duel:0.72},
+  semipro:{label:'세미프로',react:1.1,errMul:3.0,tackle:0.2,spd:0.8,shootIQ:0.2,gk:-30,press:0.25,offIQ:0.35,duel:0.8},
   pro:{label:'프로',react:0.36,errMul:1.0,tackle:1.0,spd:1.0,shootIQ:0.75,gk:0,press:1.0,offIQ:0.85},
   world:{label:'월드클래스',react:0.27,errMul:0.8,tackle:1.18,spd:1.03,shootIQ:0.86,gk:4,press:1.15,offIQ:0.92},
   legend:{label:'레전드',react:0.19,errMul:0.62,tackle:1.36,spd:1.06,shootIQ:0.95,gk:8,press:1.3,offIQ:0.97},
@@ -2498,6 +2501,11 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(laser){ty=clamp(Math.min(ty,0.25+power*0.6),0.15,0.85);sig*=0.6;}
   if(acro)sig*=isHeader?0.6:0.55;
   if(p.fightT>0)sig*=1.45;
+  // over-hit: past 90% of the gauge (full at 0.3 s) the strike gets away from him, whatever the shot: wider and
+  // higher, a finesse or driven low shot too (they would otherwise stay under the bar however hard they are hit).
+  // The right weight is a firm, not a full, gauge. Power shots have their own timing; the AI never goes past 0.9.
+  const over=pw||isHeader?0:clamp((power-0.9)/0.1,0,1);
+  if(over>0){sig*=1+over*(opts.low?1.4:0.9);ty+=over*(opts.low?rnd(2.0,3.2):rnd(0.9,2.0));}   // a driven low shot leaves the ground altogether
   // the weaker foot: wider and softer, by how poor it is (a 1 nearly doubles the spread)
   let wk=0;if(!isHeader){const s=opts.pen?(footOf(p).f==='L'?-1:1):kickFoot(p,new V3(gx-bp.x,0,tz-bp.z));p.kickNext=s;wk=weakK(p,s);sig*=1+wk*0.9;}
   // body shape: hitting it back across himself or with his back to goal is a snatched, weak shot.
@@ -2523,7 +2531,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   for(let it=0;it<(spin?5:1);it++){
     const h=new V3(gx-bp.x,0,z0-bp.z),hd=h.length();h.normalize();
     const t=hd/spd;let vy=(ty-bp.y+0.5*GRAV*t*t)/t+dvy;
-    if(opts.low&&!isHeader)vy=Math.min(vy,1.5);   // driven along the ground: skims and skids rather than arcing
+    if(opts.low&&!isHeader)vy=Math.min(vy,1.5+over*8);   // driven along the ground: skims and skids rather than arcing (unless over-hit)
     vel=h.multiplyScalar(spd).setY(vy);
     if(spin){let r=flightTo(bp,vel,spin,gx);if(it===0&&r.bend>0.01){spin.s*=spin.want/r.bend;r=flightTo(bp,vel,spin,gx);}z0+=tz-r.z;dvy+=clamp((ty-r.y)/Math.max(r.t,0.3),-3,3);bend=r.bend;}
   }
@@ -3137,7 +3145,7 @@ let duelSayT=-99;
 function duelPower(p,o,onBall){
   const s=p.st,nx=o.pos.x-p.pos.x,nz=o.pos.z-p.pos.z,d=Math.hypot(nx,nz)||1;
   const run=clamp((p.vel.x*nx+p.vel.z*nz)/d,0,7);   // speed into the other man
-  return (s.phy*0.75+(onBall?s.dri:s.def)*0.25)*(0.85+0.15*p.stamina/100)*(p.pd&&p.pd.h||1)*(1+run*0.03)*(p.trait==='fighter'?1.12:1)*(p.shielding?1.2:1);
+  return (s.phy*0.75+(onBall?s.dri:s.def)*0.25)*(0.85+0.15*p.stamina/100)*(p.pd&&p.pd.h||1)*(1+run*0.03)*(p.trait==='fighter'?1.12:1)*(p.shielding?1.2:1)*(teams[p.team].ai.duel||1);
 }
 function stagger(L,W,edge){
   const nx=L.pos.x-W.pos.x,nz=L.pos.z-W.pos.z,d=Math.hypot(nx,nz)||1,push=1.6+2.2*edge;
