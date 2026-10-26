@@ -29,8 +29,9 @@ events, and prints what happened.
 
 When copied in, only the path lines of `harness.js`, `t51.js`, `t51b.js`, `t51d.js` and `t103.js` were changed
 from the session copies (compare with `legacy/_orig/`). Changed since, with git history: `t115.js` (checks its
-result, see below) and `t24.js` (starts a fresh match before its throw-in check: by then the half is over, and a
-half that is over now ends at a throw-in before it is taken).
+result, see below), `t24.js` (starts a fresh match before its throw-in check: by then the half is over, and a
+half that is over now ends at a throw-in before it is taken), and `t83.js` and `t200.js` (shots held a firm 250 ms:
+past 90% of the gauge a shot now over-hits, which would hide what they measure).
 
 ## Requirements
 

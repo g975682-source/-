@@ -11,7 +11,8 @@ const N=+(process.env.N||40);
       g.ball.pos.set(p.pos.x+Math.sin(face)*0.5,0.11,p.pos.z+Math.cos(face)*0.5);
       for(const q of g.players)if(q!==p&&!q.isGK){q.pos.set(q.team?-30:-40,0,q.slot*3-15);q.vel.set(0,0,0);}
       const gk=g.players.find(q=>q.team===1&&q.isGK);gk.st.gk=80;gk.pos.set(dir*51.3,0,0);gk.state='normal';gk.save=null;g.setCtl(p);p.sk=null;g.sim(1/60);return p;};
-    for(const [nm,face,hold] of [['facing goal',Math.atan2(dir,0),300],['side-on',Math.atan2(0,1),300],['back to goal',Math.atan2(-dir,0),300],['back, quick tap',Math.atan2(-dir,0),90],['facing, quick tap',Math.atan2(dir,0),90]]){
+    // a firm 250 ms, not a full gauge: a full one now over-hits every shot and would hide the body-shape cost
+    for(const [nm,face,hold] of [['facing goal',Math.atan2(dir,0),250],['side-on',Math.atan2(0,1),250],['back to goal',Math.atan2(-dir,0),250],['back, quick tap',Math.atan2(-dir,0),90],['facing, quick tap',Math.atan2(dir,0),90]]){
       let on=0,goals=0,spd=0,n=0,faceAtKick=0;
       for(let i=0;i<N;i++){const p=setup(face);const s0=g.score[0],o0=g.stats.on[0];
         g.actDown('right');g.actDown('down');g.actDown('shoot');await wait(hold);g.actUp('shoot');   // aim at the far corner, shoot

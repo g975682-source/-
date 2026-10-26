@@ -9,14 +9,15 @@ const open=require('./harness.js');
       for(const q of g.players)if(q!==p&&!q.isGK){q.pos.set(q.team?-30:-40,0,q.slot*3-15);q.vel.set(0,0,0);}
       g.setCtl(p);p.sk=null;p.cdSkill=0;g.sim(1/60);return p;};
     const press=async(keys,ms)=>{for(const k of keys)g.actDown(k);g.sim(1/60);await wait(ms||60);for(const k of keys.slice().reverse())g.actUp(k);};
-    const shot=async(keys,label)=>{const p=setup(30,0);const k0=keys.slice(0,-1),last=keys[keys.length-1];for(const k of k0)g.actDown(k);g.sim(1/60);g.actDown(last);await wait(350);g.actUp(last);for(const k of k0)g.actUp(k);
+    // shots are held a firm 250 ms: past 90% of the gauge (0.27 s) they over-hit and fly
+    const shot=async(keys,label)=>{const p=setup(30,0);const k0=keys.slice(0,-1),last=keys[keys.length-1];for(const k of k0)g.actDown(k);g.sim(1/60);g.actDown(last);await wait(250);g.actUp(last);for(const k of k0)g.actUp(k);
       let peak=0,v0=0;for(let i=0;i<40;i++){g.sim(1/60);if(!g.ball.owner&&!v0)v0=Math.hypot(g.ball.vel.x,g.ball.vel.z);peak=Math.max(peak,g.ball.pos.y);}
       return {peak:+peak.toFixed(2),v0:+v0.toFixed(1),spin:+g.ball.sp.s.toFixed(2)};};
     out.normal=await shot(['shoot']);
     out.chipQD=await shot(['switch','shoot']);
     out.finesseZD=await shot(['z','shoot']);
     // D then tap D: low shot
-    {const p=setup(30,0);g.actDown('shoot');await wait(350);g.actUp('shoot');g.sim(1/60);g.actDown('shoot');g.sim(1/60);g.actUp('shoot');
+    {const p=setup(30,0);g.actDown('shoot');await wait(250);g.actUp('shoot');g.sim(1/60);g.actDown('shoot');g.sim(1/60);g.actUp('shoot');
      let peak=0;for(let i=0;i<40;i++){g.sim(1/60);peak=Math.max(peak,g.ball.pos.y);}out.lowDD={peak:+peak.toFixed(2)};}
     // D then S: fake shot (no shot taken)
     {const sc=g.stats.shots[0];const c0=g.skillCount.fakeshot||0;const p=setup(20,0);g.actDown('shoot');await wait(200);g.actUp('shoot');g.sim(1/60);g.actDown('pass');g.sim(1/60);g.actUp('pass');g.sim(0.8);
