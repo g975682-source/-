@@ -861,6 +861,24 @@ function makeFoot(pd){
   return {f:left?'L':'R',w};
 }
 function footOf(p){const pd=p.pd||p;if(!pd.ft||(pd.ft.f!=='L'&&pd.ft.f!=='R'))pd.ft=makeFoot(pd);return pd.ft;}
+// which foot kicks (+1 right, -1 left): a ball off to one side is struck with that foot; a ball in front with the
+// foot that sweeps it where it is going (inside of the right foot to the left, of the left foot to the right);
+// straight on, and every set piece and kick from the hands, with the good foot
+function kickFoot(p,dir){
+  const ft=footOf(p),good=ft.f==='L'?-1:1;
+  if(SP||p.holding)return good;
+  if(p.footLock&&gtime-p.footLock.t<0.45)return p.footLock.s;
+  const f=fwd(p),rx=-Math.cos(p.face),rz=Math.sin(p.face);   // his right, where the rig's right leg is
+  const lat=(ball.pos.x-p.pos.x)*rx+(ball.pos.z-p.pos.z)*rz;
+  if(Math.abs(lat)>0.18)return lat>0?1:-1;
+  if(!dir||dir.lengthSq()<0.01)return good;
+  const ang=Math.atan2(dir.x*rx+dir.z*rz,dir.x*f.x+dir.z*f.z);   // + : to his right
+  return ang>0.5?-1:ang<-0.5?1:good;
+}
+// a wind-up shown before the kick keeps its foot; refreshed every frame of a longer wind-up
+function lockFoot(p,dir){const s=kickFoot(p,dir);p.footLock={s,t:gtime};p.kickSide=s;return s;}
+// 0 with the good foot; with the other foot 0 (rated 5) to 1 (rated 1)
+function weakK(p,s){const ft=footOf(p);return s===(ft.f==='L'?-1:1)?0:(5-ft.w)/4;}
 function feetTxt(p,short){const f=footOf(p),L=f.f==='L'?5:f.w,R=f.f==='R'?5:f.w;return short?`왼${L}·오${R}`:`왼발 ${L} · 오른발 ${R}`;}
 function makePd(label,ovr,reg,r){
   const db=NAMEDB[reg],g=db.g[Math.floor(r()*db.g.length)],f=db.f[Math.floor(r()*db.f.length)];
@@ -1732,7 +1750,8 @@ function poseValues(r,aid,t,phase,spd,side,out){
     case A.run:runPose(1);break;
     case A.kick:{const k=clamp(t/0.4,0,1);
       if(k<0.35){const q=k/0.35;rT=0.95*q;rK=1.35*q;}else{const q=(k-0.35)/0.65,e=1-Math.pow(1-q,3);rT=0.95-2.2*e;rK=1.35*(1-e);}
-      lT=-0.15;lK=0.3;lAz=0.7;rAz=-0.4;lA=-0.35;rA=0.45;toX=-0.06;hipY=0.92;break;}
+      lT=-0.15;lK=0.3;lAz=0.7;rAz=-0.4;lA=-0.35;rA=0.45;toX=-0.06;hipY=0.92;
+      if(side<0){[lT,rT]=[rT,lT];[lK,rK]=[rK,lK];[lA,rA]=[rA,lA];const z=lAz;lAz=-rAz;rAz=-z;}break;}   // left foot
     case A.tackle:{const k=clamp(t/0.3,0,1),e=Math.sin(k*Math.PI);lT=-1.0*e;lK=0.2;rK=0.6*e;toX=0.25*e;hipY=0.95-0.12*e;lAz=0.5;rAz=-0.5;break;}
     case A.slide:{const q=clamp(t/0.15,0,1);hipY=lerp(0.9,0.28,q);tX=-1.2*q;lT=-0.25*q;lK=0.05;rT=0.35*q;rK=1.25*q;lA=0.6;rA=-0.2;lAz=0.9;rAz=-1.0;toX=0.45*q;break;}
     case A.dive:{const q=clamp(t/0.26,0,1),low=clamp((1.1-phase)/0.9,0,1);
@@ -2349,6 +2368,7 @@ function kick(p,vel,type){
   // a restart taker may not touch the ball again until someone else has
   ball.restartBy=SP?p:null;ball.noGoal=!!(SP&&(SP.type==='throw'||SP.indirect));
   ball.gkRelease=wasHolding?p:null;
+  p.kickSide=p.kickNext??(footOf(p).f==='L'?-1:1);p.kickNext=null;p.footLock=null;
   if(type==='header'){p.oAnim='header';p.oDur=0.5;}
   else{p.oAnim=(type==='throw'||(wasHolding&&vel.y<4&&type!=='shot'))?'throw':'kick';p.oT=0;p.oDur=0.45;}
   SND.kick(vel.length()/28);
@@ -2386,8 +2406,9 @@ function choosePassTarget(p,dir,mode){
 }
 function passTo(p,m,mode,power,isAI,dirHint,o={}){
   const T=teams[p.team],from=ball.pos.clone(),wasSP=!!SP;
-  const err=(1.1-p.st.pas/100)*(isAI?T.ai.errMul:0.85)*(1+clamp((2.5-nearestOppDist(p))/2.5,0,1)*0.6)*(p.fightT>0?1.45:1)*(o.flair?1.35:1);
+  let err=(1.1-p.st.pas/100)*(isAI?T.ai.errMul:0.85)*(1+clamp((2.5-nearestOppDist(p))/2.5,0,1)*0.6)*(p.fightT>0?1.45:1)*(o.flair?1.35:1);
   const tp=new V3();let ground=mode==='ground'||mode==='through';
+  let wk=0;
   if(m){
     if(mode==='through'||o.lead||o.lobThrough){
       // the line he runs: his run if he is on one, else the way he is going if that is forward, else at goal
@@ -2406,11 +2427,12 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
     const dir=(dirHint||fwd(p)).clone().setY(0).normalize();
     tp.copy(from).addScaledVector(dir,mode==='through'?12+power*14:mode==='throw'?8+power*14:mode==='ground'?8+power*18:15+power*25);tp.y=0;clampPitch(tp,0.8);
   }
+  if(mode!=='throw'){const s=kickFoot(p,new V3(tp.x-from.x,0,tp.z-from.z));p.kickNext=s;wk=weakK(p,s);err*=1+wk*0.8;}
   let v;
   if(ground){
     const va=mode==='through'?5.5:4.6;let d=d2(from,tp);
     if(m&&mode==='ground'&&!o.lead){for(let k=0;k<2;k++){const v0=va+ROLL*d,t=Math.log(v0/va)/ROLL;tp.copy(m.pos).addScaledVector(m.vel,t*0.75);d=d2(from,tp);}}
-    let v0=(va+ROLL*d)*(isAI?1:lerp(0.86,1.16,power))*(o.spd||1);v0=Math.min(v0,o.spd>1?34:31)*(1+gauss()*err*0.07);
+    let v0=(va+ROLL*d)*(isAI?1:lerp(0.86,1.16,power))*(o.spd||1)*(1-wk*0.05);v0=Math.min(v0,o.spd>1?34:31)*(1+gauss()*err*0.07);
     const dir=new V3(tp.x-from.x,0,tp.z-from.z).normalize().applyAxisAngle(new V3(0,1,0),gauss()*err*0.1);
     v=dir.multiplyScalar(v0);v.y=0.4;
     if(from.y>0.5){v.y=-1;}
@@ -2461,6 +2483,8 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(laser){ty=clamp(Math.min(ty,0.25+power*0.6),0.15,0.85);sig*=0.6;}
   if(acro)sig*=isHeader?0.6:0.55;
   if(p.fightT>0)sig*=1.45;
+  // the weaker foot: wider and softer, by how poor it is (a 1 nearly doubles the spread)
+  let wk=0;if(!isHeader){const s=opts.pen?(footOf(p).f==='L'?-1:1):kickFoot(p,new V3(gx-bp.x,0,tz-bp.z));p.kickNext=s;wk=weakK(p,s);sig*=1+wk*0.9;}
   // body shape: hitting it back across himself or with his back to goal is a snatched, weak shot.
   // Square on (within 40°) costs nothing; side-on costs some; a turn and shoot from facing away costs a lot.
   let turn=0;
@@ -2474,6 +2498,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.9;if(opts.low)spd*=1.2;}
   if(pw)spd*=0.71+0.35*pf;
   spd*=1-turn*0.38;
+  spd*=1-wk*0.12;
   // finesse (Z+D): start it outside the post, the spin builds and hooks it back in late.
   // The kick direction is solved by flying the ball forward, so it ends where it was aimed.
   let spin=null,bend=0;
@@ -2499,7 +2524,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
   planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend,turn}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
-  say((turn>0.45?'무리한 터닝 슛! ':pw?(pf>=0.95?'완벽한 파워 슛! ':pf>=0.65?'파워 슛! ':'파워 슛이 빗맞습니다! '):opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short);
+  say((turn>0.45?'무리한 터닝 슛! ':pw?(pf>=0.95?'완벽한 파워 슛! ':pf>=0.65?'파워 슛! ':'파워 슛이 빗맞습니다! '):opts.fin?'감아차기! ':opts.chip?'로빙슛! ':opts.low?'낮고 빠른 슛! ':pick(['슈팅! ','때립니다! ','과감한 슈팅! ','골문을 노립니다! ']))+p.short+(wk>0.3?' (약발)':''));
 }
 
 function startSlide(p,dirIn){
@@ -3592,7 +3617,7 @@ function humanUpdate(dt){
   T.gkRush=!has&&!p.isGK&&A_.through&&oppBall;          // W held: the keeper rushes out
   if(p.state!=='normal'||p.sk){K.psT=0;return;}
   if(K.psT){if(!has||state!=='play'||gtime-K.psT>PS_DUR+0.7)K.psT=0;
-    else{const s=Math.min(p.vel.length(),p.maxSpd()*0.3);p.wantVel.copy(fwd(p)).multiplyScalar(s);p.oAnim='kick';p.oT=Math.min(0.13,(gtime-K.psT)*0.5);p.oDur=0.45;return;}}
+    else{const s=Math.min(p.vel.length(),p.maxSpd()*0.3);p.wantVel.copy(fwd(p)).multiplyScalar(s);p.oAnim='kick';p.oT=Math.min(0.13,(gtime-K.psT)*0.5);p.oDur=0.45;lockFoot(p,new V3(T.dir*HL-p.pos.x,0,-p.pos.z));return;}}
   if(p.holding){   // the keeper can walk with the ball in his hands and throw or kick on the move; W puts it down
     if(inp.lengthSq()>0.01){p.wantVel.copy(inp).normalize().multiplyScalar(p.maxSpd()*(A_.sprint?0.8:0.6)*Math.min(1,inp.length()));if(p.vel.lengthSq()<0.5)p.face=Math.atan2(inp.x,inp.z);}else p.wantVel.set(0,0,0);
     if(p.holdT>5.5){aiGKDistribute(p);}return;}
@@ -3677,7 +3702,7 @@ function handleEdge(p,e,inp){
   if(SP&&(SP.taker!==p||SP.t<0.6))return;
   const mods={q:M.q,z:M.z,c:M.c};if(mods.q)K.qUsed=true;if(mods.z)K.zUsed=true;if(mods.c)K.cUsed=true;
   if(has){
-    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.24,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.1;p.oDur=0.5;return;}   // 0.24 s back-swing: time for the second D tap or an S fake
+    if(!SP&&!p.holding&&a==='shoot'){K.pend={act:'shoot',power,mods,ttl:0.24,low:false,dir:inp.clone()};p.oAnim='kick';p.oT=-0.1;p.oDur=0.5;lockFoot(p,new V3(teams[p.team].dir*HL-p.pos.x,0,-p.pos.z));return;}   // 0.24 s back-swing: time for the second D tap or an S fake
     if(a==='lob'&&!p.holding&&(!SP||SP.type==='corner'||SP.type==='throw')){K.pend={act:'lob',power,mods,ttl:0.24,count:1,dir:inp.clone()};return;}   // room for A-taps and the S fake
     humanBallAction(p,a,power,inp,mods);
   }
@@ -3820,7 +3845,7 @@ function syncAnimState(p){
   else if(p.state==='dive'){a=A.dive;t=p.stateT;ph=p.diveH;side=p.diveSide;}
   else if(p.state==='fall'){a=A.fall;t=p.stateT;}
   else if(p.poseHold==='throw'){a=A.throw;t=0;}
-  else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;}
+  else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;else if(p.oAnim==='kick'&&p.kickSide<0)side=-1;}
   else if(p.holding){a=A.gkhold;}
   else if(p.spd>0.35)a=p.celebrating?A.celeb:A.run,t=gtime;
   else a=(p.isGK&&d2(p.pos,ball.pos)<32&&state==='play')?A.gkready:A.idle,t=gtime;
@@ -5084,7 +5109,7 @@ const unpackKit=a=>({shirt:cleanCol(a&&a[0]),trim:cleanCol(a&&a[1]),pat:PATS[num
 function packSide(sd){
   const d=sd.def;
   return {c:d.code,n:d.name,r:d.reg,h:packKit(d.home),a:packKit(d.away),g:d.gk,o:d.ovr||teamOvr(sd.roster),f:sd.form,
-    p:sd.roster.map(p=>[p.name,p.short,p.ovr,p.st.pac,p.st.sho,p.st.pas,p.st.dri,p.st.def,p.st.phy,p.st.gk,p.num,SKINS.indexOf(p.skin),HAIRS.indexOf(p.hair),p.hs,BOOTS.indexOf(p.boot),Math.round(p.h*100),TRAIT_KEYS.indexOf(p.trait)])};
+    p:sd.roster.map(p=>[p.name,p.short,p.ovr,p.st.pac,p.st.sho,p.st.pas,p.st.dri,p.st.def,p.st.phy,p.st.gk,p.num,SKINS.indexOf(p.skin),HAIRS.indexOf(p.hair),p.hs,BOOTS.indexOf(p.boot),Math.round(p.h*100),TRAIT_KEYS.indexOf(p.trait),(footOf(p).f==='L'?-1:1)*footOf(p).w])};
 }
 // everything from the other browser is untrusted: rebuild it field by field
 function unpackSide(o){
@@ -5095,7 +5120,7 @@ function unpackSide(o){
   const roster=slots.map((s,i)=>{const a=Array.isArray(o.p[i])?o.p[i]:[];const label=s[0];
     const st={pac:numIn(a[3],1,130,60),sho:numIn(a[4],1,130,60),pas:numIn(a[5],1,130,60),dri:numIn(a[6],1,130,60),def:numIn(a[7],1,130,60),phy:numIn(a[8],1,130,60),gk:numIn(a[9],1,130,20)};
     return {name:cleanTxt(a[0],16)||'선수',short:cleanTxt(a[1],8)||'선수',label,line:LINE[label],ovr:numIn(a[2],30,130,60),st,num:numIn(a[10],1,99,i+1),
-      skin:SKINS[numIn(a[11],0,SKINS.length-1,0)],hair:HAIRS[numIn(a[12],0,HAIRS.length-1,0)],hs:numIn(a[13],0,2,0),boot:BOOTS[numIn(a[14],0,BOOTS.length-1,0)],h:numIn(a[15],90,110,100)/100,trait:TRAIT_KEYS[numIn(a[16],0,TRAIT_KEYS.length-1,0)]};});
+      skin:SKINS[numIn(a[11],0,SKINS.length-1,0)],hair:HAIRS[numIn(a[12],0,HAIRS.length-1,0)],hs:numIn(a[13],0,2,0),boot:BOOTS[numIn(a[14],0,BOOTS.length-1,0)],h:numIn(a[15],90,110,100)/100,trait:TRAIT_KEYS[numIn(a[16],0,TRAIT_KEYS.length-1,0)],ft:(v=>v?{f:v<0?'L':'R',w:Math.abs(v)}:null)(numIn(a[17],-5,5,0))};});
   return {def,form,roster};
 }
 function goOnline(){
