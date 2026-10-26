@@ -27,8 +27,10 @@ events, and prints what happened.
   `__game.lastPass`, which `index.html` does not have; they were run against a patched copy.
 * `tutorial.js`: not a test. It is the tutorial source as it was before it went into `index.html`.
 
-Only the path lines of `harness.js`, `t51.js`, `t51b.js`, `t51d.js` and `t103.js` were changed from the
-session copies (compare with `legacy/_orig/`). The other legacy files are byte-for-byte the originals.
+When copied in, only the path lines of `harness.js`, `t51.js`, `t51b.js`, `t51d.js` and `t103.js` were changed
+from the session copies (compare with `legacy/_orig/`). Changed since, with git history: `t115.js` (checks its
+result, see below) and `t24.js` (starts a fresh match before its throw-in check: by then the half is over, and a
+half that is over now ends at a throw-in before it is taken).
 
 ## Requirements
 

@@ -18,7 +18,8 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     return {pens:res.join(''),fk:fk.join('')};});
   console.log('ai',JSON.stringify(ai));
   // throw-in thrown straight into goal does not count; thrower cannot touch twice
-  const th=await page.evaluate(()=>{__game.setPiece('throw',0,50,33.95);__game.sim(0.8);const b=__game.ball;const sp=__game.sp;const t=sp.taker;
+  // a fresh match first: by now the half is over, and a half that is over ends at a throw-in before it is taken
+  const th=await page.evaluate(()=>{__game.startMatch({mode:'play',minutes:5,home:2,away:3,firstKick:0});window.__freeze=true;__game.sim(1);__game.setPiece('throw',0,50,33.95);__game.sim(0.8);const b=__game.ball;const sp=__game.sp;const t=sp.taker;
     // simulate a throw straight at goal
     __game.actDown('pass');__game.actUp('pass');__game.sim(1/60);b.owner=null;b.pos.set(51.5,1.2,2);b.vel.set(8,0,0);b.lastTouch=t;
     const s0=__game.score[0];for(let i=0;i<120;i++)__game.sim(1/60);return {score:__game.score,state:__game.state,sp:__game.sp&&__game.sp.type,s0};});
