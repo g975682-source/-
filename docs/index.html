@@ -1287,7 +1287,7 @@ function addFace(head,pd){
   add(FGEO.mouth,lip,0,-0.053,0.105);
   if(hashStr(pd.name||'')%3===0)add(FGEO.beard,hm,0,0,0).scale.set(0.95,1.05,1);
 }
-const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,celeb:9,header:10,tackle:11,skill:12,stackle:13,refCard:14,refPoint:15,flag:16,jump:17,volley:18,advantage:19};
+const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,celeb:9,header:10,tackle:11,skill:12,stackle:13,refCard:14,refPoint:15,flag:16,jump:17,volley:18,advantage:19,stagger:20};
 /* ================= skill moves ================= */
 // Motions follow the FC skill moves (stepover, roulette, elastico, rainbow ...) as broken down in skill-move guides:
 // which foot works the ball, where the ball travels, how the body leans and where the carrier exits.
@@ -1790,6 +1790,11 @@ function poseValues(r,aid,t,phase,spd,side,out){
     case A.volley:{const q=clamp(t/0.18,0,1),e=t<0.4?q:clamp(1-(t-0.4)/0.25,0,1);hipY=0.95+0.06*e;tX=-0.55*e;tZ=0.4*e*(side||1);rT=-1.9*e;rK=0.15;lT=0.5*e;lK=0.9*e;lAz=1.2*e;rAz=-0.85*e;toX=-0.2*e;break;}
     case A.advantage:{const q=clamp(t/0.25,0,1);lA=rA=-1.45*q;lE=rE=0;lAz=0.35;rAz=-0.35;break;}
     case A.jump:{const q=clamp(t/0.62,0,1),e=Math.sin(q*Math.PI);lK=rK=0.2+0.6*(1-e);lT=rT=-0.12;lA=rA=-0.3;lE=rE=-1.4;lAz=-0.05;rAz=0.05;toX=0.08;break;}
+    case A.stagger:{   // knocked off balance in a body duel: rocks back and to one side (side), a step back, arms out
+      const q=clamp(t/0.12,0,1),e=t<0.12?q*(2-q):Math.pow(clamp(1-(t-0.12)/0.5,0,1),1.5),sd=side<0?-1:1;
+      hipY=0.95-0.07*e;tX=-0.3*e;tZ=0.32*e*sd;toX=-0.16*e;
+      if(sd>0){lT=0.55*e;rT=-0.25*e;}else{rT=0.55*e;lT=-0.25*e;}lK=0.08+0.4*e;rK=0.08+0.45*e;
+      lA=-0.85*e;rA=-0.45*e;lE=rE=-0.25-0.4*e;lAz=0.1+1.05*e;rAz=-0.1-1.05*e;break;}
   }
   out.hipN=hipY;out.pelvisX=tX;out.pelvisZ=tZ;out.spineX=toX;out.spineY=toY;out.headX=hdX-toX*0.4;
   out.thighLX=lT;out.thighLZ=lTz;out.thighRX=rT;out.thighRZ=rTz;out.kneeL=lK;out.kneeR=rK;
@@ -3078,7 +3083,7 @@ function updatePlayer(p,dt){
       p.pos.z+=p.vel.z*dt;p.face=0;p.spd=Math.abs(p.vel.z);p.phase+=(p.spd*1.2+1.5)*dt;}
     return;
   }
-  p.noTouch=Math.max(0,p.noTouch-dt);p.protect-=dt;p.postSkT-=dt;p.cdTackle-=dt;p.cdSkill-=dt;p.stun-=dt;p.boostT-=dt;p.fightT-=dt;
+  p.noTouch=Math.max(0,p.noTouch-dt);p.protect-=dt;p.postSkT-=dt;p.cdTackle-=dt;p.cdSkill-=dt;p.stun-=dt;p.duelCD=(p.duelCD||0)-dt;p.boostT-=dt;p.fightT-=dt;
   traitTick(p,dt);
   if(p.state==='slide'){slideUpdate(p,dt);}
   else if(p.state==='tackle'){tackleUpdate(p,dt);}
@@ -3120,6 +3125,50 @@ function updatePlayer(p,dt){
   if(p.holding&&p.state==='normal'){p.holdT+=dt;}
 }
 
+/* ================= body duels ================= */
+// shoulder to shoulder: when the man on the ball and an opponent come together, or two players go for the same loose
+// ball, they lean on each other. Who stays up goes by physique, with dribbling for the man on the ball and defending
+// for the one taking it on, and by how fresh and how big each is, who came in faster, Fighter and shielding (C).
+// Strength to the 5th power decides the odds (PHY 80 against 60: about 4 in 5), never past 8-92%. The loser is
+// knocked off balance: pushed off, slowed for a moment, rocking (A.stagger); a carrier who loses may lose the ball,
+// more likely the clearer the mismatch. Once per player every 1.2 s. The jockey (C) has its own lean-in.
+const duelCount={duels:0,carrierWon:0,carrierLost:0,ballLost:0,loose:0};
+let duelSayT=-99;
+function duelPower(p,o,onBall){
+  const s=p.st,nx=o.pos.x-p.pos.x,nz=o.pos.z-p.pos.z,d=Math.hypot(nx,nz)||1;
+  const run=clamp((p.vel.x*nx+p.vel.z*nz)/d,0,7);   // speed into the other man
+  return (s.phy*0.75+(onBall?s.dri:s.def)*0.25)*(0.85+0.15*p.stamina/100)*(p.pd&&p.pd.h||1)*(1+run*0.03)*(p.trait==='fighter'?1.12:1)*(p.shielding?1.2:1);
+}
+function stagger(L,W,edge){
+  const nx=L.pos.x-W.pos.x,nz=L.pos.z-W.pos.z,d=Math.hypot(nx,nz)||1,push=1.6+2.2*edge;
+  L.vel.x+=nx/d*push;L.vel.z+=nz/d*push;L.stun=Math.max(L.stun,0.4+0.3*edge);
+  L.stagSide=(nx*-Math.cos(L.face)+nz*Math.sin(L.face))>=0?1:-1;   // rocks toward the side he was pushed to
+  if(!L.oAnim||L.oAnim==='stagger'){L.oAnim='stagger';L.oT=0;L.oDur=0.62;}
+}
+function bodyDuels(){
+  const o=ball.owner,ok=p=>!p.sentOff&&p.state==='normal'&&!p.holding&&!p.sk&&!p.isGK&&p.duelCD<=0&&!(p.jockeyT>0);
+  for(let i=0;i<players.length;i++){const a=players[i];if(!ok(a))continue;
+    for(let j=i+1;j<players.length;j++){const c=players[j];if(c.team===a.team||!ok(c))continue;
+      const nx=c.pos.x-a.pos.x,nz=c.pos.z-a.pos.z,d=Math.hypot(nx,nz);if(d>0.8||d<1e-4)continue;
+      // a pass still on its way to its man is not a loose ball yet: he gets to take it
+      if(o?o!==a&&o!==c:ball.pos.y>1||intended&&Math.hypot(ball.vel.x,ball.vel.z)>3||d2(a.pos,ball.pos)>1.8||d2(c.pos,ball.pos)>1.8)continue;
+      const close=((a.vel.x-c.vel.x)*nx+(a.vel.z-c.vel.z)*nz)/d;   // closing speed
+      const ch=o===a?c:o===c?a:null;
+      if(close<0.8&&!(ch&&ch.wantTackle))continue;
+      const pa=duelPower(a,c,!o||o===a),pc=duelPower(c,a,!o||o===c),ka=Math.pow(pa,5),kc=Math.pow(pc,5);
+      const aw=Math.random()<clamp(ka/(ka+kc),0.08,0.92),W=aw?a:c,L=aw?c:a,edge=clamp(Math.abs(pa-pc)/Math.min(pa,pc),0,0.4)/0.4;
+      a.duelCD=c.duelCD=1.2;duelCount.duels++;
+      stagger(L,W,edge);W.vel.multiplyScalar(0.9);
+      if(W.trait==='fighter'){L.fightT=Math.max(L.fightT,0.8);traitFlash(W);}
+      if(!o){L.noTouch=Math.max(L.noTouch,0.35);duelCount.loose++;}   // the loose ball is his for a moment
+      else if(L===o){duelCount.carrierLost++;
+        if(Math.random()<0.3+0.4*edge){releaseBall();touched(W);ball.lastTouch=W;ball.lastKind='deflect';if(lastPass)lastPass.open=false;
+          const f=fwd(L),sp=rnd(1.5,3.2);ball.vel.set(f.x*sp+rnd(-1.5,1.5),0.2,f.z*sp+rnd(-1.5,1.5));L.noTouch=0.4;computeTraj();duelCount.ballLost++;}}   // it runs on loose ahead of him
+      else duelCount.carrierWon++;
+      if(gtime-duelSayT>6&&(isHumanTeam(a.team)&&CTRL[a.team].controlled===a||isHumanTeam(c.team)&&CTRL[c.team].controlled===c)&&Math.random()<0.4){duelSayT=gtime;
+        say(L===o&&!ball.owner?W.short+'이(가) 몸싸움으로 공을 빼냅니다!':W.short+'이(가) 몸싸움에서 이깁니다.');}
+      break;}}
+}
 function separate(){
   for(let i=0;i<players.length;i++){const a=players[i];if(a.sentOff)continue;
     for(let j=i+1;j<players.length;j++){const b=players[j];if(b.sentOff)continue;
@@ -3915,7 +3964,7 @@ function tick(dt){
   for(const p of players)updatePlayer(p,dt);
   officialsUpdate(dt);
   separate();
-  if(state==='play')gkSaves(dt);
+  if(state==='play'){bodyDuels();gkSaves(dt);}
   ballUpdate(dt);
   if(state==='play'){aerialJumps();resolveTouches();processTackles();checkBounds();advantageUpdate(STEP);
     if(ball.owner){possTeam=ball.owner.team;stats.poss[possTeam]+=dt;}else if(ball.lastTouch)possTeam=ball.lastTouch.team;}
@@ -3931,7 +3980,7 @@ function syncAnimState(p){
   else if(p.state==='dive'){a=A.dive;t=p.stateT;ph=p.diveH;side=p.diveSide;}
   else if(p.state==='fall'){a=A.fall;t=p.stateT;}
   else if(p.poseHold==='throw'){a=A.throw;t=0;}
-  else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;else if(p.oAnim==='kick'&&p.kickSide<0)side=-1;}
+  else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;else if(p.oAnim==='kick'&&p.kickSide<0)side=-1;else if(p.oAnim==='stagger')side=p.stagSide||1;}
   else if(p.holding){a=A.gkhold;}
   else if(p.spd>0.35)a=p.celebrating?A.celeb:A.run,t=gtime;
   else a=(p.isGK&&d2(p.pos,ball.pos)<32&&state==='play')?A.gkready:A.idle,t=gtime;
@@ -5465,7 +5514,7 @@ window.__game={
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
-  aiShoot(p){aiShoot(p);},get tackleCount(){return tackleCount;},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
+  aiShoot(p){aiShoot(p);},get tackleCount(){return tackleCount;},get duelCount(){return duelCount;},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
   get tut(){return tut;},tutGo(i){tutGo(i);},startTutorial(){startTutorial();},
   setScore(a,b){score[0]=a;score[1]=b;},get diffs(){return DIFFS;},get teams(){return teams;},get cfg(){return matchCfg;},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
