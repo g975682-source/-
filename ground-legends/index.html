@@ -846,11 +846,28 @@ function statsFor(label,ovr,r){
   st.gk=label==='GK'?clamp(ovr+Math.round(r()*3),45,97):20;
   return st;
 }
+// feet: the preferred foot is 5, the other 1-5 by how the player plays. Wingers, playmakers and dribblers use
+// both feet more, centre backs and keepers less. Drawn from the name, not from r, so every other look and number
+// of a generated player stays as it was.
+const FOOT_ROLE={GK:1.7,CB:2.1,LB:2.3,RB:2.3,LWB:2.4,RWB:2.4,CDM:2.4,CM:2.75,CAM:3.0,LM:2.65,RM:2.65,LW:2.95,RW:2.95,ST:2.65};
+const FOOT_LEFT={LB:0.65,LWB:0.65,LM:0.45,LW:0.3,RW:0.4,RB:0.08,RWB:0.08,RM:0.1,CB:0.2};   // chance of a left-footer
+const FOOT_TRAIT={trickster:0.5,laser:0.3,acrobatic:0.2,fighter:-0.3,widetackler:-0.2};
+function makeFoot(pd){
+  const r=mulberry(hashStr(pd.name+'|'+pd.label+'|foot')),s=pd.st,a=ARCH[pd.label]||ARCH.CM;
+  const left=r()<(FOOT_LEFT[pd.label]??0.17);
+  // how much more (or less) of a technician he is than his position's usual player
+  const tech=pd.label==='GK'?s.pas-pd.ovr-(a.pas||0):(s.dri-pd.ovr-a.dri)*0.45+(s.pas-pd.ovr-a.pas)*0.35+(s.sho-pd.ovr-a.sho)*0.2;
+  const w=clamp(Math.round((FOOT_ROLE[pd.label]||2.8)+tech/4+(pd.ovr-75)/25+(FOOT_TRAIT[pd.trait]||0)+(r()*1.6-0.8)),1,5);
+  return {f:left?'L':'R',w};
+}
+function footOf(p){const pd=p.pd||p;if(!pd.ft||(pd.ft.f!=='L'&&pd.ft.f!=='R'))pd.ft=makeFoot(pd);return pd.ft;}
+function feetTxt(p,short){const f=footOf(p),L=f.f==='L'?5:f.w,R=f.f==='R'?5:f.w;return short?`왼${L}·오${R}`:`왼발 ${L} · 오른발 ${R}`;}
 function makePd(label,ovr,reg,r){
   const db=NAMEDB[reg],g=db.g[Math.floor(r()*db.g.length)],f=db.f[Math.floor(r()*db.f.length)];
-  return {name:reg==='kr'?f+g:g+' '+f,short:reg==='kr'?f+g:f,label,line:LINE[label],ovr,st:statsFor(label,ovr,r),num:0,reg,
+  const pd={name:reg==='kr'?f+g:g+' '+f,short:reg==='kr'?f+g:f,label,line:LINE[label],ovr,st:statsFor(label,ovr,r),num:0,reg,
     skin:SKINS[Math.floor(r()*(reg==='kr'||reg==='jp'?2:SKINS.length))],hair:HAIRS[Math.floor(r()*HAIRS.length)],
     hs:Math.floor(r()*3),boot:BOOTS[Math.floor(r()*BOOTS.length)],h:0.95+r()*0.09,trait:defaultTrait(label,r)};
+  pd.ft=makeFoot(pd);return pd;
 }
 function genPlayer(T,slot,label,salt=0){
   const r=mulberry(hashStr(T.code+'#'+slot+(salt?'~'+salt:'')));
@@ -4303,7 +4320,8 @@ function cardTier(p){return p.legend?'t-legend':p.ovr>=88?'t-elite':p.ovr>=78?''
 function randPos(){const t=POS_W.reduce((a,x)=>a+x[1],0);let r=Math.random()*t;for(const [k,w] of POS_W){r-=w;if(r<=0)return k;}return 'CM';}
 function loadClub(){try{const v=localStorage.getItem(CLUB_KEY);club=v?JSON.parse(v):null;}catch(e){club=null;}
   // older saves gave keepers outfield traits
-  let fixed=false;if(club&&Array.isArray(club.players))for(const p of club.players)if(!traitOk(p.label,p.trait)){p.trait=defaultTrait(p.label,Math.random);fixed=true;}
+  let fixed=false;if(club&&Array.isArray(club.players))for(const p of club.players){if(!traitOk(p.label,p.trait)){p.trait=defaultTrait(p.label,Math.random);fixed=true;}
+    if(!p.ft||(p.ft.f!=='L'&&p.ft.f!=='R')){p.ft=makeFoot(p);fixed=true;}}   // saves from before feet
   if(fixed)saveClub();}
 function saveClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club));}catch(e){}}
 function newCardPlayer(label,ovr,opts={}){
@@ -4768,7 +4786,7 @@ function bigCard(p,extra,kit){
   const rows=g?[['GK',s.gk],['PHY',s.phy],['PAS',s.pas]]:[['PAC',s.pac],['SHO',s.sho],['PAS',s.pas],['DRI',s.dri],['DEF',s.def],['PHY',s.phy]];
   const emb=se?`<span class="bc-season">${embSvg(se.emb)}<b>${se.c}</b></span>`:'';
   return `<div class="bigcard ${se?'season':cardTierOf(p)}" style="${se?seasonVars(se):''}"><div class="bc-top"><div class="bc-meta"><span class="ov">${o}</span><span class="po">${p.label}</span>${emb}${lvBadge(p)}</div>${faceTag(p,kit||cardKit(),o>=80,'bc-face')}</div>`+
-    `${se?`<span class="sn">${se.en.toUpperCase()}</span>`:''}<span class="nm">${esc(p.name)}</span><span class="tr">${TRAITS[p.trait]?TRAITS[p.trait].name:'특성 없음'}</span><span class="skst" title="개인기">${g?'':'개인기 '+'★'.repeat(skillStars({st:s,trait:p.trait}))}</span><div class="stg">${rows.map(([k,v])=>`<span>${v} ${k}</span>`).join('')}</div>${extra||''}</div>`;
+    `${se?`<span class="sn">${se.en.toUpperCase()}</span>`:''}<span class="nm">${esc(p.name)}</span><span class="tr">${TRAITS[p.trait]?TRAITS[p.trait].name:'특성 없음'}</span><span class="skst" title="개인기 · 왼발/오른발">${g?'':'개인기 '+'★'.repeat(skillStars({st:s,trait:p.trait}))+' · '}${feetTxt(p,true)}</span><div class="stg">${rows.map(([k,v])=>`<span>${v} ${k}</span>`).join('')}</div>${extra||''}</div>`;
 }
 
 function goClub(tab,msg){
@@ -4844,7 +4862,7 @@ function clubSquadHtml(){
   const list=club.players.slice().sort((a,b)=>(inXI.has(b.id)-inXI.has(a.id))||eo(b)-eo(a)).map(p=>`<button class="prow ${selPid===p.id?'on':''} ${selSlot>=0&&club.lineup[selSlot]===p.id?'swap-out':''} ${swapPid===p.id?'swap-in':''}" data-pid="${p.id}">${faceTag(p,club.kit,eo(p)>=80,'thumb')}<span class="o">${eo(p)}</span><span class="ps">${p.label}</span><span class="n">${p.num} ${p.name}${p.legend?' ★':''} ${lvBadge(p)}</span><span class="tchip">${TRAITS[p.trait]?TRAITS[p.trait].ab:'-'}</span><span class="xi">${inXI.has(p.id)?'XI':''}</span></button>`).join('');
   const sp=selPid!=null?byId(selPid):null;
   const detail=sp?`<div class="panel"><h3>선수 정보</h3><div class="detail">${bigCard(sp)}<div class="info">
-      <div class="kv"><span>포지션</span><b>${sp.label}</b><span>키 · 체형</span><b>${bodyOf(sp).cm}cm · ${bodyLabel(bodyOf(sp))}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
+      <div class="kv"><span>포지션</span><b>${sp.label}</b><span>주발</span><b>${feetTxt(sp)}</b><span>키 · 체형</span><b>${bodyOf(sp).cm}cm · ${bodyLabel(bodyOf(sp))}</b>${seasonOf(sp)?`<span>시즌</span><b>${seasonOf(sp).c} · ${seasonOf(sp).ko}</b>`:''}<span>강화 단계</span><b>+${lvOf(sp)} (기본 OVR ${sp.ovr})</b><span>시장 가치</span><b>${fmtBP(value(eo(sp)))} BP</b><span>주급</span><b>${fmtBP(wageOf(sp))} BP</b><span>영입 경로</span><b>${sp.from||'-'}</b></div>
       <p style="margin:0;font-size:13px;line-height:1.6"><b style="color:var(--gold)">${TRAITS[sp.trait]?TRAITS[sp.trait].name:'특성 없음'}</b><br>${TRAITS[sp.trait]?TRAITS[sp.trait].desc:''}</p>
       <div class="row"><button class="btn primary" data-act="trait">특성 변경</button><button class="btn" data-act="toenh">강화하기</button><button class="btn" data-act="sell">${resetArm==='sell'+sp.id?'한 번 더 누르면 판매':'판매 '+fmtBP(sellPrice(sp))+' BP'}</button></div>
     </div></div></div>`:`<div class="panel"><h3>선수 정보</h3><p class="foot">오른쪽 목록에서 선수를 고르면 능력치와 특성을 볼 수 있습니다. 경기장 위 카드를 누른 뒤 목록의 선수를 누르면 그 자리에 배치됩니다.</p></div>`;
