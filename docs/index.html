@@ -3335,7 +3335,7 @@ function fkAimUpdate(dt){
       const t=SP.taker,dir=inp.lengthSq()>0.01?inp.clone().normalize():d.clone();
       t.pos.set(b.x-dir.x*0.62,0,b.z-dir.z*0.62);t.face=Math.atan2(dir.x,dir.z);
       const md=e.act==='pass'?'ground':e.act==='through'?'through':'lob';
-      passTo(t,choosePassTarget(t,dir,md),md,clamp(e.held/0.9,0.1,1),false,dir);return;}
+      passTo(t,choosePassTarget(t,dir,md),md,clamp(e.held/holdFull(e.act),0.1,1),false,dir);return;}
   }
   if(inp.lengthSq()>0.01){
     fk.aim.z+=inp.dot(r)*Math.sign(r.z||1)*3.4*dt;fk.aim.y+=inp.dot(d)*1.7*dt;
@@ -3576,7 +3576,7 @@ function resetCtrls(){for(const K of CTRL){for(const k of ACTS)K.act[k]=false;K.
 const joy={x:0,y:0,active:false};
 // each edge carries the Q/Z/C state at the moment it happened, so releasing D and Q in the same frame is still a chip
 // seconds of holding for a full gauge: shots fill faster than passes
-const FULL_HOLD={shoot:0.3};const holdFull=a=>FULL_HOLD[a]||0.9;
+const FULL_HOLD=0.3;const holdFull=a=>FULL_HOLD;   // every gauge (shot, pass, through ball, lob) fills in 0.3 s
 const modsOf=L=>({q:!!L.act.switch,z:!!L.act.z,c:!!L.act.c,f:!!L.act.f});
 function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=performance.now();if(a==='skill')L.skPress=true;L.downG=L.downG||{};L.downG[a]=gtime;   // seen even if released before the next frame
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
@@ -3866,7 +3866,9 @@ function psBands(w){const g=w/2,y=g+0.075,o=y+0.075;return [g,y,o];}
 function psStart(L){const p=L.controlled,w=clamp(0.1+(p.st.sho-50)/50*0.12,0.1,0.22),c=rnd(0.4+w/2,0.92-w/2);
   L.ps={t:0,w,c,wall:performance.now()};const el=$('#psGauge');el.hidden=false;el.className='';
   const [g,y,o]=psBands(w),P=v=>(clamp(v,0,1)*100).toFixed(1)+'%',R='#e2453c',O='#f39436',Y='#f5d63d',G='#3fdc82';
-  const e=0.014,st=[[c-o,R,O],[c-y,O,Y],[c-g,Y,G],[c+g,G,Y],[c+y,Y,O],[c+o,O,R]].map(([x,a,b])=>`${a} ${P(x-e)},${b} ${P(x+e)}`).join(',');   // soft edges: a gradient, with the bands still readable
+  // one continuous gradient: each colour is pure in the middle of its band and blends into the next across the band
+  // edge, so the colour under the bar still tells roughly what it will score (the bands themselves are unchanged)
+  const st=[[c-o-0.05,R],[c-(y+o)/2,O],[c-(g+y)/2,Y],[c-g*0.45,G],[c+g*0.45,G],[c+(g+y)/2,Y],[c+(y+o)/2,O],[c+o+0.05,R]].map(([x,a])=>`${a} ${P(x)}`).join(',');
   $('#psGreen').style.background=`linear-gradient(90deg,${R} 0,${st},${R} 100%)`;
   $('#psLbl').textContent='파워 슛';psDraw(L);}
 function psQuality(s,x){const d=Math.abs(x-s.c),[g,y,o]=psBands(s.w);return d<=g?100:d<=y?70:d<=o?50:30;}
