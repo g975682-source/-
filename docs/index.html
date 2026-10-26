@@ -3475,15 +3475,63 @@ function goalUpdate(dt){
 }
 function afterGoal(){kickoff(1-goalInfo.team);}
 function fmtClock(){const s=Math.floor(clock),m=Math.floor(s/60);return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
-function checkPeriodEnd(){
-  if(state!=='play')return;
+// End of a half. The Laws (IFAB Law 7) leave added time to the referee and require only a penalty kick to be completed
+// once time is up; a referee may blow in the middle of an attack (Brazil v Sweden 1978: Zico's header off a corner,
+// whistled out in the air), but most wait for the danger to pass. Here: when time is up and one side has a
+// promising attack, that attack is played out and the half ends when it is over. It is over when the other side or
+// a keeper has the ball, when the danger has been gone for 0.7 s, when the ball goes out or in, or after 12 s at
+// most. A corner or a free kick within 32 m won in that attack is taken (one restart only); a penalty is always
+// taken and ends when the ball is saved and stops, goes out, goes in or is touched by anyone but the kicker and the
+// keeper (no rebounds), whatever the time.
+const LAST_MAX=12,LAST_CALM=0.7;
+let lastPlay=null;
+function goalSideDefs(o){const T=teams[o.team];let n=0;for(const q of teams[1-o.team].players)if(!q.isGK&&!q.sentOff&&(q.pos.x-o.pos.x)*T.dir>0&&Math.abs(q.pos.z-o.pos.z)<20)n++;return n;}
+function attackDanger(){   // the side with a promising attack right now, or -1
+  if(state==='setpiece'&&SP){const gx=teams[SP.team].dir*HL,d=Math.hypot(gx-SP.ballPos.x,SP.ballPos.z);
+    return SP.type==='penalty'||SP.type==='corner'||SP.type==='freekick'&&d<32?SP.team:-1;}
+  if(state!=='play')return -1;
+  const o=ball.owner;
+  if(o){if(o.holding)return -1;const T=teams[o.team],xb=ball.pos.x*T.dir/HL;
+    if(xb>0.35)return o.team;                                                         // in the final third
+    if(xb>-0.1&&o.vel.x*T.dir>2.5&&goalSideDefs(o)<=2)return o.team;                  // a break with few back
+    return -1;}
+  const lt=ball.lastTouch;if(!lt)return -1;const T=teams[lt.team],xb=ball.pos.x*T.dir/HL,vx=ball.vel.x*T.dir;
+  if(ball.lastKind==='shot'&&ball.shotBy===lt&&vx>1)return lt.team;                  // a shot on its way
+  if(lastPass&&lastPass.open&&lastPass.team===lt.team&&(xb>0.3||vx>3&&xb>0))return lt.team;   // a pass or cross going forward
+  for(const ti of [0,1])if(inBox(ball.pos,ti))return 1-ti;                            // loose in a box
+  return -1;
+}
+function checkPeriodEnd(dt){
+  if(state!=='play'&&state!=='setpiece'&&state!=='dead')return;
   const end=half===1?45*60+stoppage[0]*60:90*60+stoppage[1]*60;
-  if(clock>=end){
-    advantage=null;pendingCards=[];
-    if(half===1){state='halftime';halfT=0;SND.whistle(2,true);if(human&&!net)showHalftime();if(net)banner('하프타임','후반전이 곧 시작됩니다');say('전반전이 끝났습니다.');}
-    else{if(needShootout()){SND.whistle(3,true);say('경기 종료! 무승부로 승부차기에 들어갑니다.');startShootout();return;}
-      state='fulltime';halfT=0;SND.whistle(3,true);say('경기 종료!');if(net)netHostEnd();else if(human||mode==='match')showResult();}
-  }
+  if(clock<end){lastPlay=null;return;}
+  const L=lastPlay;
+  if(!L){const t=attackDanger();if(t<0){endPeriod();return;}
+    lastPlay={team:t,t0:gtime,calm:0,lost:0,sp:state==='setpiece'?SP:null,restarts:0,pen:null};
+    say('시간이 다 됐지만 '+teams[t].def.name+'의 마지막 공격까지 봅니다.');return;}
+  const penOn=!!(L.pen||L.sp&&L.sp.type==='penalty');
+  if(!penOn&&gtime-L.t0>LAST_MAX){endPeriod();return;}
+  if(state==='dead')return;                                    // a restart is being set up: judge it when it is ready
+  if(state==='setpiece'){
+    if(SP===L.sp)return;
+    if(SP.type!=='kickoff'&&!L.pen&&L.restarts===0&&attackDanger()===L.team){L.sp=SP;L.restarts++;return;}
+    endPeriod();return;}                                       // the restart goes the other way, or it is the kick-off after a goal
+  if(L.sp&&L.sp.type==='penalty'&&!L.pen)L.pen={kicker:ball.lastTouch,gk:teams[1-L.team].gk};
+  L.sp=null;
+  if(L.pen){const b=ball,lt=b.lastTouch;
+    if(b.owner||lt!==L.pen.kicker&&lt!==L.pen.gk||Math.hypot(b.vel.x,b.vel.z)<1.5&&b.pos.y<0.3)endPeriod();
+    return;}
+  const o=ball.owner;
+  if(o&&(o.team!==L.team&&(L.lost+=dt)>0.25||o.holding&&o.team!==L.team)){endPeriod();return;}
+  if(!o||o.team===L.team)L.lost=0;
+  if(attackDanger()===L.team)L.calm=0;else if((L.calm+=dt)>LAST_CALM)endPeriod();
+}
+function endPeriod(){
+  lastPlay=null;advantage=null;pendingCards=[];
+  if(SP){if(SP.taker)SP.taker.poseHold=null;SP=null;updateSpHint();}   // it can end before a restart is taken
+  if(half===1){state='halftime';halfT=0;SND.whistle(2,true);if(human&&!net)showHalftime();if(net)banner('하프타임','후반전이 곧 시작됩니다');say('전반전이 끝났습니다.');}
+  else{if(needShootout()){SND.whistle(3,true);say('경기 종료! 무승부로 승부차기에 들어갑니다.');startShootout();return;}
+    state='fulltime';halfT=0;SND.whistle(3,true);say('경기 종료!');if(net)netHostEnd();else if(human||mode==='match')showResult();}
 }
 function startSecondHalf(){
   $('#halftime').hidden=true;half=2;clock=45*60;
@@ -3845,7 +3893,7 @@ function tick(dt){
   if(state==='halftime'){halfT+=dt;if((!human&&halfT>2.5)||(net&&halfT>4))startSecondHalf();return;}
   if(state==='fulltime'){halfT+=dt;if(mode==='menu'&&halfT>4)startDemo();return;}
   if(tut&&tut.done&&state!=='replay'){tut.wait-=dt;if(tut.wait<=0)tutGo(tut.i+1);}   // game time, so pausing holds it
-  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut&&!prac){clock+=dt*clockRate;checkPeriodEnd();if(state==='halftime'||state==='fulltime')return;}
+  if((state==='play'||state==='setpiece'||state==='dead')&&!shoot&&!tut&&!prac){clock+=dt*clockRate;checkPeriodEnd(dt);if(state==='halftime'||state==='fulltime')return;}
   for(const p of players){p.wantTackle=false;p.faceBall=false;p.shielding=false;p.faceUp=false;}
   if(human&&!(net&&net.role==='guest')){gestureUpdate(LC(),dt);psUpdate(LC(),dt);}   // drops a half-keyed move when play stops
   if(!ball.owner){computeTraj();for(const p of players)calcIntercept(p);}
