@@ -5430,7 +5430,8 @@ function netHostSend(){
   if(!net||net.role!=='host'||net.ended)return;
   const now=performance.now();
   if(net.fx.length&&now-net.fxAt>200){net.fxAt=now;const f=net.fx.splice(0,12);net.room.emit('fx',{f}).catch(()=>{});}
-  if(now-net.lastSend<50)return;net.lastSend=now;
+  // a fresh state every frame: the platform coalesces presence and sends the latest about 30 times a second
+  if(now-net.lastSend<15)return;net.lastSend=now;
   const R=officials.ref,fs=foulSeq,f=SP&&SP.fk;
   const meta=[3,STATES.indexOf(state),Math.round(clock*10),half,score[0],score[1],stoppage[0],stoppage[1],possTeam,idxOf(CTRL[0].controlled),idxOf(CTRL[1].controlled),idxOf(intended),teams[0].dir,
     SP?SPT.indexOf(SP.type):-1,SP?idxOf(SP.taker):-1,SP?Math.round(SP.ballPos.x*100):0,SP?Math.round(SP.ballPos.z*100):0,SP?Math.round(SP.aim*100):0,
@@ -5443,7 +5444,9 @@ function netHostSend(){
     else out.push(Math.round(p.pos.x*20),Math.round(p.y*20),Math.round(p.pos.z*20),Math.round(p.face*100),p.visA|0,Math.round((p.visT||0)*100),Math.round((p.visPh||0)*10),Math.round((p.spd||0)*10),p.visSide|0,p.rig.root.visible?1:0);}
   if(src){const b=o+25*9;out.push(Math.round(src[b]*100),Math.round(src[b+1]*100),Math.round(src[b+2]*100),Math.round(src[b+3]*1000),Math.round(src[b+4]*1000),Math.round(src[b+5]*1000),Math.round(src[b+6]*1000));}
   else out.push(Math.round(ball.pos.x*100),Math.round(ball.pos.y*100),Math.round(ball.pos.z*100),Math.round(ball.quat.x*1000),Math.round(ball.quat.y*1000),Math.round(ball.quat.z*1000),Math.round(ball.quat.w*1000));
-  net.room.presence({h:out}).catch(()=>{});
+  // last: the host's clock (ms) when this was taken, so the guest can play snapshots back at the pace they were taken
+  out.push(Math.round(now-net.started));
+  net.room.presence({h:out}).catch(()=>{net.presErr=(net.presErr||0)+1;});
 }
 function netFx(item){if(net&&net.role==='host'&&mode==='match'&&!net.ended){net.fx.push(item);if(net.fx.length>30)net.fx.shift();}}
 function netHostEnd(){
@@ -5471,20 +5474,46 @@ function netLocalEdge(type,a,held){
 }
 function netGuestFrame(dt){
   gtime+=dt;
-  // my input: a world-space move vector from my own camera, held keys and the last few key edges
+  // my input: a world-space move vector from my own camera, held keys and the last few key edges.
+  // Sent as soon as a key changes (the platform coalesces presence), a moving stick at most every 30 ms
   const now=performance.now();
-  if(now-net.inT>45){net.inT=now;const mv=withC(LC(),moveInput),L=LC();let bits=0;ACTS.forEach((a,i)=>{if(L.act[a])bits|=1<<i;});
-    net.room.presence({g:{mv:[Math.round(mv.x*100)/100,Math.round(mv.z*100)/100],k:bits,ev:net.ev}}).catch(()=>{});}
+  const mv=withC(LC(),moveInput),L=LC();let bits=0;ACTS.forEach((a,i)=>{if(L.act[a])bits|=1<<i;});
+  const mx=Math.round(mv.x*100)/100,mz=Math.round(mv.z*100)/100;
+  if(bits!==net.inBits||net.seq!==net.inSeq||((mx!==net.inMx||mz!==net.inMz)&&now-net.inT>30)||now-net.inT>250){
+    net.inT=now;net.inBits=bits;net.inSeq=net.seq;net.inMx=mx;net.inMz=mz;
+    net.room.presence({g:{mv:[mx,mz],k:bits,ev:net.ev}}).catch(()=>{});}
   if(state==='play')gestureUpdate(LC(),dt);
   psUpdate(LC(),dt);
   LC().inq.length=0;
   const hp=opponentPeer(),h=hp&&hp.presence&&hp.presence.h;
-  if(h&&Array.isArray(h)&&h!==net.lastH){net.lastH=h;net.snaps.push({t:now,a:h});if(net.snaps.length>3)net.snaps.shift();net.lastSnapAt=now;}
+  if(h&&Array.isArray(h)&&h!==net.lastH){net.lastH=h;
+    // the host's clock rides last (34 meta + 26 actors x 10 + 7 ball); an older host has none
+    const ht=h.length===34+ACTORS.length*10+8?Number(h[h.length-1]):NaN;
+    const sn={t:now,ht:Number.isFinite(ht)?ht:null,a:h},last=net.snaps[net.snaps.length-1];
+    // a host clock that runs backwards (a host page reload) starts the buffer over
+    if(last&&sn.ht!==null&&last.ht!==null&&sn.ht<=last.ht){net.snaps.length=0;if(net.offs)net.offs.length=0;}
+    net.snaps.push(sn);if(net.snaps.length>40)net.snaps.shift();net.lastSnapAt=now;
+    if(sn.ht!==null){(net.offs||(net.offs=[])).push([now,now-sn.ht,last&&last.ht!==null?sn.ht-last.ht:33]);while(net.offs.length&&now-net.offs[0][0]>3000)net.offs.shift();}}
   if(!net.ended&&now-net.lastSnapAt>8000&&now-net.started>10000){net.ended=true;state='fulltime';showResult();$('#resBody').insertAdjacentHTML('afterbegin','<p class="foot" style="text-align:center;color:var(--alert)">경기를 진행하던 상대 감독의 연결이 끊겼습니다.</p>');return;}
   if(!net.snaps.length)return;
-  const cur=net.snaps[net.snaps.length-1],prev=net.snaps.length>1?net.snaps[net.snaps.length-2]:cur;
-  const span=Math.max(30,cur.t-prev.t),al=clamp((now-cur.t)/span,0,1);
-  applySnap(prev.a,cur.a,al);
+  const S=net.snaps,cur=S[S.length-1];
+  if(cur.ht===null||!net.offs||!net.offs.length){
+    const prev=S.length>1?S[S.length-2]:cur,span=Math.max(30,cur.t-prev.t),al=clamp((now-cur.t)/span,0,1);
+    applySnap(prev.a,cur.a,al);return;}
+  // playout buffer: show the host's state from D ms ago on the host's clock, where D covers the gap between snapshots
+  // and how unevenly they arrive over the last 3 s (the fastest arrival sets the clock offset)
+  let off=Infinity;const ds=[],gs=[];for(const o of net.offs){if(o[1]<off)off=o[1];gs.push(o[2]);}
+  for(const o of net.offs)ds.push(o[1]-off);ds.sort((a,b)=>a-b);gs.sort((a,b)=>a-b);
+  const D=clamp(gs[Math.floor(gs.length*0.75)]+ds[Math.floor(ds.length*0.9)]+4,40,350),target=now-off-D;net.D=D;
+  // follow the target smoothly (a little faster or slower), jump only when far off
+  // (by real elapsed time: the frame's dt is capped at 50 ms)
+  const el=net.rtAt?now-net.rtAt:0;net.rtAt=now;
+  if(net.rt===undefined||Math.abs(target-net.rt)>400)net.rt=target;else net.rt+=el+(target-net.rt)*Math.min(1,el/500);
+  const rt=net.rt;let i=S.length-1;while(i>0&&(S[i-1].ht===null||S[i-1].ht>rt))i--;
+  // S[i-1] is the last snapshot at or before rt; before the oldest or past the newest, hold that one
+  if(i===0||rt>=cur.ht){const e=i===0?S[0]:cur;applySnap(e.a,e.a,1);return;}
+  const a=S[i-1],b=S[i];
+  applySnap(a.a,b.a,clamp((rt-a.ht)/Math.max(1,b.ht-a.ht),0,1));
 }
 function applySnap(A0,A1,al){
   const n=(i,d)=>{const v=Number(A1[i]);return Number.isFinite(v)?v:d;};
