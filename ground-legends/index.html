@@ -2269,6 +2269,16 @@ function gkThink(p,dt){
   if(ball.owner===p)return;
   const bp=ball.pos;
   if(T.gkRush&&ball.owner&&ball.owner.team!==p.team&&Math.hypot(bp.x-gx,bp.z)<30){moveTo(p,ball.owner.pos,1);return;}
+  // a carrier running in on goal inside the box: off the line at the ball, and down at his feet when in reach.
+  // Holding the line against him would let him walk the ball past the keeper into the net.
+  const c=ball.owner;
+  if(c&&c.team!==p.team&&!c.holding&&state==='play'&&p.state==='normal'&&inBox(c.pos,p.team)&&Math.abs(c.pos.z)<GW+4){
+    const cx=c.pos.x-gx,cd=Math.hypot(cx,c.pos.z)||1,toward=-(c.vel.x*cx+c.vel.z*c.pos.z)/cd;   // his speed toward the goal centre
+    if(cd<10&&(toward>1||cd<5)){
+      if(d2(p.pos,bp)<1.6&&!(p.smCD>0)){gkSmother(p,c);return;}
+      moveTo(p,bp,1);return;
+    }
+  }
   if(!ball.owner&&inBox(bp,p.team)&&p.itT<3){
     let ob=1e9;for(const o of teams[1-p.team].players)ob=Math.min(ob,o.itT);
     let mb=1e9;for(const o of T.players)if(o!==p)mb=Math.min(mb,o.itT);
@@ -2284,6 +2294,24 @@ function gkThink(p,dt){
   tmpA.z=clamp(tmpA.z,-GW-0.6,GW+0.6);
   if((tmpA.x-gx)*T.dir<0.3)tmpA.x=gx+T.dir*0.3;
   moveTo(p,tmpA,de?1:d<30?0.85:0.5);
+}
+// the keeper goes down at the carrier's feet: he gathers the ball, or the carrier keeps it and the keeper is on
+// the ground for a moment. His handling against the carrier's dribbling; a skill move or a protected ball beats it
+// more often
+function gkSmother(g,c){
+  g.smCD=1.4;smotherCount.tries++;
+  const T=teams[g.team],gkr=g.st.gk+(T.human?0:(T.ai.gk||0));
+  const pr=clamp(0.62+(gkr-c.st.dri)*0.012-(c.sk?0.25:0)-(c.protect>0?0.15:0),0.2,0.88);
+  const dx=ball.pos.x-g.pos.x,dz=ball.pos.z-g.pos.z,dl=Math.hypot(dx,dz)||1,sp=clamp(dl/0.25,2,5.5);
+  g.state='dive';g.stateT=0;g.diveV.set(dx/dl*sp,0,dz/dl*sp);g.diveH=0.25;
+  const lx=new V3(Math.cos(g.face),0,-Math.sin(g.face));g.diveSide=Math.sign(lx.x*dx+lx.z*dz)||1;
+  if(Math.random()<pr){
+    smotherCount.won++;c.stun=Math.max(c.stun,0.5);c.noTouch=0.5;
+    gkCatch(g);say(pick([g.short+' 골키퍼가 발밑으로 몸을 던져 공을 잡아냅니다!','골키퍼가 뛰쳐나와 공을 덮칩니다! '+g.short,'일대일 상황, '+g.short+' 골키퍼가 막아냅니다!']));SND.ooh();
+  }else{
+    g.noTouch=0.9;c.protect=Math.max(c.protect,0.3);
+    if(isHumanTeam(c.team)||isHumanTeam(g.team))say(pick([c.short+'이(가) 골키퍼를 제칩니다!','골키퍼가 몸을 던졌지만 '+c.short+'이(가) 피해 갑니다!']));
+  }
 }
 function shotQuality(p){
   const T=teams[p.team],gx=T.dir*HL,dx=gx-p.pos.x,dz=-p.pos.z,d=Math.hypot(dx,dz)||1;
@@ -2881,7 +2909,7 @@ function touch(p){
 }
 
 // what happens to the ball when a tackle gets it: won clean, poked away, or a ricochet that pops up loose
-const tackleCount={};
+const tackleCount={},smotherCount={tries:0,won:0};
 function tackleBall(d,o,f,edge){const res=tackleBallR(d,o,f,edge);tackleCount[res]=(tackleCount[res]||0)+1;return res;}
 function tackleBallR(d,o,f,edge){
   const r=Math.random(),clean=0.42+edge*0.2,poke=clean+0.3;
@@ -3118,7 +3146,7 @@ function updatePlayer(p,dt){
       p.pos.z+=p.vel.z*dt;p.face=0;p.spd=Math.abs(p.vel.z);p.phase+=(p.spd*1.2+1.5)*dt;}
     return;
   }
-  p.noTouch=Math.max(0,p.noTouch-dt);p.protect-=dt;p.postSkT-=dt;p.cdTackle-=dt;p.cdSkill-=dt;p.stun-=dt;p.duelCD=(p.duelCD||0)-dt;p.boostT-=dt;p.fightT-=dt;
+  p.noTouch=Math.max(0,p.noTouch-dt);p.protect-=dt;p.postSkT-=dt;p.cdTackle-=dt;p.cdSkill-=dt;p.stun-=dt;p.duelCD=(p.duelCD||0)-dt;p.smCD=(p.smCD||0)-dt;p.boostT-=dt;p.fightT-=dt;
   traitTick(p,dt);
   if(p.state==='slide'){slideUpdate(p,dt);}
   else if(p.state==='tackle'){tackleUpdate(p,dt);}
@@ -5692,7 +5720,7 @@ window.__game={
   setCtl(p){setControlled(p);},get ctrl(){return CTRL;},say(t){say(t);},
   faceDbg(p,kit,up,gk){return renderFace({p,kit,up,gk});},
   skill(p,k,s,o){return performSkill(p,SKI[k],s||1,o||{});},get skills(){return SKILLS;},get skillCount(){return skillCount;},stars(p){return skillStars(p);},match(t,m){return matchGesture(t,m||'').map(P=>SKILLS[P.id].k+(P.s>0?'+':'-'));},cardDbg(p){return bigCard(p);},pump(){pumpFaces();},
-  aiShoot(p){aiShoot(p);},get tackleCount(){return tackleCount;},get duelCount(){return duelCount;},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
+  aiShoot(p){aiShoot(p);},get tackleCount(){return tackleCount;},get smotherCount(){return smotherCount;},get duelCount(){return duelCount;},get goalLog(){return goalLog;},powerShot(p,q){withC(CTRL[p.team],()=>doShoot(p,0.95,null,false,false,{power:true,pq:q}));},get ps(){return LC().ps;},
   get tut(){return tut;},tutGo(i){tutGo(i);},startTutorial(){startTutorial();},
   setScore(a,b){score[0]=a;score[1]=b;},get diffs(){return DIFFS;},get teams(){return teams;},get cfg(){return matchCfg;},
   give(ti,slot){const p=teams[ti].players.find(q=>q.slot===slot);SP=null;state='play';releaseBall();ball.pos.set(p.pos.x,BR,p.pos.z);ball.vel.set(0,0,0);gainPossession(p);return p;},
