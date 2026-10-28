@@ -44,6 +44,14 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-
 .lb-info>b{font-family:inherit}
 .lb-lv{background:#1f7ae0;padding:0 8px;font-size:16px;font-weight:700}
 .lb-club{font-size:14px;opacity:.85;overflow:hidden;text-overflow:ellipsis}
+.lb-acct{flex:none;display:flex;align-items:center;gap:6px;height:24px;padding:0 9px 0 4px;border:1px solid rgba(255,255,255,.28);font:600 12px var(--f-body);color:rgba(255,255,255,.78)}
+.lb-acct.on{border-color:rgba(43,212,125,.7);color:#fff}
+.lb-acct.bad{border-color:rgba(255,79,98,.7)}
+.lb-acct img{width:18px;height:18px;border-radius:50%;object-fit:cover}
+.lb-acct::before{content:'';width:7px;height:7px;margin-left:4px;border-radius:50%;background:rgba(255,255,255,.4)}
+.lb-acct.on::before{background:#2bd47d}.lb-acct.bad::before{background:var(--alert)}
+.lb-acct:has(img)::before{display:none}
+@media (max-width:720px){.lb-acct{padding:0 4px}.lb-acct span{display:none}}
 .lb-sp{flex:1}
 .lb-stat{display:flex;align-items:baseline;gap:6px}.lb-stat i{font-style:normal;font-size:14px;opacity:.8}.lb-stat b{font-size:19px}
 .lb-bp b{color:var(--gold)}
@@ -447,7 +455,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     <div class="lb-crest" title="그라운드 레전드"><span class="crest" id="lbCrestIn"></span></div>
     <div class="lb-main">
       <div class="lb-info">
-        <b id="lbNick"></b><span class="lb-lv" id="lbLv">LV 1</span><span class="lb-club" id="lbClubName"></span>
+        <b id="lbNick"></b><span class="lb-lv" id="lbLv">LV 1</span><span class="lb-club" id="lbClubName"></span><span class="lb-acct" id="lbAcct" hidden></span>
         <span class="lb-sp"></span>
         <span class="lb-stat"><i>구단 OVR</i><b id="lbOvr">—</b></span>
         <span class="lb-stat"><i id="lbSeason">구단 없음</i></span>
@@ -4199,7 +4207,7 @@ function showResult(){
 /* ================= menus ================= */
 const sel={home:0,away:2,formH:'4-3-3',formA:'4-2-3-1',diff:'pro',minutes:5,mode:'play'};
 try{const s=JSON.parse(localStorage.getItem('gl-sel')||'null');if(s)Object.assign(sel,s);}catch(e){}
-function saveSel(){try{localStorage.setItem('gl-sel',JSON.stringify(sel));}catch(e){}}
+function saveSel(){try{localStorage.setItem('gl-sel',JSON.stringify(sel));}catch(e){}acctDirty();}
 function tier(o){return o>=88?'t-elite':o>=80?'':'t-silver';}
 function renderCol(side){
   const ti=side?sel.away:sel.home,T=TEAMS[ti],form=side?sel.formA:sel.formH,ros=rosterFor(T,form,!side),ovr=teamOvr(ros);
@@ -4221,7 +4229,7 @@ function renderSquad(){
 $('#squad').addEventListener('click',e=>{
   const c=e.target.closest('[data-qslot]');
   if(c){const T=TEAMS[sel.home],i=+c.dataset.qslot,p=rosterFor(T,sel.formH,true)[i];
-    openTraitPicker(p,k=>{quickTraits[T.code+'#'+i]=k;try{localStorage.setItem('gl-traits',JSON.stringify(quickTraits));}catch(err){}renderSquad();});return;}
+    openTraitPicker(p,k=>{quickTraits[T.code+'#'+i]=k;try{localStorage.setItem('gl-traits',JSON.stringify(quickTraits));}catch(err){}acctDirty();renderSquad();});return;}
   const b=e.target.closest('button');if(!b)return;
   if(b.dataset.d){const side=+b.dataset.side,k=side?'away':'home';sel[k]=(sel[k]+(+b.dataset.d)+TEAMS.length)%TEAMS.length;}
   else if(b.dataset.form){sel[+b.dataset.side?'formA':'formH']=b.dataset.form;}
@@ -4324,7 +4332,7 @@ function pracSet(kind){
 // the ▲ on the player card: pick who to practise with from my side
 function pracPick(p){
   if(!prac||!p||p===prac.p)return;const o=prac.p;p.pos.copy(o.pos);p.face=o.face;prac.p=p;
-  try{localStorage.setItem('gl-prac-p',p.name);}catch(e){}
+  try{localStorage.setItem('gl-prac-p',p.name);}catch(e){}acctDirty();
   pracStage(false);updateLobbyCard();
 }
 function renderPracList(){
@@ -4342,6 +4350,8 @@ function updateLobbyCard(){
   $('#lbPrac').textContent=prac?'연습 종료':'연습 시작';
 }
 function updateLobby(){
+  if(acct&&acct.pending&&acctCanApply()){const d=acct.pending;acct.pending=null;acctApply(d);}
+  renderAcct();
   loadClub();const has=!!club;
   $('#lbNick').textContent=nick;
   const played=has&&club.league?(club.season-1)*14+(club.league.week||0):0;
@@ -4382,7 +4392,7 @@ function toggleMute(){SND.muted=!SND.muted;$('#btnMute').textContent='소리: '+
 $('#btnMute').onclick=toggleMute;
 $('#btnTut').onclick=()=>{startTutorial();};
 $('#tutStart').onclick=()=>{$('#tutAsk').hidden=true;startTutorial();};
-$('#tutLater').onclick=()=>{$('#tutAsk').hidden=true;try{localStorage.setItem(TUT_KEY,'later');}catch(e){}};
+$('#tutLater').onclick=()=>{$('#tutAsk').hidden=true;try{localStorage.setItem(TUT_KEY,'later');}catch(e){}acctDirty();};
 $('#tdClose').onclick=()=>{$('#tutDone').hidden=true;};
 $('#tdPlay').onclick=()=>{$('#tutDone').hidden=true;$('#btnPlay').click();};
 $('#tdClub').onclick=()=>{$('#tutDone').hidden=true;$('#btnClub').click();};
@@ -4392,7 +4402,7 @@ document.body.addEventListener('click',e=>{const b=e.target.closest('[data-tut]'
 const GUIDES=['전체','세트피스만','끄기'];let guideMode=0;
 try{guideMode=clamp(parseInt(localStorage.getItem('gl-guide')||'0',10)||0,0,2);}catch(e){}
 function applyGuide(){document.body.dataset.guide=String(guideMode);$('#btnGuide').textContent='가이드: '+GUIDES[guideMode];}
-function cycleGuide(){guideMode=(guideMode+1)%3;try{localStorage.setItem('gl-guide',String(guideMode));}catch(e){}applyGuide();if(mode==='match')say('가이드 표시: '+GUIDES[guideMode]+' (H로 변경)');}
+function cycleGuide(){guideMode=(guideMode+1)%3;try{localStorage.setItem('gl-guide',String(guideMode));}catch(e){}acctDirty();applyGuide();if(mode==='match')say('가이드 표시: '+GUIDES[guideMode]+' (H로 변경)');}
 $('#btnGuide').onclick=cycleGuide;applyGuide();
 function togglePause(){if(net){$('#pause').hidden=!$('#pause').hidden;$('#btnQuit').textContent='경기 나가기 (기권)';$('#btnResume').textContent='경기로 돌아가기';return;}$('#btnResume').textContent='계속하기';paused=!paused;$('#pause').hidden=!paused;$('#btnQuit').textContent=tut?'튜토리얼 끝내기':matchCfg&&matchCfg.club?'기권하고 구단으로 (0:3 패)':'경기 포기 · 메인으로';const L=LC();for(const k of ACTS)L.act[k]=false;L.inq.length=0;if(SND.ctx){paused?SND.ctx.suspend():SND.ctx.resume();}}
 
@@ -4497,6 +4507,7 @@ $('#tpClose').onclick=()=>{$('#traitPick').hidden=true;};
 /* ================= club management ================= */
 const CLUB_KEY='gl-club-v1';
 let club=null,clubTab='home',selSlot=-1,selPid=null,swapPid=null,resetArm=false;   // selSlot: the place being changed, swapPid: who goes in
+let acct=null;   // the account save (see "account save" below); null until it starts
 const KIT_CHOICES=TEAMS.map(t=>t.home).concat([
   {shirt:'#0f7a4a',trim:'#f4c64a',pat:'solid',shorts:'#ffffff',socks:'#0f7a4a',num:'#ffffff'},
   {shirt:'#6b2fd6',trim:'#ffffff',pat:'stripes',shorts:'#1b1033',socks:'#6b2fd6',num:'#ffffff'},
@@ -4530,7 +4541,7 @@ function loadClub(){try{const v=localStorage.getItem(CLUB_KEY);club=v?JSON.parse
   let fixed=false;if(club&&Array.isArray(club.players))for(const p of club.players){if(!traitOk(p.label,p.trait)){p.trait=defaultTrait(p.label,Math.random);fixed=true;}
     if(!p.ft||(p.ft.f!=='L'&&p.ft.f!=='R')){p.ft=makeFoot(p);fixed=true;}}   // saves from before feet
   if(fixed)saveClub();}
-function saveClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club));}catch(e){}}
+function saveClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club));}catch(e){}acctDirty();}
 function newCardPlayer(label,ovr,opts={}){
   const r=mulberry((Math.random()*2147483647)|0),regs=Object.keys(NAMEDB);
   const reg=opts.reg||(r()<0.35?'kr':regs[Math.floor(r()*regs.length)]);
@@ -4754,11 +4765,11 @@ function tutTick(dt){
 function tutGoal(ti){tut.goals++;banner('GOAL','',ti===0?'goal':'');SND.roar();releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.6;deadFn=tutRetry;}
 function tutOut(){releaseBall();ball.vel.set(0,0,0);state='dead';deadT=1.0;deadFn=tutRetry;}
 function tutFinish(){
-  try{localStorage.setItem(TUT_KEY,'1');}catch(e){}
+  try{localStorage.setItem(TUT_KEY,'1');}catch(e){}acctDirty();
   $('#tutBox').hidden=true;tut=null;
   goMenu();$('#tutDone').hidden=false;
 }
-function tutQuit(){try{localStorage.setItem(TUT_KEY,'1');}catch(e){}$('#tutBox').hidden=true;tut=null;goMenu();}
+function tutQuit(){try{localStorage.setItem(TUT_KEY,'1');}catch(e){}acctDirty();$('#tutBox').hidden=true;tut=null;goMenu();}
 const tutRing=new THREE.Mesh(new THREE.RingGeometry(1.2,1.55,40),new THREE.MeshBasicMaterial({color:0xffd84a,transparent:true,opacity:0.85,depthWrite:false}));
 tutRing.rotation.x=-Math.PI/2;tutRing.visible=false;scene.add(tutRing);
 
@@ -5216,7 +5227,7 @@ $('#clubBody').addEventListener('click',e=>{
     resetArm=false;club.money+=sellPrice(p);club.players=club.players.filter(q=>q!==p);selPid=null;fixLineup();saveClub();renderClub();ctoast(p.name+' 판매 · +'+fmtBP(sellPrice(p))+' BP');return;}
   if(a==='refresh'){if(club.money<3000){ctoast('BP가 부족합니다.');return;}club.money-=3000;refreshMarket(true);saveClub();renderClub();return;}
   if(a==='stadium'){const nx=STADIUM[club.stadium+1];if(!nx||club.money<nx.cost)return;club.money-=nx.cost;club.stadium++;saveClub();renderClub();ctoast(nx.name+' 완공! 수용 인원 '+fmtBP(nx.cap)+'석');return;}
-  if(a==='reset'){if(resetArm!=='reset'){resetArm='reset';renderClub();return;}try{localStorage.removeItem(CLUB_KEY);}catch(err){}club=null;resetArm=false;showScreen('#title');openClubNew();return;}
+  if(a==='reset'){if(resetArm!=='reset'){resetArm='reset';renderClub();return;}try{localStorage.removeItem(CLUB_KEY);}catch(err){}club=null;acctDirty();resetArm=false;showScreen('#title');openClubNew();return;}
 });
 function placePlayer(id,slot){
   const cur=club.lineup.indexOf(id),prev=club.lineup[slot];
@@ -5355,7 +5366,7 @@ $('#online').addEventListener('click',e=>{
       .catch(err=>{outgoing=null;renderOnline();ctoast(err&&err.code==='not_permitted'?'신청을 보낼 권한이 없습니다. 아티팩트 소유자에게 기여자 이상 권한을 받아야 합니다.':'신청을 보내지 못했습니다. 잠시 후 다시 시도하세요.');});
     renderOnline();ctoast('친선전을 신청했습니다. 상대가 수락하면 바로 시작합니다.');}
 });
-$('#onNick').addEventListener('input',e=>{nick=cleanTxt(e.target.value,12)||nick;try{localStorage.setItem('gl-nick',nick);}catch(err){}setLobbyPresence();});
+$('#onNick').addEventListener('input',e=>{nick=cleanTxt(e.target.value,12)||nick;try{localStorage.setItem('gl-nick',nick);}catch(err){}acctDirty();setLobbyPresence();});
 $('#btnOnBack').onclick=()=>{showScreen('#title');setLobbyPresence();};
 $('#btnOnline').onclick=()=>{SND.init();goOnline();};
 function forMe(m){return m&&m.data&&typeof m.data==='object'&&roomNS&&m.data.to===myPeer();}
@@ -5584,6 +5595,85 @@ function frame(now){
   exciteT-=dt;if(exciteT<=0&&SND.ctx){exciteT=0.3;const dg=Math.min(Math.abs(ball.pos.x-HL),Math.abs(ball.pos.x+HL));SND.setCrowd(state==='goal'?0.4:0.1+clamp((30-dg)/30,0,1)*0.16);}
   requestAnimationFrame(frame);
 }
+/* ---------- account save: inside claude.ai the club and progress follow the viewer's account ----------
+   The viewer's own db document data/users/<id>/save (private to them, even from the artifact's owner) holds the
+   same values the game keeps in browser storage. It is read once at start: the newer of the two wins (the one this
+   browser replaces is kept aside under gl-save-backup), and every change after that is written back a moment later.
+   Without an account here (the website copy, signed out, a view-only link) everything stays in this browser. */
+const ACCT_KEYS=[CLUB_KEY,TUT_KEY,'gl-sel','gl-traits','gl-guide','gl-prac-p','gl-nick'],ACCT_AT='gl-save-at';
+function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
+function lsSet(k,v){try{if(v==null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){}}
+function acctLocal(){const o={};for(const k of ACCT_KEYS){const v=lsGet(k);if(v!=null)o[k]=v;}return o;}
+// the cloud copy replaces the game's state only on the main screen (not mid-match, tutorial, online friendly or
+// with the club or squad screen open)
+function acctCanApply(){return mode==='menu'&&!tut&&!net&&!$('#title').hidden;}
+// a save changed: stamp it, and write it to the account a moment later. While the account is still being read
+// (the first second) changes are the game's own start-up tidying, so they do not make this browser "newer"
+function acctDirty(){
+  if(!acct||acct.state==='loading')return;
+  lsSet(ACCT_AT,String(Date.now()));
+  // progress made here while a newer account copy waited: this browser's play wins, the account copy is kept aside
+  if(acct.pending){lsSet('gl-save-cloud-backup',JSON.stringify(acct.pending));acct.pending=null;}
+  if(!acct.ref||acct.ro)return;
+  clearTimeout(acct.timer);acct.timer=setTimeout(acctPush,1500);
+}
+// one write at a time; a change during a write is sent right after it
+async function acctPush(){
+  if(!acct||!acct.ref||acct.ro)return;
+  clearTimeout(acct.timer);acct.timer=0;
+  if(acct.busy){acct.again=true;return;}
+  const at=Number(lsGet(ACCT_AT))||Date.now(),body={v:1,at,keys:acctLocal()};
+  if(JSON.stringify(body).length>250000){acct.state='big';renderAcct();return;}   // a document holds 256 KiB at most
+  acct.busy=true;acct.state='saving';renderAcct();
+  try{await acct.ref.set(body);acct.state='synced';acct.retried=false;}
+  catch(e){const c=e&&e.code;
+    if(c==='invalid_argument'){acct.ro=true;acct.state='readonly';}            // this viewer may not write here (view only)
+    else if((c==='unavailable'||c==='resource_exhausted')&&!acct.retried){acct.retried=true;acct.timer=setTimeout(acctPush,1500+Math.random()*1500);}
+    else acct.state='error';}
+  acct.busy=false;renderAcct();
+  if(acct.again){acct.again=false;acctPush();}
+}
+// the account copy into browser storage and the game's state
+function acctApply(d){
+  const keys=d&&d.keys&&typeof d.keys==='object'?d.keys:{},mine=acctLocal();
+  if(Object.keys(mine).length&&JSON.stringify(mine)!==JSON.stringify(keys))lsSet('gl-save-backup',JSON.stringify({at:Number(lsGet(ACCT_AT))||0,keys:mine}));
+  for(const k of ACCT_KEYS)lsSet(k,typeof keys[k]==='string'?keys[k]:null);
+  lsSet(ACCT_AT,String(Number(d.at)||0));
+  try{quickTraits=JSON.parse(lsGet('gl-traits')||'{}')||{};}catch(e){quickTraits={};}
+  try{const s=JSON.parse(lsGet('gl-sel')||'null');if(s)Object.assign(sel,s);}catch(e){}
+  guideMode=clamp(parseInt(lsGet('gl-guide')||'0',10)||0,0,2);applyGuide();
+  const n=lsGet('gl-nick');if(n)nick=n;
+  loadClub();
+}
+function renderAcct(){
+  const el=$('#lbAcct');if(!el||!acct)return;
+  const T={loading:'계정 확인 중',local:'이 기기에 저장',synced:'계정에 저장됨',saving:'계정에 저장 중',readonly:'보기 전용 · 이 기기에 저장',error:'계정 저장 실패 · 이 기기에 저장',big:'저장 용량 초과 · 이 기기에 저장'};
+  const s=document.createElement('span');s.textContent=T[acct.state]||'';
+  const kids=[s];if(acct.ref&&acct.avatar){const i=document.createElement('img');i.src=acct.avatar;i.alt='';kids.unshift(i);}
+  el.replaceChildren(...kids);el.hidden=false;
+  el.classList.toggle('on',acct.state==='synced'||acct.state==='saving');el.classList.toggle('bad',acct.state==='error'||acct.state==='big');
+  // the account name is shown, never stored
+  el.title=acct.ref?(acct.name||'claude.ai')+' 계정에 구단과 진행 상황을 저장합니다':'claude.ai에 로그인한 상태로 이 게임을 열면 구단과 진행 상황이 계정에 저장됩니다';
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&acct&&acct.timer)acctPush();});
+(async function initAcct(){
+  acct={state:'loading',ref:null,ro:false,busy:false,again:false,retried:false,timer:0,pending:null,name:'',avatar:''};renderAcct();
+  const use=n=>window.claude&&window.claude.use?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+  const [user,db]=await Promise.all([use('user'),use('db')]);
+  const uid=user?await user.id():null;
+  if(!user||!db||!uid){acct.state='local';renderAcct();return;}
+  const me=await user.me();acct.name=me.name||'';acct.avatar=me.avatarUrl||'';
+  try{acct.ref=db.doc('data/users/'+uid+'/save');}catch(e){acct.state='local';renderAcct();return;}
+  let snap=null;
+  for(let i=0;i<2&&!snap;i++){try{snap=await acct.ref.get();}catch(e){if(!(e&&e.code==='unavailable')||i)break;await new Promise(r=>setTimeout(r,1500+Math.random()*1500));}}
+  if(!snap){acct.ref=null;acct.state='error';renderAcct();return;}
+  const d=snap.exists?snap.data():null,cloudAt=d?Number(d.at)||0:0,localAt=Number(lsGet(ACCT_AT))||0,hasLocal=Object.keys(acctLocal()).length>0;
+  acct.state='synced';
+  if(d&&cloudAt>localAt){if(acctCanApply()){acctApply(d);updateLobby();}else acct.pending=d;}
+  else if(hasLocal&&(!d||localAt>cloudAt)){if(!localAt)lsSet(ACCT_AT,String(Date.now()));acctPush();}   // first sign-in here: what this browser has goes up
+  renderAcct();
+})();
+
 drawBigScreen();
 startLobby();
 requestAnimationFrame(frame);
@@ -5594,6 +5684,8 @@ try{if(!localStorage.getItem(TUT_KEY))setTimeout(()=>{if(mode!=='match')$('#tutA
 window.__game={
   get state(){return state;},get mode(){return mode;},get score(){return score.slice();},get clock(){return clock;},get half(){return half;},get stats(){return stats;},
   get players(){return players;},get ball(){return ball;},get controlled(){return controlled;},
+  get acct(){return acct?{state:acct.state,pending:!!acct.pending,linked:!!acct.ref}:null;},acctFlush(){return acctPush();},
+  clubNew(name,code,kit){createClub(name,code,kit||0);},clubSet(patch){Object.assign(club,patch);saveClub();},screen(id){showScreen(id);},
   sim(sec){const n=Math.round(sec/STEP);for(let i=0;i<n;i++){if(state==='replay')endReplay();tick(STEP);}return {state,score:score.slice(),clock};},
   startMatch(cfg){Object.assign(sel,cfg||{});startMatch();},
   setPiece(type,ti,x,z){startSetPiece(type,ti,new V3(x,BR,z));},

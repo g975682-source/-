@@ -10,6 +10,7 @@ events, and prints what happened.
 |---|---|
 | `anim_baseline.js` | Animation baseline: joint values of every animation state and skill move, compared exactly. |
 | `anim_baseline.json` | The recorded baseline (digests only), taken from commit `04d0cd0`. Changes since `a73268a`, each re-recorded on purpose: the left-foot kick (side −1, `d1f5d54`) and the stagger state (`A.stagger`, 21st state). |
+| `account_save.js` | Account save: with stand-ins for the `user` and `db` capabilities, checks that the club and progress go to the viewer's own `data/users/<id>/save` document and come back (no account, first sign-in, newer account copy, newer browser copy, later changes, view-only, club screen open). Asserts; exit code 1 on any failure. `node ground-legends/tests/account_save.js` |
 | `legacy/` | The earlier tests, copied from the working session that wrote them. |
 | `legacy/paths.js` | Where the legacy tests find Playwright, three.js, the game page, the mock room and the output folder. |
 | `legacy/harness.js` | Opens the game page for a test (shared by most legacy tests). |
