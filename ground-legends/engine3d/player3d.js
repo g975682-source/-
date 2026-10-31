@@ -35,7 +35,7 @@ window.P3D=(()=>{
   const PARENT={LeftForeArm:'LeftArm',RightForeArm:'RightArm',LeftHand:'LeftForeArm',RightHand:'RightForeArm',LeftLeg:'LeftUpLeg',RightLeg:'RightUpLeg',
     LeftFoot:'LeftLeg',RightFoot:'RightLeg',LeftToeBase:'LeftFoot',RightToeBase:'RightFoot'};
   const MODEL_H=1.80,GAME_H=1.81;   // the model's height; the game rig's standing height at body scale 1 (bodyOf: 181 cm)
-  const HIDDEN_LAYER=1;
+  const HIDDEN_LAYER=1,ATTACH_MS=12;
   const short=n=>n.replace(/^mixamorig:?/i,'');
 
   // ---- the model, once ----
@@ -89,7 +89,78 @@ window.P3D=(()=>{
       for(const f of ['Index','Middle','Ring','Pinky','Thumb']){const b2=bone[sd+'Hand'+f+'2'];if(!b2)continue;
         const d=b2.position.clone().normalize(),ax=k.clone().sub(d.clone().multiplyScalar(k.dot(d))).normalize().multiplyScalar(sign);
         (f==='Thumb'?[0.25,0.45,0.35]:[0.8,1.05,0.7]).forEach((a,i)=>{const b=sd+'Hand'+f+(i+1);if(bone[b])curl[b]=new TH.Quaternion().setFromAxisAngle(ax,a);});}}
-    return {root,mesh,C,region,hipsRest,standY,ankleY,toeY,verts:n,names,curl};
+    const look=lookData(mesh,bone,region);
+    return {root,mesh,C,region,hipsRest,standY,ankleY,toeY,verts:n,names,curl,look};
+  }
+  // ---- the player's looks (stage 4): what is worked out once from the model, at rest ----
+  // Per vertex: its main bone; torso shirt (for the kit pattern); the kit's trim rings (shirt next to skin: collar and
+  // cuffs; sock tops: one ring of vertices); hair masks for the game's three hair styles (hs 0 normal, 1 short, 2 tied back with a bun) and a
+  // beard mask, from the head's shape (hairline by the angle round the head: low at the nape, higher at the temples,
+  // highest at the forehead; the ears kept bare). Body build: per bone, how its vertices widen (W, shoulders and hips)
+  // and thicken (M, torso depth, limbs round their bone). Number decals: grids laid on the back (number and name) and
+  // on the left chest, each grid point tied to the three nearest shirt vertices, so that they follow the body's shape
+  // and are skinned with it.
+  const ARMB=/^(Left|Right)(Arm|ForeArm)$/,HANDB=/^(Left|Right)Hand/;
+  function lookData(mesh,bone,region){
+    const g=mesh.geometry,pos=g.attributes.position,nrm=g.attributes.normal,si=g.attributes.skinIndex,sw=g.attributes.skinWeight,n=pos.count;
+    const bn=mesh.skeleton.bones.map(b=>short(b.name)),toMesh=new TH.Matrix4().copy(mesh.matrixWorld).invert();
+    const bw=bn.map(nm=>bone[nm].getWorldPosition(new TH.Vector3()).applyMatrix4(toMesh));
+    const SI=i=>[si.getX(i),si.getY(i),si.getZ(i),si.getW(i)],SW=i=>[sw.getX(i),sw.getY(i),sw.getZ(i),sw.getW(i)];
+    const dom=new Uint8Array(n);for(let i=0;i<n;i++){const a=SI(i),w=SW(i);let k=0;for(let j=1;j<4;j++)if(w[j]>w[k])k=j;dom[i]=a[k];}
+    const R={shirt:0,shorts:1,socks:2,boots:3,skin:4,hair:5},isArm=dom.map(b=>ARMB.test(bn[b])?1:0),isHand=dom.map(b=>HANDB.test(bn[b])?1:0);
+    const isHead=dom.map(b=>bn[b]==='Head'?1:0),torso=new Uint8Array(n);
+    for(let i=0;i<n;i++)torso[i]=region[i]===R.shirt&&!isArm[i]?1:0;
+    // trim rings: shirt or sock vertices sharing a triangle with skin (1: collar, 2: cuff, 3: sock top)
+    const ring=new Uint8Array(n),idx=g.index?g.index.array:null;
+    if(idx){const kind=i=>region[i]===R.socks?3:isArm[i]?2:1;
+      const pass=(test)=>{const add=[];for(let t=0;t<idx.length;t+=3){const a=idx[t],b=idx[t+1],c=idx[t+2];
+          if(![a,b,c].some(test))continue;for(const v of [a,b,c])if((region[v]===R.shirt||region[v]===R.socks)&&!ring[v])add.push(v);}
+        for(const v of add)ring[v]=kind(v);};
+      pass(v=>region[v]===R.skin);}
+    // hair: head vertices above the hairline (y by the angle round the head from the front), not the ears
+    let H0=-1e9,fz=-1e9,bz=1e9;for(let i=0;i<n;i++)if(isHead[i]){H0=Math.max(H0,pos.getY(i));fz=Math.max(fz,pos.getZ(i));bz=Math.min(bz,pos.getZ(i));}
+    const cz=(fz+bz)/2;   // the head's top; its middle front to back (between the back of the skull and the nose tip)
+    const LINES=[[0.048,0.095,0.175],[0.042,0.085,0.155],[0.048,0.095,0.175]];   // forehead, temples, nape: below the top
+    const hair=LINES.map(()=>new Uint8Array(n)),beard=new Uint8Array(n);
+    const sm=(a,b,x)=>{const u=Math.min(1,Math.max(0,(x-a)/(b-a)));return u*u*(3-2*u);};
+    for(let i=0;i<n;i++){if(!isHead[i]||(region[i]!==R.skin&&region[i]!==R.hair))continue;
+      const x=pos.getX(i),y=pos.getY(i),z=pos.getZ(i),th=Math.atan2(Math.abs(x),z-cz),d=H0-y;
+      const ear=Math.abs(x)>0.072&&d>0.088&&d<0.17&&z>cz-0.065&&z<cz+0.03;
+      LINES.forEach(([f,t,b],k)=>{const line=f+(t-f)*sm(0.35,1.45,th)+(b-t)*sm(1.6,2.7,th);if(d<line&&!ear)hair[k][i]=1;});
+      // beard: below the nose base on the front of the face (not the lips), and up the jaw to the sideburns
+      const dn=fz-z,lips=Math.abs(x)<0.028&&d>0.18&&d<0.215&&dn<0.045;
+      if(!ear&&z>cz-0.03&&((d>0.168&&dn<0.11)||(Math.abs(x)>0.055&&d>0.12&&z<cz+0.06))&&!lips)beard[i]=1;}
+    // body build per bone: [kind, centre z (torso) or segment (limbs)]
+    const cen=bn.map(()=>[0,0]);for(let i=0;i<n;i++){cen[dom[i]][0]+=pos.getZ(i);cen[dom[i]][1]++;}
+    const SEG={LeftArm:'LeftForeArm',LeftForeArm:'LeftHand',RightArm:'RightForeArm',RightForeArm:'RightHand',LeftUpLeg:'LeftLeg',LeftLeg:'LeftFoot',
+      RightUpLeg:'RightLeg',RightLeg:'RightFoot',Neck:'Head'};
+    const build=bn.map((nm,b)=>{const czb=cen[b][1]?cen[b][0]/cen[b][1]:bw[b].z;
+      if(nm==='Hips')return {k:'hips',cz:czb};if(/^Spine/.test(nm))return {k:'torso',cz:czb};
+      if(/Shoulder$/.test(nm))return {k:'shoulder',cz:cen[bn.indexOf('Spine2')][0]/Math.max(1,cen[bn.indexOf('Spine2')][1]),x:bw[b].x};
+      if(SEG[nm])return {k:'limb',a:bw[b].clone(),b:bw[bn.indexOf(SEG[nm])].clone(),neck:nm==='Neck'};return null;});
+    // number decals: [centre x, centre y, width, height, side (-1 back, +1 front)]
+    const decal=(cx,cy,w,h,side,nx,ny)=>{
+      const cand=[];for(let i=0;i<n;i++)if(torso[i]&&nrm.getZ(i)*side>0.25&&Math.abs(pos.getX(i)-cx)<w&&Math.abs(pos.getY(i)-cy)<h)cand.push(i);
+      const verts=[],uv=[],index=[],skinI=[],skinW=[];
+      for(let r=0;r<=ny;r++)for(let c=0;c<=nx;c++){const u=c/nx,v=r/ny,x=cx+(side<0?w/2-u*w:-w/2+u*w),y=cy-h/2+v*h;
+        const near=[];for(const i of cand){const d=(pos.getX(i)-x)**2+(pos.getY(i)-y)**2;if(near.length<3||d<near[2][1]){near.push([i,d]);near.sort((a,b)=>a[1]-b[1]);if(near.length>3)near.pop();}}
+        const ws=near.map(([,d])=>1/(Math.sqrt(d)+1e-4)),tw=ws.reduce((a,b)=>a+b,0);
+        verts.push({i:near.map(q=>q[0]),w:ws.map(q=>q/tw),x,y});uv.push(u,v);
+        const a=SI(near[0][0]),wt=SW(near[0][0]);skinI.push(...a);skinW.push(...wt);}
+      for(let r=0;r<ny;r++)for(let c=0;c<nx;c++){const a=r*(nx+1)+c,b=a+1,d=a+nx+1,e=d+1;
+        if(side<0)index.push(a,d,b,b,d,e);else index.push(a,b,d,b,e,d);}
+      const G=new TH.BufferGeometry();G.setAttribute('uv',new TH.Float32BufferAttribute(uv,2));G.setIndex(index);
+      G.setAttribute('skinIndex',new TH.Uint16BufferAttribute(skinI,4));G.setAttribute('skinWeight',new TH.Float32BufferAttribute(skinW,4));
+      return {G,verts,side};};
+    const decals=[decal(0,1.395,0.235,0.258,-1,8,8),decal(0.082,1.455,0.075,0.082,1,3,3)];
+    // hoops counted down from just under the front of the collar (a shirt-coloured band there, then the trim)
+    let neck=-1e9;for(let i=0;i<n;i++)if(torso[i]&&nrm.getZ(i)>0.5)neck=Math.max(neck,pos.getY(i));const hem=neck-0.065;
+    // the bun (hair style 2): a ball at the upper back of the head, in the head bone's frame
+    const hb=bone.Head,hs=hb.getWorldScale(new TH.Vector3()).x||1;
+    const bun={pos:hb.worldToLocal(new TH.Vector3(0,H0-0.045,bz+0.004).applyMatrix4(mesh.matrixWorld)),r:0.046/hs};
+    const kp=new Float32Array(n*3);for(let i=0;i<n;i++){kp[i*3]=pos.getX(i);kp[i*3+1]=pos.getY(i);kp[i*3+2]=torso[i]&&!ring[i]?1:0;}
+    g.setAttribute('kpat',new TH.BufferAttribute(kp,3));   // read by kitShader; each copy's geometry clone carries it
+    return {dom,bn,torso,ring,hair,beard,build,decals,isArm,isHand,R,cz,H0,hem,bun};
   }
   // motion clips (anim/clips.json, baked by tools/bake_clips.js): optional; without them every state uses the transfer
   async function loadClips(url,names){
@@ -110,26 +181,100 @@ window.P3D=(()=>{
 
   // ---- a player's copy ----
   const linear=hex=>{const c=new TH.Color(hex);return [c.r,c.g,c.b];};
-  function paint(geom,region,kit){
-    const n=region.length,arr=new Float32Array(n*3),cols=[kit.shirt,kit.shorts,kit.socks,kit.boots,kit.skin,kit.hair].map(linear);
-    for(let i=0;i<n;i++){const c=cols[region[i]];arr[i*3]=c[0];arr[i*3+1]=c[1];arr[i*3+2]=c[2];}
+  const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
+  const hashStr=s=>{let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}return h>>>0;};   // the game's
+  // the colours: team kit by region and its trim on the collar, cuffs and sock tops (the torso's pattern is drawn by
+  // kitShader); the player's skin, boots and hair (by style), a beard for
+  // the players the game gives one (a third, by name); keepers in long sleeves and gloves
+  function paint(geom,t,kit,lk){
+    const L=t.look,region=t.region,n=region.length,arr=new Float32Array(n*3);
+    const cols=[kit.shirt,kit.shorts,kit.socks,kit.boots,kit.skin,kit.hair].map(linear),trim=linear(kit.trim),skin=cols[4];
+    const hairC=lk.hs===1?mix(cols[5],skin,0.3):cols[5],beardC=mix(cols[5],skin,0.3),glove=linear('#e9edf2');
+    const hm=L.hair[lk.hs]||L.hair[0];
+    for(let i=0;i<n;i++){const rg=region[i];let c=cols[rg];
+      if(L.ring[i]&&!(lk.gk&&L.ring[i]===2))c=trim;
+      if(rg===L.R.hair||(rg===L.R.skin&&hm[i]))c=hairC;
+      else if(rg===L.R.skin){if(lk.beard&&L.beard[i])c=beardC;else if(lk.gk&&L.isArm[i])c=cols[0];else if(lk.gk&&L.isHand[i])c=glove;}
+      arr[i*3]=c[0];arr[i*3+1]=c[1];arr[i*3+2]=c[2];}
     geom.setAttribute('color',new TH.BufferAttribute(arr,3));
+  }
+  // the kit's pattern on the torso (the game's own: stripes, hoops, a centre band), drawn per pixel from the rest
+  // position (attribute kpat: x, y, and 1 on the torso's shirt), so the edges stay straight and follow the body as it
+  // moves; soft over about 7 mm. One function for every player: the program is shared, the colours are each material's.
+  function kitShader(sh){const k=this.userData.kit;
+    sh.uniforms.kShirt={value:new TH.Color(k.shirt)};sh.uniforms.kTrim={value:new TH.Color(k.trim)};
+    sh.uniforms.kPat={value:{stripes:1,hoops:2,band:3}[k.pat]||0};sh.uniforms.kHem={value:k.hem};
+    sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nattribute vec3 kpat;\nvarying vec3 vKpat;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvKpat=kpat;');
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nuniform vec3 kShirt;\nuniform vec3 kTrim;\nuniform float kPat;\nuniform float kHem;\nvarying vec3 vKpat;')
+      .replace('#include <color_fragment>',['#include <color_fragment>',
+        'if(vKpat.z>0.5&&kPat>0.5){float m=0.0;',
+        ' if(kPat<1.5)m=smoothstep(0.15,-0.15,sin(6.2832*(vKpat.x+0.0375)/0.15));',
+        ' else if(kPat<2.5)m=smoothstep(0.15,-0.15,sin(6.2832*(vKpat.y-kHem)/0.14));',
+        ' else m=smoothstep(0.06,0.05,abs(vKpat.x));',
+        ' diffuseColor.rgb=mix(kShirt,kTrim,m);}'].join('\n'));
+  }
+  // the body's build (the game's bodyOf: W shoulders and hips, M muscle) moved into the copy's rest shape: the torso
+  // widened and deepened, the limbs and neck thickened round their bones, the shoulder joints moved out with the
+  // torso; the hair lifted off the scalp a little. Returns the shaped rest positions (for the number decals).
+  function shapeBody(A,t,W,M,lk){
+    const L=t.look,g=A.mesh.geometry,src=t.mesh.geometry.attributes.position,nrm=t.mesh.geometry.attributes.normal;
+    const si=t.mesh.geometry.attributes.skinIndex,sw=t.mesh.geometry.attributes.skinWeight,n=src.count,out=new Float32Array(n*3);
+    const Wt=1+(W-1)*0.8,Wh=1+(W-1)*0.5,Mt=1+(M-1)*0.8,Ml=1+(M-1)*0.9,hm=L.hair[lk.hs]||L.hair[0],push=[0.006,0.0025,0.005][lk.hs]||0.006;
+    const I=[0,0,0,0],Wg=[0,0,0,0];
+    for(let i=0;i<n;i++){const x=src.getX(i),y=src.getY(i),z=src.getZ(i);let dx=0,dy=0,dz=0,ws=0;
+      I[0]=si.getX(i);I[1]=si.getY(i);I[2]=si.getZ(i);I[3]=si.getW(i);Wg[0]=sw.getX(i);Wg[1]=sw.getY(i);Wg[2]=sw.getZ(i);Wg[3]=sw.getW(i);
+      for(let k=0;k<4;k++){const w=Wg[k];if(!(w>0))continue;ws+=w;const B=L.build[I[k]];if(!B)continue;
+        if(B.k==='torso'){dx+=w*(Wt-1)*x;dz+=w*(Mt-1)*(z-B.cz);}
+        else if(B.k==='hips'){dx+=w*(Wh-1)*x;dz+=w*(Mt-1)*(z-B.cz);}
+        else if(B.k==='shoulder'){dx+=w*(Wt-1)*(x-B.x);dz+=w*(Mt-1)*(z-B.cz);}
+        else{const a=B.a,b=B.b,ex=b.x-a.x,ey=b.y-a.y,ez=b.z-a.z,l2=ex*ex+ey*ey+ez*ez,u=clampN(((x-a.x)*ex+(y-a.y)*ey+(z-a.z)*ez)/l2,-0.3,1.3);
+          const m=(B.neck?Mt:Ml)-1;dx+=w*m*(x-a.x-ex*u);dy+=w*m*(y-a.y-ey*u);dz+=w*m*(z-a.z-ez*u);}}
+      if(ws>0){dx/=ws;dy/=ws;dz/=ws;}
+      if(t.region[i]===L.R.hair||(t.region[i]===L.R.skin&&hm[i])){dx+=nrm.getX(i)*push;dy+=nrm.getY(i)*push;dz+=nrm.getZ(i)*push;}
+      out[i*3]=x+dx;out[i*3+1]=y+dy;out[i*3+2]=z+dz;}
+    g.setAttribute('position',new TH.BufferAttribute(out,3));
+    for(const sd of ['Left','Right'])for(const b of [sd+'Shoulder',sd+'Arm'])if(A.bone[b])A.bone[b].position.x*=Wt;
+    return out;
+  }
+  // number and name on the back, the small number on the chest: the game's own number texture (rig.numMat), on grids
+  // laid on the shaped shirt and skinned with the body
+  function numberDecals(A,t,shaped,map){
+    const L=t.look,nrm=t.mesh.geometry.attributes.normal,out=[];
+    const mat=new TH.MeshBasicMaterial({map,transparent:true,depthWrite:false,skinning:true,side:TH.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
+    for(const D of L.decals){const G=D.G.clone(),P=new Float32Array(D.verts.length*3);
+      D.verts.forEach((v,j)=>{let x=0,y=0,z=0,nx=0,ny=0,nz=0;v.i.forEach((i,q)=>{const w=v.w[q];x+=w*shaped[i*3];y+=w*shaped[i*3+1];z+=w*shaped[i*3+2];nx+=w*nrm.getX(i);ny+=w*nrm.getY(i);nz+=w*nrm.getZ(i);});
+        const l=Math.hypot(nx,ny,nz)||1,off=0.004;P[j*3]=x+nx/l*off;P[j*3+1]=y+ny/l*off;P[j*3+2]=z+nz/l*off;});
+      G.setAttribute('position',new TH.BufferAttribute(P,3));
+      const m=new TH.SkinnedMesh(G,mat);m.frustumCulled=false;m.castShadow=false;m.position.copy(A.mesh.position);m.quaternion.copy(A.mesh.quaternion);m.scale.copy(A.mesh.scale);
+      A.mesh.parent.add(m);m.bind(A.mesh.skeleton,A.mesh.bindMatrix);out.push(m);}
+    return out;
   }
   function kitFor(p,teams){
     const T=teams&&teams[p.team],pd=p.pd||p;
-    const k=p.isGK?{shirt:T&&T.def&&T.def.gk||'#21c879',shorts:'#151515',socks:T&&T.def&&T.def.gk||'#21c879'}:(T&&T.kit)||{shirt:'#c8102e',shorts:'#f4f4f4',socks:'#c8102e'};
-    return {shirt:k.shirt,shorts:k.shorts,socks:k.socks||k.shirt,boots:pd.boot||'#141414',skin:pd.skin||'#c99a74',hair:pd.hair||'#2a1d14'};
+    const k=p.isGK?{shirt:T&&T.def&&T.def.gk||'#21c879',shorts:'#151515',socks:T&&T.def&&T.def.gk||'#21c879',trim:'#111111',pat:'solid'}:(T&&T.kit)||{shirt:'#c8102e',shorts:'#f4f4f4',socks:'#c8102e'};
+    return {shirt:k.shirt,shorts:k.shorts,socks:k.socks||k.shirt,trim:k.trim||k.shirt,pat:k.pat||'solid',boots:pd.boot||'#141414',skin:pd.skin||'#c99a74',hair:pd.hair||'#2a1d14'};
   }
   function attach(p,scene,teams){
     const t=S.tpl,root=TH.SkeletonUtils.clone(t.root);let mesh=null;const bone={};
     root.traverse(o=>{if(o.isBone)bone[short(o.name)]=o;if(o.isSkinnedMesh&&!mesh)mesh=o;});
-    mesh.geometry=mesh.geometry.clone();paint(mesh.geometry,t.region,kitFor(p,teams));
+    const pd=p.pd||p,body=p.rig&&p.rig.body||{W:1,M:1};
+    const lk={hs:clampN(pd.hs|0,0,2),beard:hashStr(pd.name||'')%3===0,gk:!!p.isGK,W:+(body.W||1).toFixed(3),M:+(body.M||1).toFixed(3),pat:null,decals:0};
+    const kit=kitFor(p,teams);lk.pat=kit.pat;
+    mesh.geometry=mesh.geometry.clone();paint(mesh.geometry,t,kit,lk);
     mesh.material=new TH.MeshLambertMaterial({vertexColors:true,skinning:true});
+    if(kit.pat!=='solid'){mesh.material.userData.kit={shirt:kit.shirt,trim:kit.trim,pat:kit.pat,hem:t.look.hem};mesh.material.onBeforeCompile=kitShader;}
     mesh.castShadow=true;mesh.frustumCulled=false;
+    const shaped=shapeBody({mesh,bone},t,lk.W,lk.M,lk);
+    const extra=[];
+    if(p.rig&&p.rig.numMat&&p.rig.numMat.map)extra.push(...numberDecals({mesh},t,shaped,p.rig.numMat.map));
+    if(lk.hs===2&&bone.Head){const m=new TH.Mesh(S.bunGeo||(S.bunGeo=new TH.SphereGeometry(1,10,8)),new TH.MeshLambertMaterial({color:kit.hair}));
+      m.position.copy(t.look.bun.pos);m.scale.set(1,0.9,1).multiplyScalar(t.look.bun.r);m.castShadow=true;bone.Head.add(m);extra.push(m);}
+    lk.decals=extra.length;
     const holder=new TH.Group();holder.name='p3d:'+(p.short||p.name||'');holder.add(root);scene.add(holder);
     // the game's own meshes for this player go to a layer the camera does not draw
     const hidden=[];p.rig.root.traverse(o=>{if(o!==p.rig.root&&(o.isMesh||o.isSprite||o.isLine)&&o.layers.mask!==0){hidden.push([o,o.layers.mask]);o.layers.set(HIDDEN_LAYER);}});
-    const A={p,rig:p.rig,holder,root,mesh,bone,hidden,qa:new TH.Quaternion(),e:new TH.Euler(),
+    const A={p,rig:p.rig,holder,root,mesh,bone,hidden,extra,look:lk,qa:new TH.Quaternion(),e:new TH.Euler(),
       wp:null,ph:0,it:0,kw:0,kt:0,kOn:false,kside:1,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,dribble:0,brake:0,push:0,side:1},acc:0,sp0:null,lq:{},lh:new TH.Vector3()};
     for(const b in MAP)A.lq[b]=new TH.Quaternion();A.lq.Spine2=new TH.Quaternion();A.lq.LeftToeBase=new TH.Quaternion();A.lq.RightToeBase=new TH.Quaternion();
     if(S.clips){A.mixer=new TH.AnimationMixer(root);A.act={};
@@ -141,7 +286,9 @@ window.P3D=(()=>{
   function detach(A,scene){
     for(const [o,m] of A.hidden)o.layers.mask=m;
     if(A.holder.parent)A.holder.parent.remove(A.holder);
-    A.mesh.geometry.dispose();A.mesh.material.dispose();S.actors.delete(A.p);S.detached++;
+    A.mesh.geometry.dispose();A.mesh.material.dispose();
+    for(const m of A.extra||[]){if(m.geometry!==S.bunGeo)m.geometry.dispose();m.material.dispose();}   // not the game's number texture
+    S.actors.delete(A.p);S.detached++;
   }
   // standing, walking and running from the clips: weights by the game's speed, walk and run on one gait phase (left foot
   // down at phase 0 in both) so that they blend foot for foot, each played at the speed that matches its stride to the
@@ -412,7 +559,9 @@ window.P3D=(()=>{
       if(players!==S.players){for(const A of [...S.actors.values()])detach(A,scene);S.players=players;}   // a new match
       const want=new Set(targets(players,teams,controlled));
       for(const A of [...S.actors.values()])if(!want.has(A.p)||A.rig!==A.p.rig)detach(A,scene);
-      for(const p of want)if(p.rig&&!S.actors.has(p)){const ta=performance.now();attach(p,scene,teams);S.attachMs+=performance.now()-ta;S.attached++;}
+      // dressing a player takes a few ms (colours, build, numbers): at most ATTACH_MS per frame, the rest on the next
+      // frames (they show the game's own model until then)
+      for(const p of want)if(p.rig&&!S.actors.has(p)){if(performance.now()-t0>ATTACH_MS)break;const ta=performance.now();attach(p,scene,teams);S.attachMs+=performance.now()-ta;S.attached++;}
       const t1=performance.now(),dt=S.fixedDt!=null?S.fixedDt:S.last?Math.min(0.1,(t1-S.last)/1000):0;S.last=t1;
       for(const A of S.actors.values())drive(A,dt);
       S.ms+=performance.now()-t1;S.frames++;},
@@ -423,7 +572,7 @@ window.P3D=(()=>{
       const hiddenOk=A.hidden.every(([o])=>o.layers.mask===1<<HIDDEN_LAYER);
       return {holder:A.holder.position.toArray(),rig:A.rig.root.position.toArray(),face:[A.holder.rotation.y,A.rig.root.rotation.y],scale:A.holder.scale.x,
         lowBoot:lo,hiddenMeshes:A.hidden.length,hiddenOk,rigRootVisible:A.rig.root.visible,inScene:!!A.holder.parent,
-        transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd};},
+        transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd,look:A.look};},
     // for checks: world positions of any of the copy's bones (short names)
     bones(p,list){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const o={};for(const b of list)if(A.bone[b])o[b]=A.bone[b].getWorldPosition(new TH.Vector3()).toArray();return o;},
     // for checks: world positions of the copy's toes and feet (bones), and which of the two toes is lower
