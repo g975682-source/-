@@ -1,0 +1,44 @@
+{
+ "gameMinutesInPlay": 21.2,
+ "speed": {
+  "stand": 0.5,
+  "walk": 9.3,
+  "jog": 27.8,
+  "run": 27.4,
+  "hsr": 18.9,
+  "sprint": 16
+ },
+ "direction": {
+  "forward": 91.1,
+  "diagonal": 4,
+  "sideways": 3.5,
+  "backward": 1.4
+ },
+ "facingBallWhileMoving": 21.7,
+ "turnsPerPlayerPer90": 3146,
+ "sprintBoutsPerPlayerPer90": 1107,
+ "meanSprintSeconds": 0.73,
+ "animState": {
+  "0": 0.7,
+  "1": 96.5,
+  "2": 0.8,
+  "3": 0.1,
+  "5": 0.1,
+  "8": 0,
+  "10": 1,
+  "11": 0,
+  "12": 0.1,
+  "13": 0.4,
+  "17": 0.1,
+  "20": 0.3
+ },
+ "score": [
+  0,
+  15
+ ],
+ "humanTeams": [
+  false,
+  false
+ ],
+ "pageErrors": 0
+}

@@ -31,25 +31,31 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   await page.evaluate('window.__freeze=true;window.__st='+ST);
   // move him each drawn frame (before the game draws: a requestAnimationFrame registered now runs ahead of the game's next one)
   await page.evaluate(()=>{window.__rafPause=true;P3D.clock(1/60);});
-  const run=(spd,secs,turn)=>page.evaluate(([spd,secs,turn])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
+  // ang: travel against facing (rad): 0 forwards, pi/2 sideways, pi backwards
+  const run=(spd,secs,turn,ang)=>page.evaluate(([spd,secs,turn,ang])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
     p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);
     for(let i=0;i*dt<secs;i++){if(turn)p.face+=turn*dt;
-      p.pos.x+=Math.sin(p.face)*spd*dt;p.pos.z+=Math.cos(p.face)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
+      p.pos.x+=Math.sin(p.face+ang)*spd*dt;p.pos.z+=Math.cos(p.face+ang)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
       V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);P3D.frame(V.players,V.scene,V.teams,null);
-      const f=P3D.feet(p),m=P3D.measure(p);rows.push({t:i*dt,dt,feet:f,w:m.weights,lean:m.lean,transfer:m.transfer});}
-    return rows;},[spd,secs,turn||0]);
+      const f=P3D.feet(p),m=P3D.measure(p);rows.push({t:i*dt,dt,feet:f,w:m.weights,lean:m.lean,transfer:m.transfer,hy:m.hipsYaw,back:m.backwards});}
+    return rows;},[spd,secs,turn||0,ang||0]);
   const out={speeds:[]};
-  for(const spd of [0,1.4,2.1,2.8,4.2,4.9,5.5,7,8.5]){
-    await run(spd,0.8);const rows=(await run(spd,4)).filter(r=>r.dt>0);
-    const lowL=Math.min(...rows.map(r=>r.feet.LeftToeBase[1])),lowR=Math.min(...rows.map(r=>r.feet.RightToeBase[1]));
-    const slides=[];
+  const slideOf=rows=>{const lowL=Math.min(...rows.map(r=>r.feet.LeftToeBase[1])),lowR=Math.min(...rows.map(r=>r.feet.RightToeBase[1])),slides=[];
     for(let i=1;i<rows.length;i++){const a=rows[i-1],c=rows[i];
       for(const [k,lo] of [['LeftToeBase',lowL],['RightToeBase',lowR]]){const other=k==='LeftToeBase'?'RightToeBase':'LeftToeBase';
         if(c.feet[k][1]<=c.feet[other][1]&&c.feet[k][1]<lo+0.03&&a.feet[k][1]<lo+0.03)slides.push(Math.hypot(c.feet[k][0]-a.feet[k][0],c.feet[k][2]-a.feet[k][2])/c.dt);}}
-    slides.sort((x,y)=>x-y);const mean=slides.reduce((s,x)=>s+x,0)/(slides.length||1),p90=slides[Math.floor(slides.length*0.9)]||0;
-    const w=rows[rows.length-1].w,fps=rows.length/rows.reduce((s,r)=>s+r.dt,0);
-    out.speeds.push({spd,frames:rows.length,fps:+fps.toFixed(1),stanceSamples:slides.length,slideMean:+mean.toFixed(3),slideP90:+p90.toFixed(3),weights:w,lowToe:[+lowL.toFixed(3),+lowR.toFixed(3)]});
-    console.log(`speed ${String(spd).padStart(4)} m/s | ${rows.length} frames at ${fps.toFixed(0)} fps | standing-foot slide mean ${mean.toFixed(3)} m/s, 90% ${p90.toFixed(3)} m/s (${slides.length} samples) | weights ${Object.entries(w).filter(([k,v])=>v>0).map(([k,v])=>k+' '+v).join(', ')} | lowest toes ${lowL.toFixed(3)} / ${lowR.toFixed(3)} m`);}
+    slides.sort((x,y)=>x-y);return {mean:slides.reduce((s2,x)=>s2+x,0)/(slides.length||1),p50:slides[Math.floor(slides.length*0.5)]||0,p90:slides[Math.floor(slides.length*0.9)]||0,n:slides.length,lowL,lowR};};
+  for(const spd of [0,1.4,2.1,2.8,4.2,4.9,5.5,7,8.5]){
+    await run(spd,0.8);const rows=(await run(spd,4)).filter(r=>r.dt>0),sl=slideOf(rows);
+    const w=rows[rows.length-1].w,fps=rows.length/rows.reduce((s2,r)=>s2+r.dt,0);
+    out.speeds.push({spd,frames:rows.length,fps:+fps.toFixed(1),stanceSamples:sl.n,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3),weights:w,lowToe:[+sl.lowL.toFixed(3),+sl.lowR.toFixed(3)]});
+    console.log(`speed ${String(spd).padStart(4)} m/s | ${rows.length} frames at ${fps.toFixed(0)} fps | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)} m/s (${sl.n} samples) | weights ${Object.entries(w).filter(([k,v])=>v>0).map(([k,v])=>k+' '+v).join(', ')} | lowest toes ${sl.lowL.toFixed(3)} / ${sl.lowR.toFixed(3)} m`);}
+  // travelling at an angle to the facing (the game moves players while they face the ball)
+  out.directions=[];
+  for(const [deg,spd] of [[45,2.8],[90,1.4],[90,2.8],[135,1.4],[180,1.4],[180,2.8]]){const ang=deg*Math.PI/180;
+    await run(spd,0.8,0,ang);const rows=(await run(spd,3,0,ang)).filter(r=>r.dt>0),sl=slideOf(rows),last=rows[rows.length-1];
+    out.directions.push({deg,spd,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3),hipsYaw:last.hy,backwards:last.back});
+    console.log(`travel ${String(deg).padStart(3)} deg off the facing at ${spd} m/s | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)} | hips turned ${last.hy} rad, backwards ${last.back}`);}
   const turn=await run(6,2.5,1.2);const leans=turn.map(r=>r.lean);out.turn={spd:6,yawRate:1.2,leanMax:Math.max(...leans.map(Math.abs))};
   console.log(`turn at 6 m/s, 1.2 rad/s: lean up to ${out.turn.leanMax.toFixed(3)} rad`);
   out.errors=errors;console.log('page errors',errors.length);
