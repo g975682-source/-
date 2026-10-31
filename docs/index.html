@@ -2020,6 +2020,12 @@ function moveTo(p,tgt,urg){
   if(d<2.5)s=Math.min(s,d*1.7+0.3);
   p.wantVel.set(dx/d*s,0,dz/d*s);return d;
 }
+// Distance a dribbler covers per stride (two steps) at speed s, the same blend of walk, jog and run as the 3D models'
+// gaits (engine3d/player3d.js GAITS: their clips' stride, speed x cycle). The ball is touched once a stride (touchPh),
+// so the drawn feet can meet it without changing their natural cadence.
+const STRIDES=[['walk',1.133,0.25,0.9,1.9,2.3],['jog',2.269,1.9,2.3,4.6,5.2],['run',5.022,4.6,5.2,1e9,1e9]];
+function strideAt(s){const sm=(a,b,x)=>{const u=clamp((x-a)/(b-a),0,1);return u*u*(3-2*u);};let w=0,d=0;
+  for(const [,L,a0,a1,b0,b1] of STRIDES){const v=sm(a0,a1,s)*(1-sm(b0,b1,s));w+=v;d+=v*L;}return w>0?d/w:STRIDES[0][1];}
 function steer(p,dir,sprint){const s=p.maxSpd()*(sprint?1:0.68);p.wantVel.set(dir.x*s,0,dir.z*s);}
 function computeTraj(){
   traj.length=0;const p=ball.pos.clone(),v=ball.vel.clone(),sp={s:ball.sp.s,top:ball.sp.top,g:ball.sp.g};let t=0;traj.push({x:p.x,y:p.y,z:p.z,t:0});
@@ -2089,7 +2095,9 @@ function teamThink(T,dt){
     // Keeping shape: real players walk and jog most of the time and sprint only when it matters (match analyses: about
     // 90% of the time standing, walking or jogging; engine3d/MOVEMENT_ANALYSIS.md). Close to the spot: stand; a few
     // metres: walk; further: jog; well out of position or beaten: run. Far from the ball, one step easier.
-    if(!beaten&&d<0.9){p.wantVel.set(0,0,0);continue;}
+    // settled: once there, stay put until the spot has drifted 2 m (real players spend about a tenth of the match standing)
+    if(beaten||d>2)p.settled=false;else if(d<0.9)p.settled=true;
+    if(p.settled){p.wantVel.set(0,0,0);p.faceBall=true;continue;}
     const far=!beaten&&d2(p.pos,ball.pos)>30;
     const urg=beaten?0.95:d>12?0.75:d>8?(att?0.55:0.75):d>3?0.25:0;   // a long way out of shape: run, not sprint (only when beaten)
     moveTo(p,tmpA,far?Math.max(0,urg-0.25):urg);
@@ -3070,7 +3078,7 @@ function ballUpdate(dt){
       const nx=lerp(b.pos.x,tmpA.x,k),ny=lerp(b.pos.y,tmpA.y,k),nz=lerp(b.pos.z,tmpA.z,k);
       b.vel.set((nx-b.pos.x)/dt,(ny-b.pos.y)/dt,(nz-b.pos.z)/dt);b.pos.set(nx,ny,nz);}
     else{const f=fwd(o),sp=Math.hypot(o.vel.x,o.vel.z);
-      const off=(0.5+sp*0.055+Math.max(0,Math.sin(o.phase))*0.14*Math.min(1,sp/4))*(o.faceUp?0.72:o.shielding?0.8:1);
+      const off=(0.5+sp*0.055+Math.max(0,Math.sin(o.touchPh||0))*0.14*Math.min(1,sp/4))*(o.faceUp?0.72:o.shielding?0.8:1);
       const tx=o.pos.x+f.x*off,tz=o.pos.z+f.z*off,k=1-Math.exp(-18*dt);
       const nx=lerp(b.pos.x,tx,k),nz=lerp(b.pos.z,tz,k);
       b.vel.set((nx-b.pos.x)/dt,0,(nz-b.pos.z)/dt);b.pos.set(nx,b.pos.y>BR+0.02?lerp(b.pos.y,BR,k):BR,nz);}
@@ -3216,6 +3224,7 @@ function updatePlayer(p,dt){
   const sprinting=sp>p.maxSpd()*0.82&&p.state==='normal';
   p.stamina=clamp(p.stamina+(sprinting?-(7.2-p.st.phy*0.03)*dt:2.4*dt),0,100);
   p.phase+=(sp*1.2+(sp>0.3?1.5:0))*dt;p.spd=sp;
+  p.touchPh=(p.touchPh||0)+TAU*sp/strideAt(sp)*dt;   // the dribble's touches: once a stride
   if(p.oAnim){p.oT+=dt;if(p.oT>p.oDur)p.oAnim=null;}
   p.pos.x=clamp(p.pos.x,-HL-4,HL+4);p.pos.z=clamp(p.pos.z,-HW-4,HW+4);
   if(p.holding&&p.isGK){const dir=teams[p.team].dir,xn=p.pos.x*dir,lim=-(HL-BOX_D)-0.5;   // hands only inside his own box
@@ -4121,7 +4130,7 @@ function renderVisuals(dt){
   if(state==='replay'&&rp&&!(net&&net.role==='guest')){applyFrame((rp.first+Math.min(rp.idx,rp.len-1))%REC_N);}
   else{for(const p of players)applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,p.visSide);
     ballMesh.position.copy(ball.pos);ballMesh.position.y=ball.pos.y+BR*0.3;ballMesh.quaternion.copy(ball.quat);}
-  if(window.P3D)P3D.frame(players,scene,teams,controlled);   // new 3D models (engine3d/), when switched on: follow the rigs just posed
+  if(window.P3D)P3D.frame(players,scene,teams,controlled,ballMesh.position);   // new 3D models (engine3d/), when switched on: follow the rigs just posed (and the drawn ball)
   const bp=ballMesh.position;ballShadow.position.set(bp.x,0.015,bp.z);const sc=1/(1+bp.y*0.35);ballShadow.scale.set(sc,sc,sc);
   const closeCam=(SP&&SP.fk&&state==='setpiece')||(state==='dead'&&foulSeq&&foulSeq.shown);
   const showMark=human&&mode==='match'&&controlled&&state!=='replay'&&!closeCam;

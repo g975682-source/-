@@ -5,9 +5,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 239,
-   "slideMean": 0.023,
-   "slideMedian": 0.015,
-   "slideP90": 0.023,
+   "slideMean": 0,
+   "slideMedian": 0,
+   "slideP90": 0,
    "weights": {
     "idle": 1,
     "walk": 0,
@@ -24,9 +24,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 239,
-   "slideMean": 0.705,
-   "slideMedian": 0.097,
-   "slideP90": 0.551,
+   "slideMean": 0.602,
+   "slideMedian": 0,
+   "slideP90": 0.045,
    "weights": {
     "idle": 0,
     "walk": 1,
@@ -42,10 +42,10 @@
    "spd": 2.1,
    "frames": 240,
    "fps": 60,
-   "stanceSamples": 179,
-   "slideMean": 0.506,
-   "slideMedian": 0.216,
-   "slideP90": 0.597,
+   "stanceSamples": 175,
+   "slideMean": 0.306,
+   "slideMedian": 0,
+   "slideP90": 0.113,
    "weights": {
     "idle": 0,
     "walk": 0.5,
@@ -62,9 +62,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 133,
-   "slideMean": 0.237,
-   "slideMedian": 0.176,
-   "slideP90": 0.597,
+   "slideMean": 0.028,
+   "slideMedian": 0,
+   "slideP90": 0.103,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -81,9 +81,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 132,
-   "slideMean": 0.325,
-   "slideMedian": 0.252,
-   "slideP90": 0.729,
+   "slideMean": 0.042,
+   "slideMedian": 0,
+   "slideP90": 0.151,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -99,10 +99,10 @@
    "spd": 4.9,
    "frames": 240,
    "fps": 60,
-   "stanceSamples": 75,
-   "slideMean": 1.15,
-   "slideMedian": 0.653,
-   "slideP90": 3.575,
+   "stanceSamples": 67,
+   "slideMean": 0.46,
+   "slideMedian": 0,
+   "slideP90": 0.671,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -119,9 +119,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 81,
-   "slideMean": 0.257,
-   "slideMedian": 0.237,
-   "slideP90": 0.387,
+   "slideMean": 0.038,
+   "slideMedian": 0,
+   "slideP90": 0.149,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -138,9 +138,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 83,
-   "slideMean": 0.305,
-   "slideMedian": 0.266,
-   "slideP90": 0.502,
+   "slideMean": 0.034,
+   "slideMedian": 0,
+   "slideP90": 0.1,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -157,9 +157,9 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 78,
-   "slideMean": 0.358,
-   "slideMedian": 0.304,
-   "slideP90": 0.613,
+   "slideMean": 0.06,
+   "slideMedian": 0.042,
+   "slideP90": 0.149,
    "weights": {
     "idle": 0,
     "walk": 0,
@@ -176,17 +176,17 @@
   {
    "deg": 45,
    "spd": 2.8,
-   "slideMean": 0.262,
-   "slideMedian": 0.18,
-   "slideP90": 0.611,
+   "slideMean": 0.023,
+   "slideMedian": 0,
+   "slideP90": 0.132,
    "hipsYaw": 0.785,
    "backwards": false
   },
   {
    "deg": 90,
    "spd": 1.4,
-   "slideMean": 0.896,
-   "slideMedian": 0.11,
+   "slideMean": 0.766,
+   "slideMedian": 0,
    "slideP90": 2.044,
    "hipsYaw": 1.571,
    "backwards": false
@@ -194,36 +194,36 @@
   {
    "deg": 90,
    "spd": 2.8,
-   "slideMean": 0.261,
-   "slideMedian": 0.178,
-   "slideP90": 0.612,
+   "slideMean": 0.022,
+   "slideMedian": 0,
+   "slideP90": 0.142,
    "hipsYaw": 1.571,
    "backwards": false
   },
   {
    "deg": 135,
    "spd": 1.4,
-   "slideMean": 0.389,
-   "slideMedian": 0.109,
-   "slideP90": 1.093,
+   "slideMean": 0.265,
+   "slideMedian": 0,
+   "slideP90": 0.713,
    "hipsYaw": -0.785,
    "backwards": true
   },
   {
    "deg": 180,
    "spd": 1.4,
-   "slideMean": 0.465,
-   "slideMedian": 0.103,
-   "slideP90": 1.152,
+   "slideMean": 0.351,
+   "slideMedian": 0,
+   "slideP90": 0.842,
    "hipsYaw": 0,
    "backwards": true
   },
   {
    "deg": 180,
    "spd": 2.8,
-   "slideMean": 0.252,
-   "slideMedian": 0.179,
-   "slideP90": 0.611,
+   "slideMean": 0.008,
+   "slideMedian": 0,
+   "slideP90": 0.058,
    "hipsYaw": 0,
    "backwards": true
   }
@@ -231,21 +231,21 @@
  "dribble": [
   {
    "spd": 3,
-   "slideMean": 0.419,
-   "slideMedian": 0.176,
-   "slideP90": 1.471
+   "slideMean": 0.071,
+   "slideMedian": 0,
+   "slideP90": 0.315
   },
   {
    "spd": 5,
-   "slideMean": 0.975,
-   "slideMedian": 0.714,
-   "slideP90": 2.35
+   "slideMean": 0.254,
+   "slideMedian": 0,
+   "slideP90": 0.594
   },
   {
    "spd": 7,
-   "slideMean": 0.494,
-   "slideMedian": 0.344,
-   "slideP90": 1.212
+   "slideMean": 0.096,
+   "slideMedian": 0.113,
+   "slideP90": 0.269
   }
  ],
  "turn": {

@@ -78,6 +78,8 @@ window.P3D=(()=>{
     for(let i=0;i<n;i++){if(region[i]!==RIX.boots)continue;v.fromBufferAttribute(pos,i);mesh.boneTransform(i,v);v.applyMatrix4(mesh.matrixWorld);if(v.y<lo)lo=v.y;}
     for(const [b,q] of pose)bone[b].quaternion.copy(q);root.updateMatrixWorld(true);
     const hipsRest=bone.Hips.position.clone(),standY=hipsRest.y-lo;
+    const ankleY=bone.LeftFoot.getWorldPosition(new TH.Vector3()).y-lo;   // the ankle's height above the sole, standing
+    const toeY=bone.LeftToeBase.getWorldPosition(new TH.Vector3()).y-lo;   // the ball of the foot's, standing
     const names={};for(const [k,b] of Object.entries(bone))names[k]=b.name;
     // a loose fist: each finger's joints turned about the axis across the hand (index to little finger knuckles), taken
     // square to that finger so that it bends without twisting; the thumb a little
@@ -87,7 +89,7 @@ window.P3D=(()=>{
       for(const f of ['Index','Middle','Ring','Pinky','Thumb']){const b2=bone[sd+'Hand'+f+'2'];if(!b2)continue;
         const d=b2.position.clone().normalize(),ax=k.clone().sub(d.clone().multiplyScalar(k.dot(d))).normalize().multiplyScalar(sign);
         (f==='Thumb'?[0.25,0.45,0.35]:[0.8,1.05,0.7]).forEach((a,i)=>{const b=sd+'Hand'+f+(i+1);if(bone[b])curl[b]=new TH.Quaternion().setFromAxisAngle(ax,a);});}}
-    return {root,mesh,C,region,hipsRest,standY,verts:n,names,curl};
+    return {root,mesh,C,region,hipsRest,standY,ankleY,toeY,verts:n,names,curl};
   }
   // motion clips (anim/clips.json, baked by tools/bake_clips.js): optional; without them every state uses the transfer
   async function loadClips(url,names){
@@ -159,9 +161,15 @@ window.P3D=(()=>{
     for(const [k] of GAITS)if(w[k]>0)stride+=w[k]*c[k].speed*c[k].dur;
     // one gait phase for all: cycles per second so that the blended stride covers the ground at the game's speed
     if(stride>0)A.ph=((A.ph+(back?-1:1)*dt*s*mv/stride)%1+1)%1;   // stride/mv: the moving gaits' stride, their weights taken to 1
-    // Dribbling keeps the natural cadence. Locking the steps to the game's touches (its ball offset follows visPh at
-    // speed*1.2+1.5 rad/s, unrelated to stride) made the standing foot slide 0.6-0.8 m/s (measure_loco.js), so the
-    // touch rhythm stays the game's to change; dribbling here is posture only (stance()).
+    // Dribbling: the game touches the ball once a stride (p.touchPh, its stride from the same gait blend as here), so
+    // the gait only has to be put in step: the right foot coming through low towards the ball as it goes out (touchPh 0;
+    // gait phase 0.3 at 3 m/s, 0.2 at 5 m/s, found on renders: the right toe then 0.4-0.6 m behind the ball's centre,
+    // which the game keeps 0.6-0.9 m ahead of the carrier).
+    // Live game only (a replay or an online guest has no touch phase; the feet then just run).
+    const p=A.p,wd=A.st.dribble;
+    // only while that phase is moving (a replay or a paused game keeps a stale owner and a still touch phase)
+    const g=window.__game,moving=p.touchPh!=null&&p.touchPh!==A.tp0&&!(g&&g.state==='replay');A.tp0=p.touchPh;
+    if(wd>0.05&&!back&&moving){const tgt=((p.touchPh/(2*Math.PI)+clampN(0.45-0.05*s,0.15,0.35))%1+1)%1;let d=tgt-A.ph;d-=Math.round(d);A.ph=((A.ph+d*wd*Math.min(1,dt*5))%1+1)%1;}
     A.it=(A.it+dt)%c.idle.dur;
     // a kick (kick()) takes its share from the gaits
     const wk=A.kw||0,rest=1-wk;
@@ -224,18 +232,21 @@ window.P3D=(()=>{
   //  jockey  defending in front of the ball carrier: side-on, knees bent about 40 deg, arms out for balance
   //  shield  on the ball with an opponent at the back: low, the arm on his side out to hold him off (not a push)
   //  contact shoulder to shoulder for the ball: lean into him, elbows in
-  // Read from the live game (window.__game: the ball's owner, the players' flags); in a replay or on an online guest
-  // these are not known and the players just move.
+  // Read from what is drawn (stanceOf), so a replay and an online guest's view show them too.
   function stanceOf(A,s){
-    const g=window.__game,p=A.p,ball=g&&g.ball,owner=ball&&ball.owner,ps=S.players||[];
-    let opp=null,od=1e9;for(const q of ps){if(q.team===p.team||q.sentOff)continue;const d=Math.hypot(q.pos.x-p.pos.x,q.pos.z-p.pos.z);if(d<od){od=d;opp=q;}}
-    const toOwner=owner&&owner.team!==p.team?Math.hypot(owner.pos.x-p.pos.x,owner.pos.z-p.pos.z):1e9;
-    const jockey=owner!==p&&((p.jockeyT||0)>0||(p.faceBall&&toOwner<4.5&&s<5));
-    const shield=owner===p&&(p.shielding||(od<1.6&&s<3));
+    // from what is drawn (the rigs' places and facings, the drawn ball), so that replays and an online guest's view show
+    // the same; in the live game the game's own flags count too (the jockey key, the shield key)
+    const g=window.__game,live=!!g&&g.state!=='replay'&&!(g.net&&g.net.role==='guest'),p=A.p,ps=S.players||[],me=A.rig.root.position,bp=S.ballPos;
+    let owner=null;if(bp&&bp.y<0.6){let bd=1.0;for(const q of ps){if(q.sentOff||!q.rig)continue;const r=q.rig.root.position,d=Math.hypot(r.x-bp.x,r.z-bp.z);if(d<bd){bd=d;owner=q;}}}
+    let opp=null,od=1e9;for(const q of ps){if(q.team===p.team||q.sentOff||!q.rig)continue;const r=q.rig.root.position,d=Math.hypot(r.x-me.x,r.z-me.z);if(d<od){od=d;opp=q;}}
+    const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x)),face=A.rig.root.rotation.y;
+    let toOwner=1e9,facing=false;if(owner&&owner.team!==p.team){const r=owner.rig.root.position;toOwner=Math.hypot(r.x-me.x,r.z-me.z);facing=Math.abs(wrap(Math.atan2(r.x-me.x,r.z-me.z)-face))<1.05;}
+    const jockey=owner!==p&&((live&&(p.jockeyT||0)>0)||(facing&&toOwner<4.5&&s<5));
+    const shield=owner===p&&((live&&p.shielding)||(od<1.6&&s<3));
     const contact=od<1.0&&!!owner&&(owner===p||owner===opp);
     const dribble=owner===p&&s>0.8&&!shield;
     // which side the nearest opponent is on, in his own frame (+1 left, -1 right)
-    let side=1;if(opp){const dx=opp.pos.x-p.pos.x,dz=opp.pos.z-p.pos.z,f=p.face;side=(dx*Math.cos(f)-dz*Math.sin(f))>=0?1:-1;}
+    let side=1;if(opp){const r=opp.rig.root.position,dx=r.x-me.x,dz=r.z-me.z;side=(dx*Math.cos(face)-dz*Math.sin(face))>=0?1:-1;}
     return {jockey,shield,contact,dribble,side};
   }
   function stance(A,s,dt){
@@ -263,6 +274,33 @@ window.P3D=(()=>{
     return W;
   }
   const xAxis=new TH.Vector3(1,0,0);
+  // Corrections on top of the transferred game pose, for states the clips do not cover (sources in MOVEMENT_ANALYSIS.md):
+  //  keeper set (gkready 6): elite keepers stand with the knee bent about 62 deg and the hip about 63 deg (the game's pose
+  //    has 45 and about 43): knees bent further, trunk a little more forward, hips lower;
+  //  header (10) and jump (17): the arms drive the jump, swinging forward and up as he rises, and pull down as he meets
+  //    the ball (header) or as he lands;
+  //  tackles (stackle 13, tackle 11): the trunk leans into the tackle and the arm away from the tackling leg goes out
+  //    for balance.
+  // Scaled by how much the transfer is showing (A.wp).
+  function gamePoseFix(A){
+    const r=A.rig,va=r.va,t=r.vt||0,w=A.wp,bone=A.bone;if(!(w>0))return;
+    if(va===6){const c=0.19*w;
+      for(const sd of ['Left','Right']){qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'UpLeg'].quaternion.multiply(qL);
+        qL.setFromAxisAngle(xAxis,1.6*c);bone[sd+'Leg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'Foot'].quaternion.multiply(qL);}
+      bone.Hips.position.y-=0.92*(1-Math.cos(0.8*c));qL.setFromAxisAngle(xAxis,0.1*w);bone.Spine.quaternion.multiply(qL);}
+    if(va===10||va===17){const dur=va===10?0.5:0.62,q=clampN(t/dur,0,1);
+      for(const [sd,sx] of [['Left',1],['Right',-1]]){let x,z,e;
+        if(q<0.5){const u=q/0.5;x=-0.4-1.3*u;z=sx*(0.25+0.15*u);e=1.1;}else{const v=(q-0.5)/0.5;x=-1.7+(va===10?1.2:1.3)*v;z=sx*(0.4+(va===10?0.4:0.1)*v);e=1.1-0.5*v;}
+        blendArm(A,sd,x,z,e,w);}}
+    if(va===13||va===11){const dur=va===13?0.34:0.3,q=clampN(t/dur,0,1),e2=Math.sin(Math.min(1,q)*Math.PI*0.5)*w;
+      qL.setFromAxisAngle(xAxis,0.18*e2);bone.Spine.quaternion.multiply(qL);
+      // stackle tackles with the right leg, tackle pokes with the left: the opposite arm out
+      const sd=va===13?'Left':'Right',sx=va===13?1:-1;blendArm(A,sd,-0.3,sx*1.0,0.4,e2);}
+  }
+  // an arm towards given game-convention angles by weight w, from what the bones hold now
+  function blendArm(A,sd,x,z,e,w){const b=A.bone,keep=[b[sd+'Arm'].quaternion.clone(),b[sd+'ForeArm'].quaternion.clone()];
+    setArmBone(A,sd+'Arm',x,-(sd==='Left'?1:-1)*0.35*Math.min(1,e/1.4),z);setArmBone(A,sd+'ForeArm',-e,0,0);
+    if(w<1){b[sd+'Arm'].quaternion.copy(keep[0].slerp(b[sd+'Arm'].quaternion,w));b[sd+'ForeArm'].quaternion.copy(keep[1].slerp(b[sd+'ForeArm'].quaternion,w));}}
   const BLEND=0.12;   // seconds to go between the clips and the transferred pose
   const qT=new TH.Quaternion(),qL=new TH.Quaternion(),zAxis=new TH.Vector3(0,0,1),yAxis=new TH.Vector3(0,1,0);
   // how the trunk turns back from the hips to the facing, from the bottom up (the head ends about square to the facing)
@@ -310,8 +348,45 @@ window.P3D=(()=>{
       const hy=t.standY*(r.hips.position.y/(r.hipK||1))/0.95;
       if(A.wp<1)bone.Hips.position.set(t.hipsRest.x+(A.lh.x-t.hipsRest.x)*(1-A.wp),A.lh.y+(hy-A.lh.y)*A.wp,t.hipsRest.z+(A.lh.z-t.hipsRest.z)*(1-A.wp));
       else bone.Hips.position.set(t.hipsRest.x,hy,t.hipsRest.z);}
+    gamePoseFix(A);
+    footLock(A,dt,!!S.clips&&A.wp<0.5&&S.footLock!==false);
   }
   const I0=new TH.Quaternion();
+  // Foot lock: the ball of a foot on the ground (its height within 3 cm of standing and moving slower than 80% of the
+  // body) is held where it came down, and the leg is bent so that the ankle sits where that takes it (two-bone IK: thigh
+  // and shin, the knee kept bending the way it was, the foot keeping its own orientation, so heel and toe still roll).
+  // Released when the ball of the foot lifts or is more than 35 cm from its spot; in and out over 0.04 / 0.08 s. Only
+  // while the clips drive the body. This takes out what the clips' blending and the speed matching leave of the
+  // standing foot sliding.
+  const vA=new TH.Vector3(),vB=new TH.Vector3(),vC=new TH.Vector3(),vT=new TH.Vector3(),vU=new TH.Vector3(),vK=new TH.Vector3(),qW=new TH.Quaternion(),qP=new TH.Quaternion(),qF=new TH.Quaternion(),qD=new TH.Quaternion();
+  function setWorldQuat(b,qw){b.parent.getWorldQuaternion(qP);b.quaternion.copy(qP.invert().multiply(qw));b.updateMatrixWorld(true);}
+  function twoBone(up,leg,foot,t){
+    up.getWorldPosition(vA);leg.getWorldPosition(vB);foot.getWorldPosition(vC);foot.getWorldQuaternion(qF);
+    const l1=vB.distanceTo(vA),l2=vC.distanceTo(vB);vU.subVectors(t,vA);let d=vU.length();if(d<1e-6)return;vU.divideScalar(d);
+    d=clampN(d,Math.abs(l1-l2)+1e-3,l1+l2-1e-3);
+    vK.subVectors(vB,vA);vK.addScaledVector(vU,-vK.dot(vU));if(vK.lengthSq()<1e-10)return;vK.normalize();
+    const ca=clampN((l1*l1+d*d-l2*l2)/(2*l1*d),-1,1),sa=Math.sqrt(1-ca*ca);
+    const nb=vT.copy(vA).addScaledVector(vU,l1*ca).addScaledVector(vK,l1*sa);
+    qD.setFromUnitVectors(vB.sub(vA).normalize(),nb.clone().sub(vA).normalize());up.getWorldQuaternion(qW);setWorldQuat(up,qD.multiply(qW));
+    leg.getWorldPosition(vB);foot.getWorldPosition(vC);
+    qD.setFromUnitVectors(vC.sub(vB).normalize(),vT.copy(t).sub(vB).normalize());leg.getWorldQuaternion(qW);setWorldQuat(leg,qD.multiply(qW));
+    setWorldQuat(foot,qF);
+  }
+  function footLock(A,dt,on){
+    if(!on||!(dt>0)){A.lock=null;return;}
+    const k=A.holder.scale.x,ground=(S.tpl.toeY+0.03)*k,s=A.rig.vspd||0;A.holder.updateMatrixWorld(true);
+    A.lock=A.lock||{Left:{pin:null,w:0,off:new TH.Vector3(),prev:null},Right:{pin:null,w:0,off:new TH.Vector3(),prev:null}};
+    for(const sd of ['Left','Right']){const L=A.lock[sd],up=A.bone[sd+'UpLeg'],leg=A.bone[sd+'Leg'],foot=A.bone[sd+'Foot'],toe=A.bone[sd+'ToeBase'];
+      const tw=toe.getWorldPosition(new TH.Vector3()),sp=L.prev?Math.hypot(tw.x-L.prev.x,tw.z-L.prev.z)/dt:0;L.prev=tw.clone();
+      const planted=tw.y<ground&&sp<0.8*s+0.6;
+      if(planted&&!L.pin)L.pin=tw.clone();
+      if(!planted)L.pin=null;
+      if(L.pin&&Math.hypot(L.pin.x-tw.x,L.pin.z-tw.z)>0.35)L.pin=tw.clone();
+      if(L.pin)L.off.set(L.pin.x-tw.x,0,L.pin.z-tw.z);
+      L.w=L.pin?Math.min(1,L.w+dt/0.04):Math.max(0,L.w-dt/0.08);
+      // the ankle moved by what the ball of the foot is off its spot
+      if(L.w>1e-3&&L.off.lengthSq()>1e-8){const t=foot.getWorldPosition(new TH.Vector3()).addScaledVector(L.off,L.w);twoBone(up,leg,foot,t);}}
+  }
 
   // which players get the model
   function targets(players,teams,controlled){
@@ -330,7 +405,8 @@ window.P3D=(()=>{
       S.ready=true;
       return this.status;},
     // once per drawn frame, after the game has posed its players
-    frame(players,scene,teams,controlled){
+    frame(players,scene,teams,controlled,ballPos){
+      S.ballPos=ballPos||null;
       if(!S.ready||S.mode==='off'||!players)return;
       const t0=performance.now();
       if(players!==S.players){for(const A of [...S.actors.values()])detach(A,scene);S.players=players;}   // a new match
@@ -355,6 +431,8 @@ window.P3D=(()=>{
       for(const b of ['LeftFoot','RightFoot','LeftToeBase','RightToeBase'])o[b]=A.bone[b].getWorldPosition(v()).toArray();return o;},
     // for checks: a fixed time step per frame (seconds) instead of the wall clock; null goes back to the clock
     clock(dt){S.fixedDt=dt;},
+    // for checks: foot lock on (default) or off
+    footLock(on){S.footLock=on;},
     setMode(m){S.mode=m;if(m==='off')for(const A of [...S.actors.values()])detach(A);S.players=null;},
   };
 })();

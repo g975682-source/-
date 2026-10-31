@@ -1,6 +1,7 @@
 // Close-up frames of the 3D model's standing, walking, jogging, running and a shot out of a run, in the real game page
 // with time stepped by this script (as measure_loco.js), for looking at. Development tool.
 //   node ground-legends/engine3d/tools/render_loco.js <out folder>
+//   SCENE=moves: keeper set, header, jump, standing and poke tackles (the game's poses with the engine's corrections)
 //   SCENE=kick: standing shots, right and left foot, with the toe-to-ball distance around the strike (toes.json)
 //   SCENE=brake: run, hard stop, push off; SCENE=dribble: on the ball at 3 and 5 m/s; SCENE=contest: jockey, shield and shoulder-to-shoulder against an opponent moved by hand
 //   CAM=side|front|hand|both|all (default side; hand: close to the right hand), NEAR=1 for a closer camera, SIZE=<width px>
@@ -13,7 +14,7 @@ const P=require(path.join(GL,'tests','legacy','paths.js'));const {chromium}=requ
 const OUT=path.resolve(process.argv[2]||'loco_frames');fs.mkdirSync(OUT,{recursive:true});
 const three=fs.readFileSync(P.THREE_JS,'utf8'),game=fs.readFileSync(path.join(GL,'index.html'),'utf8');
 const k=game.indexOf('window.__game={');
-const INJECT='window.__vis={applyVisual,scene,renderer,camera,ballMesh,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
+const INJECT='window.__vis={applyVisual,strideAt,scene,renderer,camera,ballMesh,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
 const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game.slice(0,k)+INJECT+game.slice(k)+'</body></html>';
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
@@ -34,7 +35,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   const frames=await page.evaluate(([CAM,NEAR,SCENE])=>{const V=window.__vis,p=window.__st,dt=1/60,out=[];let i=0;
     p.pos.set(-30,0,-12);p.face=0;V.setVisDt(dt);const hud=document.getElementById('hud');if(hud)hud.style.display='none';
     const step=(a,spd,t,label)=>{if(SCENE!=='contest')p.pos.z+=spd*dt;p.spd=spd;p.visA=a;p.visT=t;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
-      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,a,t,p.visPh,spd,window.__side||0);P3D.frame(V.players,V.scene,V.teams,null);
+      V.applyVisual(p,p.pos.x,p.y||0,p.pos.z,p.face,a,t,p.visPh,spd,window.__side||0);if(SCENE!=='dribble'&&SCENE!=='kick'){const o=__game.ball.owner;if(o)V.ballMesh.position.set(o.pos.x+Math.sin(o.face)*0.6,0.14,o.pos.z+Math.cos(o.face)*0.6);else V.ballMesh.position.set(0,0.14,40);}P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
       const views=CAM==='both'?['side','front']:CAM==='all'?['side','front','hand']:[CAM],imgs={};
       if(i%3===0)for(const v of views){const d=NEAR?2.4:4.2;
         if(v==='hand'){const h=P3D.bones(p,['RightHand'])['RightHand'];V.camera.position.set(h[0]-0.55,h[1]+0.1,h[2]+0.35);V.camera.lookAt(h[0],h[1]-0.04,h[2]);}
@@ -56,6 +57,15 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
           const b=P3D.bones(p,[toe,foot]);const d=Math.hypot(b[toe][0]-bx,b[toe][1]-0.11,b[toe][2]-bz);if(t>0.05&&t<0.3)toes.push({side,t:+t.toFixed(4),toe:b[toe].map(v=>+v.toFixed(3)),toBall:+d.toFixed(3)});}
         B.position.set(bx,0.11,bz+9);for(let s2=0;s2<0.6;s2+=dt)step(0,0,12+s2,'stand');}
       window.__side=0;window.__toes=toes;return out;}
+    if(SCENE==='moves'){
+      // the states drawn from the game's own pose: keeper set, header, jump, standing tackle, poke tackle (the game's
+      // heights for the header and the jump)
+      __game.ball.owner=null;
+      const play=(a,dur,label,yf)=>{for(let t=0;t<=dur;t+=dt){p.y=yf?yf(t):0;step(a,0,t,label);}p.y=0;};
+      play(6,0.8,'keeper set');play(0,0.4,'stand');
+      play(10,0.5,'header',t=>Math.sin(Math.min(1,t/0.5)*Math.PI)*0.38);play(0,0.4,'stand');
+      play(17,0.62,'jump',t=>Math.sin(Math.min(1,t/0.62)*Math.PI)*0.5);play(0,0.4,'stand');
+      play(13,0.54,'standing tackle');play(0,0.4,'stand');play(11,0.3,'poke tackle');play(0,0.4,'stand');return out;}
     if(SCENE==='brake'){
       // run at 7 m/s, stop in 0.6 s (about -12 m/s2), stand, push off to 7 m/s in 1.2 s
       const ramp=(a0,a1,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){const v=a0+(a1-a0)*s2/secs;step(v>0.05?1:0,v,12+s2,label);}};
@@ -63,9 +73,10 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
     if(SCENE==='dribble'){
       // on the ball at 3 and 5 m/s; the ball placed as the game places it for its owner (ball offset from visPh)
       __game.give(p.team,p.slot);const B=__game.ball;
-      const drib=(v,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){const ph=(p.visPh||0)+dt*(v*1.2+1.5);
+      const drib=(v,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){p.touchPh=(p.touchPh||0)+2*Math.PI*v/V.strideAt(v)*dt;const ph=p.touchPh;
         const off=0.5+v*0.055+Math.max(0,Math.sin(ph))*0.14*Math.min(1,v/4);B.pos.set(p.pos.x,0.11,p.pos.z+v*dt+off);V.ballMesh.position.set(B.pos.x,0.11+0.033,B.pos.z);
-        step(1,v,12+s2,label);}};
+        step(1,v,12+s2,label);
+        const b=P3D.bones(p,['RightToeBase','LeftToeBase']),k=Math.floor(ph/(2*Math.PI));if(k!==window.__lastTouch){window.__lastTouch=k;(window.__touches=window.__touches||[]).push({v,toeR:b.RightToeBase.map(x=>+x.toFixed(3)),toeL:b.LeftToeBase.map(x=>+x.toFixed(3)),ball:[+B.pos.x.toFixed(3),+B.pos.z.toFixed(3)]});}}};
       drib(3,1.6,'dribble 3');drib(5,1.6,'dribble 5');return out;}
     if(SCENE==='contest'){
       // an opponent from the other team, moved by hand like him
@@ -81,6 +92,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
       // contact: running with the ball, the opponent 0.85 m to his left, shoulder to shoulder
       sc('contact',1.4,()=>{place(0.85,0);p.visA=1;p.spd=5;});
       return out;}
+    __game.ball.owner=null;   // off the ball (at the kick-off it is his)
     hold(0,0,0.6,'stand');hold(1,1.4,1.2,'walk 1.4 m/s');hold(1,2.8,1.2,'jog 2.8 m/s');hold(1,5.5,1.2,'run 5.5 m/s');hold(1,8.5,1.0,'sprint 8.5 m/s');
     hold(1,6,0.4,'run 6 m/s');
     // a shot: the game's kick timeline (visT -0.1 ... 0.13, the strike, 0.15 ... 0.45), slowing down
@@ -88,7 +100,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
     hold(0,0,0.8,'stand');
     return out;},[CAM,NEAR,SCENE]);
   frames.forEach((f,n)=>{for(const [v,d] of Object.entries(f.imgs))fs.writeFileSync(path.join(OUT,`${v}_${String(n).padStart(3,'0')}.png`),Buffer.from(d.split(',')[1],'base64'));if(f.imgs.side||f.img)fs.writeFileSync(path.join(OUT,`f_${String(n).padStart(3,'0')}.png`),Buffer.from(f.img.split(',')[1],'base64'));});
-  const toes=await page.evaluate(()=>window.__toes||null);if(toes)fs.writeFileSync(path.join(OUT,'toes.json'),JSON.stringify(toes,null,1));
+  const toes=await page.evaluate(()=>window.__toes||window.__touches||null);if(toes)fs.writeFileSync(path.join(OUT,'toes.json'),JSON.stringify(toes,null,1));
   fs.writeFileSync(path.join(OUT,'frames.json'),JSON.stringify(frames.map((f,n)=>({n,label:f.label,weights:f.w,transfer:f.tr}))));
   console.log('frames',frames.length,'page errors',errors.length);await b.close();
 })().catch(e=>{console.error(e);process.exit(1);});

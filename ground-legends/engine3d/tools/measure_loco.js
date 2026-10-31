@@ -11,7 +11,7 @@ const GL=path.join(__dirname,'..','..');
 const P=require(path.join(GL,'tests','legacy','paths.js'));const {chromium}=require(P.PLAYWRIGHT);
 const three=fs.readFileSync(P.THREE_JS,'utf8'),game=fs.readFileSync(path.join(GL,'index.html'),'utf8');
 const k=game.indexOf('window.__game={');if(k<0)throw new Error('anchor');
-const INJECT='window.__vis={applyVisual,scene,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
+const INJECT='window.__vis={applyVisual,strideAt,ballMesh,scene,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
 const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game.slice(0,k)+INJECT+game.slice(k)+'</body></html>';
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
@@ -36,8 +36,8 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   const run=(spd,secs,turn,ang)=>page.evaluate(([spd,secs,turn,ang])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
     p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);
     for(let i=0;i*dt<secs;i++){if(turn)p.face+=turn*dt;
-      p.pos.x+=Math.sin(p.face+ang)*spd*dt;p.pos.z+=Math.cos(p.face+ang)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
-      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);P3D.frame(V.players,V.scene,V.teams,null);
+      p.pos.x+=Math.sin(p.face+ang)*spd*dt;p.pos.z+=Math.cos(p.face+ang)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));p.touchPh=(p.touchPh||0)+2*Math.PI*spd/V.strideAt(spd)*dt;
+      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);if(__game.ball.owner===p)V.ballMesh.position.set(p.pos.x+Math.sin(p.face)*0.6,0.14,p.pos.z+Math.cos(p.face)*0.6);else V.ballMesh.position.set(0,0.14,40);P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
       const f=P3D.feet(p),m=P3D.measure(p);rows.push({t:i*dt,dt,feet:f,w:m.weights,lean:m.lean,transfer:m.transfer,hy:m.hipsYaw,back:m.backwards});}
     return rows;},[spd,secs,turn||0,ang||0]);
   const out={speeds:[]};
