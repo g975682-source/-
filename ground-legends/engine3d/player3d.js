@@ -581,6 +581,15 @@ window.P3D=(()=>{
     // for checks: world positions of the copy's toes and feet (bones), and which of the two toes is lower
     feet(p){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const v=()=>new TH.Vector3(),o={};
       for(const b of ['LeftFoot','RightFoot','LeftToeBase','RightToeBase'])o[b]=A.bone[b].getWorldPosition(v()).toArray();return o;},
+    // for checks: the copy's joints as the keypoints of body-pose data from match video (SkillCorner: midHip, hips,
+    // knees, ankles, big toes, neck, nose, shoulders, elbows, wrists), world metres, y up. midHip is between the hip
+    // joints; nose is 0.1 m in front of the head bone.
+    joints(p){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const B=A.bone,w=b=>B[b].getWorldPosition(new TH.Vector3()),o={};
+      const M={lHip:'LeftUpLeg',rHip:'RightUpLeg',lKnee:'LeftLeg',rKnee:'RightLeg',lAnkle:'LeftFoot',rAnkle:'RightFoot',lBigToe:'LeftToeBase',rBigToe:'RightToeBase',
+        neck:'Neck',lShoulder:'LeftArm',rShoulder:'RightArm',lElbow:'LeftForeArm',rElbow:'RightForeArm',lWrist:'LeftHand',rWrist:'RightHand'};
+      for(const [k,b] of Object.entries(M))o[k]=w(b);o.midHip=o.lHip.clone().add(o.rHip).multiplyScalar(0.5);
+      const h=w('Head'),q=B.Head.getWorldQuaternion(new TH.Quaternion());o.nose=h.add(new TH.Vector3(0,0,0.1).applyQuaternion(q));
+      for(const k in o)o[k]=[+o[k].x.toFixed(3),+o[k].y.toFixed(3),+o[k].z.toFixed(3)];return o;},
     // for checks: a fixed time step per frame (seconds) instead of the wall clock; null goes back to the clock
     clock(dt){S.fixedDt=dt;},
     // for checks: foot lock on (default) or off
