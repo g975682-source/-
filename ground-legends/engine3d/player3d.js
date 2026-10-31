@@ -162,6 +162,12 @@ window.P3D=(()=>{
     g.setAttribute('kpat',new TH.BufferAttribute(kp,3));   // read by kitShader; each copy's geometry clone carries it
     return {dom,bn,torso,ring,hair,beard,build,decals,isArm,isHand,R,cz,H0,hem,bun};
   }
+  const MIRROR={kick:'kickL',side:'sideR'};
+  // a clip's mean thigh rotation per side (sign-aligned average of its keys), the centre its hip swing is scaled about
+  function hipMean(tracks){const o={};for(const sd of ['Left','Right']){const t=tracks.find(x=>x.bone===sd+'UpLeg'&&x.prop==='quaternion');if(!t)continue;
+      const v=t.values,q=new TH.Quaternion(0,0,0,0),r=new TH.Quaternion(v[0],v[1],v[2],v[3]);
+      for(let i=0;i<v.length;i+=4){const sg=(v[i]*r.x+v[i+1]*r.y+v[i+2]*r.z+v[i+3]*r.w)<0?-1:1;q.x+=sg*v[i];q.y+=sg*v[i+1];q.z+=sg*v[i+2];q.w+=sg*v[i+3];}o[sd]=q.normalize();}
+    return o;}
   // motion clips (anim/clips.json, baked by tools/bake_clips.js): optional; without them every state uses the transfer
   async function loadClips(url,names){
     const r=await fetch(url);if(!r.ok||/html/i.test(r.headers.get('content-type')||''))throw new Error(url+': '+r.status);
@@ -169,16 +175,30 @@ window.P3D=(()=>{
     for(const [k,c] of Object.entries(doc.clips)){
       const tracks=c.tracks.filter(t=>names[t.bone]).map(t=>t.prop==='quaternion'?new TH.QuaternionKeyframeTrack(names[t.bone]+'.quaternion',t.times,t.values)
         :new TH.VectorKeyframeTrack(names[t.bone]+'.'+t.prop,t.times,t.values));
-      out[k]={clip:new TH.AnimationClip(k,c.duration,tracks),dur:c.duration,loop:c.loop,speed:c.speed,foot:c.footPhase%c.duration,contact:c.contact||null};
-      // the left-foot kick: the right one mirrored (left and right bones swapped, reflected in the body's middle plane)
-      if(k==='kick'){const sw=b=>b.startsWith('Left')?'Right'+b.slice(4):b.startsWith('Right')?'Left'+b.slice(5):b;
-        const mt=c.tracks.filter(t=>names[sw(t.bone)]).map(t=>{const v=t.values.slice();
-          if(t.prop==='quaternion'){for(let i=0;i<v.length;i+=4){v[i+1]=-v[i+1];v[i+2]=-v[i+2];}return new TH.QuaternionKeyframeTrack(names[sw(t.bone)]+'.quaternion',t.times,v);}
-          for(let i=0;i<v.length;i+=3)v[i]=-v[i];return new TH.VectorKeyframeTrack(names[sw(t.bone)]+'.'+t.prop,t.times,v);});
-        out.kickL={clip:new TH.AnimationClip('kickL',c.duration,mt),dur:c.duration,loop:false,speed:c.speed,foot:0,contact:c.contact||null};}}
+      out[k]={clip:new TH.AnimationClip(k,c.duration,tracks),dur:c.duration,loop:c.loop,speed:c.speed,foot:c.footPhase%c.duration,contact:c.contact||null,dir:c.dir||[0,1],
+        hip:hipMean(c.tracks)};
+      // mirrored: the left-foot kick from the right one, walking sideways to the right from the walk to the left (left
+      // and right bones swapped, reflected in the body's middle plane)
+      const m=MIRROR[k];if(m){const sw=b=>b.startsWith('Left')?'Right'+b.slice(4):b.startsWith('Right')?'Left'+b.slice(5):b;
+        const mtr=c.tracks.map(t=>{const v=t.values.slice();if(t.prop==='quaternion'){for(let i=0;i<v.length;i+=4){v[i+1]=-v[i+1];v[i+2]=-v[i+2];}}else for(let i=0;i<v.length;i+=3)v[i]=-v[i];return {bone:sw(t.bone),prop:t.prop,times:t.times,values:v};});
+        const mt=mtr.filter(t=>names[t.bone]).map(t=>t.prop==='quaternion'?new TH.QuaternionKeyframeTrack(names[t.bone]+'.quaternion',t.times,t.values):new TH.VectorKeyframeTrack(names[t.bone]+'.'+t.prop,t.times,t.values));
+        out[m]={clip:new TH.AnimationClip(m,c.duration,mt),dur:c.duration,loop:c.loop,speed:c.speed,foot:k==='kick'?0:c.footPhase%c.duration,contact:c.contact||null,dir:[-(c.dir||[0,1])[0],(c.dir||[0,1])[1]],hip:hipMean(mtr)};}}
     return out;
   }
 
+  // each gait clip's own trunk lean (deg, the neck over the hips' middle, forward +), averaged over its cycle, on the
+  // model at rest (its pose put back afterwards)
+  function clipLean(){
+    const t=S.tpl,root=t.root,bones=[];root.traverse(o=>{if(o.isBone)bones.push([o,o.quaternion.clone(),o.position.clone()]);});
+    const by={};for(const [o] of bones)by[short(o.name)]=o;const mx=new TH.AnimationMixer(root),out={},v=new TH.Vector3(),u=new TH.Vector3(),n=new TH.Vector3();
+    for(const k of ['walk','jog','run','side','sideR']){const c=S.clips[k];if(!c)continue;const a=mx.clipAction(c.clip);a.play();a.setEffectiveWeight(1);let sum=0;
+      for(let i=0;i<12;i++){a.time=c.dur*i/12;mx.update(0);root.updateMatrixWorld(true);
+        by.LeftUpLeg.getWorldPosition(v);by.RightUpLeg.getWorldPosition(u);v.add(u).multiplyScalar(0.5);by.Neck.getWorldPosition(n);
+        sum+=Math.atan2(n.z-v.z,n.y-v.y)*180/Math.PI;}
+      out[k]=sum/12;a.stop();mx.uncacheAction(c.clip);}
+    mx.uncacheRoot(root);for(const [o,q,p] of bones){o.quaternion.copy(q);o.position.copy(p);}root.updateMatrixWorld(true);
+    return out;
+  }
   // ---- a player's copy ----
   const linear=hex=>{const c=new TH.Color(hex);return [c.r,c.g,c.b];};
   const mix=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
@@ -278,7 +298,7 @@ window.P3D=(()=>{
       wp:null,ph:0,it:0,kw:0,kt:0,kOn:false,kside:1,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,dribble:0,brake:0,push:0,side:1},acc:0,sp0:null,lq:{},lh:new TH.Vector3()};
     for(const b in MAP)A.lq[b]=new TH.Quaternion();A.lq.Spine2=new TH.Quaternion();A.lq.LeftToeBase=new TH.Quaternion();A.lq.RightToeBase=new TH.Quaternion();
     if(S.clips){A.mixer=new TH.AnimationMixer(root);A.act={};
-      for(const k of ['idle','walk','jog','run']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();A.act[k]=a;}
+      for(const k of ['idle','walk','jog','run','side','sideR']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();A.act[k]=a;}
       for(const k of ['kick','kickL']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopOnce,1);a.clampWhenFinished=true;a.setEffectiveWeight(0);a.play();A.act[k]=a;}}
     for(const [b,q] of Object.entries(S.tpl.curl))if(bone[b])bone[b].quaternion.copy(q);
     S.actors.set(p,A);drive(A,0);return A;
@@ -295,20 +315,38 @@ window.P3D=(()=>{
   // ground speed. Leaves the pose on the bones.
   const smooth=(a,b,x)=>{const u=Math.min(1,Math.max(0,(x-a)/(b-a)));return u*u*(3-2*u);};
   const clampN=(v,a,b)=>Math.min(b,Math.max(a,v));
-  // gaits by speed (m/s, the clips' own: walk 1.45, jog 2.8, run 7.0): [name, fade in from, to, fade out from, to]
-  // Bands are narrow: the strides differ about twofold between neighbours, and while two gaits blend the standing foot
-  // slides (tools/measure_loco.js), so each gait covers a wide range on its own, played faster or slower.
-  const GAITS=[['walk',0.25,0.9,1.9,2.3],['jog',1.9,2.3,4.6,5.2],['run',4.6,5.2,1e9,1e9]];
+  // gaits by speed (m/s, the clips' own: walk 1.45, jog 3.46, run 4.27): [name, fade in from, to, fade out from, to]
+  // Bands are narrow: while two gaits blend the standing foot slides (tools/measure_loco.js), so each gait covers a wide
+  // range on its own, played faster or slower and with its stride scaled (below).
+  const GAITS=[['walk',0.25,0.9,1.9,2.3],['jog',1.9,2.3,3.6,4.0],['run',3.6,4.0,1e9,1e9]];
+  // Gait cycle length (two steps, m) by speed, from real players: SkillCorner body pose from match video, two full
+  // matches (MOVEMENT_ANALYSIS.md section 7). It sets the steps a second (speed / length) as real players take them:
+  // 2.0 a second walking at 1.25 m/s, 2.9 at 3 m/s, 3.3 at 5, 3.8 at 7.
+  const CYC=[[0,0.8],[0.75,1.0],[1.25,1.38],[1.75,1.56],[2.25,1.72],[2.75,1.95],[3.25,2.24],[3.75,2.52],[4.25,2.77],[4.75,2.98],
+    [5.25,3.17],[5.75,3.33],[6.25,3.42],[6.75,3.58],[7.25,3.77],[7.75,3.83],[8.25,3.94],[10,4.1]];
+  const interp=(T,x)=>{if(x<=T[0][0])return T[0][1];for(let i=1;i<T.length;i++)if(x<=T[i][0]){const [a0,b0]=T[i-1],[a1,b1]=T[i];return b0+(b1-b0)*(x-a0)/(a1-a0);}return T[T.length-1][1];};
+  const qM=new TH.Quaternion(),qS=new TH.Quaternion();
   function locomotion(A,s,dt,back){
     // backwards: the walk and jog played in reverse (no running backwards: the jog takes the rest)
-    const c=S.clips,sg=back?Math.min(s,3.4):s,w={idle:1-smooth(0.25,0.9,s)};let sum=0,stride=0;
+    const c=S.clips,sg=back?Math.min(s,3.4):s,w={idle:1-smooth(0.25,0.9,s)};let sum=0,nat=0;
     for(const [k,a0,a1,b0,b1] of GAITS){const v=c[k]?smooth(a0,a1,sg)*(1-smooth(b0,b1,sg)):0;w[k]=v;sum+=v;}
     // a gait that is missing (no jog clip) leaves its share to its neighbours
     const mv=1-w.idle;if(sum>0)for(const [k] of GAITS)w[k]*=mv/sum;
-    for(const [k] of GAITS)if(w[k]>0)stride+=w[k]*c[k].speed*c[k].dur;
-    // one gait phase for all: cycles per second so that the blended stride covers the ground at the game's speed
-    if(stride>0)A.ph=((A.ph+(back?-1:1)*dt*s*mv/stride)%1+1)%1;   // stride/mv: the moving gaits' stride, their weights taken to 1
-    // Dribbling: the game touches the ball once a stride (p.touchPh, its stride from the same gait blend as here), so
+    // walking sideways (A.sw, from drive: travel square to the facing, slowly): the side clip, mirrored for the right
+    const ws=c.side&&c.sideR&&!back?A.sw||0:0;
+    for(const [k] of GAITS)w[k]*=1-ws;w.side=ws*mv*(A.sd>0?1:0);w.sideR=ws*mv*(A.sd>0?0:1);
+    for(const [k] of GAITS)if(w[k]>0)nat+=w[k]*c[k].speed*c[k].dur;
+    // stretched past about 1.25 (jog, run) the hip swing no longer carries the standing foot as far as the ground goes
+    // and the foot lock lets go (the foot pops): the cycle is held to that, a little shorter than real. The walk clip
+    // (short steps) pops at any stretch, so it keeps its own stride (2.5 steps a second at 1.4 m/s; real players 2.0)
+    const fw=mv*(1-ws),Lc=fw>1e-3?nat/fw:1,kmax=fw>1e-3?((w.walk||0)*1.0+((w.jog||0)+(w.run||0))*1.25)/fw:1,L=clampN(interp(CYC,sg),Lc*0.85,Lc*kmax);
+    // one gait phase for the forward gaits: cycles a second as real players at this speed (speed / CYC, as held above);
+    // the side clip keeps its own pace (its steps cover the ground at its own speed)
+    A.ph=((A.ph+(back?-1:1)*dt*s/L)%1+1)%1;
+    if(ws>0)A.phS=((A.phS||0)+dt*s/(c.side.speed*c.side.dur))%1;
+    // stride: the clips' hip swing scaled to that cycle (against the blend's own stride)
+    const kT=fw>1e-3?L/Lc:1;A.ks=A.ks==null?kT:A.ks+(kT-A.ks)*(dt>0?1-Math.exp(-dt*6):1);
+    // Dribbling: the game touches the ball once a stride (p.touchPh, its stride from the same table as CYC), so
     // the gait only has to be put in step: the right foot coming through low towards the ball as it goes out (touchPh 0;
     // gait phase 0.3 at 3 m/s, 0.2 at 5 m/s, found on renders: the right toe then 0.4-0.6 m behind the ball's centre,
     // which the game keeps 0.6-0.9 m ahead of the carrier).
@@ -322,8 +360,14 @@ window.P3D=(()=>{
     const wk=A.kw||0,rest=1-wk;
     A.act.idle.time=A.it;A.act.idle.setEffectiveWeight(w.idle*rest);
     for(const [k] of GAITS)if(A.act[k]){A.act[k].time=(c[k].foot+A.ph*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight(w[k]*rest);}
+    for(const k of ['side','sideR'])if(A.act[k]){A.act[k].time=(c[k].foot+(A.phS||0)*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight((w[k]||0)*rest);}
     for(const k of ['kick','kickL'])if(A.act[k]){const on=k===(A.kside<0?'kickL':'kick')&&wk>0;A.act[k].setEffectiveWeight(on?wk:0);if(on)A.act[k].time=clampN(A.kt,0,c[k].dur-1e-3);}
     A.w=w;A.mixer.update(0);
+    // the stride scaled: each thigh's rotation pushed out from (or drawn in to) the gaits' mean thigh rotation
+    const kk=1+(A.ks-1)*(fw/Math.max(mv,1e-3))*rest;
+    if(Math.abs(kk-1)>0.01&&fw>0.05)for(const sd of ['Left','Right']){qM.set(0,0,0,0);let ref=null;
+      for(const [k] of GAITS){const h=c[k].hip&&c[k].hip[sd];if(!(w[k]>0)||!h)continue;if(!ref)ref=h;const sg2=h.dot(ref)<0?-w[k]:w[k];qM.x+=sg2*h.x;qM.y+=sg2*h.y;qM.z+=sg2*h.z;qM.w+=sg2*h.w;}
+      if(!ref)continue;qM.normalize();const q=A.bone[sd+'UpLeg'].quaternion;qS.copy(qM).slerp(q,kk);q.copy(qS);}
   }
   // Kicks (game state kick: shots and passes) play the captured kick (CMU 143_24, right foot; mirrored for the left)
   // timed so that the clip's foot strike (contact) falls on the game's strike: visT 0.15 for a shot (the back-swing
@@ -343,13 +387,17 @@ window.P3D=(()=>{
   // Each arm swings against the leg of its side (phase 0: left foot down, left leg ahead, right arm ahead). Angles in the
   // game rig's convention (x < 0: arm or forearm forward; z: away from the body), put on the bones like the transfer.
   //            speed  swing  mean   elbow  elbow+fwd  out   across
-  const ARMK=[[0,     0,     0.04,  0.20,  0,         0.07, 0],
-              [1.4,   0.20,  0.04,  0.35,  0.20,      0.06, 0.02],
-              [1.9,   0.24,  0.02,  0.45,  0.25,      0.07, 0.03],
-              [2.3,   0.36,  -0.10, 1.25,  0.35,      0.10, 0.08],
-              [2.8,   0.42,  -0.12, 1.35,  0.35,      0.10, 0.10],
-              [7.0,   0.70,  -0.18, 1.45,  0.45,      0.12, 0.12],
-              [8.5,   0.80,  -0.20, 1.45,  0.50,      0.12, 0.12]];
+  // Refitted to real players (MOVEMENT_ANALYSIS.md section 7): walking, the elbow bent about 45 deg and the hand
+  // swinging about 0.38 m; jogging, about 90 deg and a small swing (0.16-0.2 m); faster, the arm opens (about 75 deg at
+  // 7 m/s) and swings further (0.4-0.47 m).
+  const ARMK=[[0,     0,     0.04,  0.45,  0,         0.07, 0],
+              [1.4,   0.30,  0.04,  0.70,  0.20,      0.06, 0.02],
+              [1.9,   0.32,  0.02,  0.80,  0.25,      0.07, 0.03],
+              [2.3,   0.30,  -0.10, 1.30,  0.30,      0.10, 0.08],
+              [2.8,   0.30,  -0.12, 1.35,  0.30,      0.10, 0.10],
+              [4.75,  0.50,  -0.15, 1.20,  0.35,      0.11, 0.11],
+              [7.0,   0.85,  -0.18, 1.05,  0.40,      0.12, 0.12],
+              [8.5,   0.95,  -0.20, 0.95,  0.40,      0.12, 0.12]];
   function armParams(s){let i=0;while(i<ARMK.length-2&&s>ARMK[i+1][0])i++;const a=ARMK[i],b=ARMK[i+1],u=clampN((s-a[0])/(b[0]-a[0]),0,1);return a.map((v,k)=>v+(b[k]-v)*u);}
   const eA=new TH.Euler(),qA=new TH.Quaternion(),qB=new TH.Quaternion();
   function setArmBone(A,b,x,y,z){eA.set(x,y,z,'XYZ');qA.setFromEuler(eA);const C=S.tpl.C,cp=C[PARENT[b]],cs=C[b],q=A.bone[b].quaternion;
@@ -455,6 +503,30 @@ window.P3D=(()=>{
   const qT=new TH.Quaternion(),qL=new TH.Quaternion(),zAxis=new TH.Vector3(0,0,1),yAxis=new TH.Vector3(0,1,0);
   // how the trunk turns back from the hips to the facing, from the bottom up (the head ends about square to the facing)
   const TWIST=[['Spine',0.3],['Spine1',0.3],['Spine2',0.25],['Neck',0.1]];
+  // The trunk as real players carry it (SkillCorner body pose from match video, MOVEMENT_ANALYSIS.md section 7): leaning
+  // forward (the neck over the hips' middle) about 3 deg walking, 7-9 jogging, 10-12 running; the clips' own lean
+  // (S.clipLean, measured once at start) is set to that. Running, the shoulders turn against the hips with each stride
+  // (about 13 deg seen; the right shoulder forward as the left leg goes forward).
+  const TLEAN=[[0,1],[0.75,1.7],[1.25,2.7],[1.75,3.9],[2.25,5.8],[2.75,7.3],[3.25,8.0],[3.75,8.7],[4.75,10.1],[5.75,11.3],[6.75,12.2],[8,12]];
+  const TWOSC=[[0,0],[1.5,0.04],[2.5,0.1],[4,0.14],[9,0.14]];
+  function trunk(A,s){
+    const w=A.w,L=S.clipLean;if(!L)return;let fw=0,cl=0;
+    for(const [k] of GAITS)if(w[k]>0&&L[k]!=null){fw+=w[k];cl+=w[k]*L[k];}
+    if(fw<1e-3)return;cl/=fw;
+    const tgt=A.back?2:interp(TLEAN,s),corr=(tgt-cl)*Math.PI/180*fw*(1-(A.kw||0));
+    if(Math.abs(corr)>1e-3){qL.setFromAxisAngle(xAxis,corr);A.bone.Spine.quaternion.multiply(qL);}
+    const tw=interp(TWOSC,s)*fw*Math.cos(2*Math.PI*A.ph)*(1-(A.kw||0));
+    if(Math.abs(tw)>1e-3){qL.setFromAxisAngle(yAxis,tw*0.5);A.bone.Spine1.quaternion.multiply(qL);A.bone.Spine2.quaternion.multiply(qL);}
+  }
+  // The head turned to the ball (up to 60 deg from the facing; not for a ball behind him): real players keep it in view
+  // (head within 45 deg of it about 75% of the time running, against about 55% before)
+  function look(A,yaw,dt){
+    const b=S.ballPos;let t=0;
+    if(b){const ang=Math.atan2(Math.sin(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw),Math.cos(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw));
+      t=Math.abs(ang)<1.9?clampN(ang,-1.05,1.05):0;}
+    A.lk=(A.lk||0)+(t-(A.lk||0))*(dt>0?1-Math.exp(-dt*6):1);
+    if(Math.abs(A.lk)>1e-3){qL.setFromAxisAngle(yAxis,A.lk*0.4);A.bone.Neck.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,A.lk*0.6);A.bone.Head.quaternion.multiply(qL);}
+  }
   // pose the copy from the game rig as it stands this frame (dt: seconds since the last drawn frame)
   function drive(A,dt){
     const t=S.tpl,r=A.rig,C=t.C,{bone,qa,e}=A;
@@ -470,22 +542,32 @@ window.P3D=(()=>{
     else{A.vx+=((pos.x-A.pp.x)/dt-A.vx)*kf;A.vz+=((pos.z-A.pp.z)/dt-A.vz)*kf;A.pp.x=pos.x;A.pp.z=pos.z;}
     const vm=Math.hypot(A.vx,A.vz),travel=vm>0.3?Math.atan2(A.vx,A.vz):yaw;
     // travel against facing: the hips and legs turn to the travel (up to 90 deg) and the trunk turns back towards the
-    // facing by at most 50 deg, as players do moving across the pitch while watching the ball; past 115 deg (back under
-    // 100) he backs off instead: hips to the facing, the gait in reverse
-    const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x)),rel=vm>0.3&&s>0.3?wrap(travel-yaw):0;
-    A.back=s<5&&(A.back?Math.abs(rel)>1.75:Math.abs(rel)>2.0);
-    const hyT=loco?(A.back?clampN(wrap(rel-Math.PI),-0.9,0.9):clampN(rel,-1.6,1.6)):0;A.hy+=(hyT-A.hy)*kf;
+    // facing by at most 50 deg, as players do moving across the pitch while watching the ball. Square to the facing
+    // (60-130 deg) and slowly (under about 2 m/s) he walks sideways instead, hips to the facing (real players do so 17%
+    // of the time they walk, MOVEMENT_ANALYSIS.md section 7); past 132 deg (back under 115) he backs off: hips to the
+    // facing, the gait in reverse
+    const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x)),rel=vm>0.3&&s>0.3?wrap(travel-yaw):0,ar=Math.abs(rel);
+    A.back=s<5&&(A.back?ar>2.0:ar>2.3);
+    const swT=loco&&!A.back&&S.clips&&S.clips.side?smooth(0.8,1.05,ar)*(1-smooth(2.05,2.3,ar))*(1-smooth(1.9,2.4,s)):0;
+    A.sw=(A.sw||0)+(swT-(A.sw||0))*kf;if(ar>0.3)A.sd=rel>0?1:-1;
+    // the side clip goes off square (its own travel, dir): the hips turn by what is left over
+    const sc=S.clips&&S.clips.side,sideAng=sc?Math.atan2(sc.dir[0],sc.dir[1]):Math.PI/2,sideYaw=clampN(wrap(rel-(A.sd>0?1:-1)*sideAng),-0.6,0.6);
+    const hyF=A.back?clampN(wrap(rel-Math.PI),-0.9,0.9):clampN(rel,-1.6,1.6);
+    const hyT=loco?hyF*(1-A.sw)+sideYaw*A.sw:0;A.hy+=(hyT-A.hy)*kf;
     // lean into turns: how fast the path bends, times speed
     let rate=0;if(A.tr!=null&&dt>0&&vm>0.3)rate=wrap(travel-A.tr)/dt;A.tr=vm>0.3?travel:null;A.yaw=yaw;
-    const leanT=loco?clampN(-rate*s*0.035,-0.3,0.3):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
+    // (0.07 rad, about 4 deg, per m/s2 of the bend's pull on the hips: the trunk then leans about 2 deg per m/s2 as real
+    // players' do, MOVEMENT_ANALYSIS.md section 7)
+    const leanT=loco?clampN(-rate*s*0.07,-0.35,0.35):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
     kick(A,dt);
     if(A.wp<1){locomotion(A,s,dt,A.back);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
+      trunk(A,s);
       if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
         // the clip's hips sway (its in-place leftover) turns with the hips, or the feet would slide along the old line
         const hp=bone.Hips.position,hr=t.hipsRest,dx=hp.x-hr.x,dz=hp.z-hr.z,cs=Math.cos(A.hy),sn=Math.sin(A.hy);hp.x=hr.x+dx*cs+dz*sn;hp.z=hr.z-dx*sn+dz*cs;
         const tw=clampN(A.hy*0.95,-0.87,0.87);for(const [b,f] of TWIST){qL.setFromAxisAngle(yAxis,-tw*f/0.95);bone[b].quaternion.multiply(qL);}}
-      stance(A,s,dt);
+      stance(A,s,dt);look(A,yaw,dt);
       for(const b in A.lq)A.lq[b].copy(bone[b].quaternion);A.lh.copy(bone.Hips.position);}
     if(A.wp>0){
       for(const b in MAP){const o=r[MAP[b]].rotation;e.set(o.x,o.y,o.z,o.order);qa.setFromEuler(e);
@@ -551,7 +633,7 @@ window.P3D=(()=>{
     async init(opt){S.mode=(opt&&opt.mode)||'one';if(opt&&opt.base)S.base=opt.base;
       try{S.tpl=await load(S.base+'models/mh_player.glb');}catch(err){S.error=String(err&&err.message||err);S.ready=false;console.warn('P3D: 3D players off,',S.error);return this.status;}
       // the clips are optional: without them standing and running use the transfer like every other state
-      try{S.clips=await loadClips(S.base+'anim/clips.json',S.tpl.names);}catch(err){S.clips=null;S.clipError=String(err&&err.message||err);console.warn('P3D: no motion clips,',S.clipError);}
+      try{S.clips=await loadClips(S.base+'anim/clips.json',S.tpl.names);S.clipLean=clipLean();}catch(err){S.clips=null;S.clipError=String(err&&err.message||err);console.warn('P3D: no motion clips,',S.clipError);}
       S.ready=true;
       return this.status;},
     // once per drawn frame, after the game has posed its players

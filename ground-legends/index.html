@@ -2030,12 +2030,12 @@ function moveTo(p,tgt,urg){
   if(d<2.5)s=Math.min(s,d*1.7+0.3);
   p.wantVel.set(dx/d*s,0,dz/d*s);return d;
 }
-// Distance a dribbler covers per stride (two steps) at speed s, the same blend of walk, jog and run as the 3D models'
-// gaits (engine3d/player3d.js GAITS: their clips' stride, speed x cycle). The ball is touched once a stride (touchPh),
-// so the drawn feet can meet it without changing their natural cadence.
-const STRIDES=[['walk',1.133,0.25,0.9,1.9,2.3],['jog',2.269,1.9,2.3,4.6,5.2],['run',5.022,4.6,5.2,1e9,1e9]];
-function strideAt(s){const sm=(a,b,x)=>{const u=clamp((x-a)/(b-a),0,1);return u*u*(3-2*u);};let w=0,d=0;
-  for(const [,L,a0,a1,b0,b1] of STRIDES){const v=sm(a0,a1,s)*(1-sm(b0,b1,s));w+=v;d+=v*L;}return w>0?d/w:STRIDES[0][1];}
+// Distance a dribbler covers per stride (two steps) at speed s: real players' gait cycle by speed (SkillCorner body pose
+// from match video, engine3d/MOVEMENT_ANALYSIS.md section 7; the 3D models' gait uses the same table, player3d.js CYC).
+// The ball is touched once a stride (touchPh), so the drawn feet can meet it without changing their natural cadence.
+const STRIDES=[[0,0.8],[0.75,1.0],[1.25,1.38],[1.75,1.56],[2.25,1.72],[2.75,1.95],[3.25,2.24],[3.75,2.52],[4.25,2.77],[4.75,2.98],
+  [5.25,3.17],[5.75,3.33],[6.25,3.42],[6.75,3.58],[7.25,3.77],[7.75,3.83],[8.25,3.94],[10,4.1]];
+function strideAt(s){if(s<=0)return STRIDES[0][1];for(let i=1;i<STRIDES.length;i++)if(s<=STRIDES[i][0]){const [a0,b0]=STRIDES[i-1],[a1,b1]=STRIDES[i];return b0+(b1-b0)*(s-a0)/(a1-a0);}return STRIDES[STRIDES.length-1][1];}
 function steer(p,dir,sprint){const s=p.maxSpd()*(sprint?1:0.68);p.wantVel.set(dir.x*s,0,dir.z*s);}
 function computeTraj(){
   traj.length=0;const p=ball.pos.clone(),v=ball.vel.clone(),sp={s:ball.sp.s,top:ball.sp.top,g:ball.sp.g};let t=0;traj.push({x:p.x,y:p.y,z:p.z,t:0});
