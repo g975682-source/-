@@ -8,5 +8,8 @@
 | `models/mh_player.glb.json` | `models/mh_player.glb`의 base64 사본 (`build_site.py`가 만듦) | CC0 1.0 | 위와 같음 |
 | `player3d.js` | 이 프로젝트에서 작성 | 프로젝트와 같음 | — |
 
+분석에만 쓴 자료(배포하지 않음): [SkillCorner Open Data](https://github.com/SkillCorner/opendata)(MIT, SkillCorner 표기 요청). 중계 영상
+추적 20경기와 3D 몸 자세 표본으로 움직임 수치를 쟀고(`MOVEMENT_ANALYSIS.md` 6절), 게임에는 그 결과로 정한 계수만 들어갑니다.
+
 쓰지 않는 것: `prototypes/glb-viewer/models/`의 Xbot, Soldier(라이선스 확인 안 됨), CesiumMan(CC-BY 4.0, 저작자 표시
 필요, 선수 모델로 맞지 않음). CMU 모션 캡처는 위 표대로 적용했습니다. 게임 화면이나 소개 문구에 출처 표시를 넣는 것을 권장합니다.

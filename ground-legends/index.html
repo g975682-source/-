@@ -1993,20 +1993,40 @@ function formTarget(p,out){
   const bxn=ball.pos.x*dir/HL,bzn=ball.pos.z*dir/HW;
   const att=possTeam===p.team;
   const fin=att?clamp((bxn-0.3)/0.5,0,1):0;   // in the final third the side squeezes up behind the ball so runners can arrive
-  const depth=att?1.12-0.22*fin:0.86,width=att?1.0:0.78;
-  const tc=T.tac||TAC_DEF,shift=(att?0.28+bxn*0.5+fin*0.18:0.04+bxn*0.5)+(T.pushT>0?0.1:0)+tc.m*0.08+(att?0:(tc.l-1)*0.1);   // mentality, defensive line
+  // Fitted to match tracking (MOVEMENT_ANALYSIS.md section 6, medians of 20 matches): a side is about 34 m long and
+  // 45 m wide with the ball, 29 m and 36 m without; its last outfield man about 37 m / 33 m from its own goal line; and
+  // each player follows the ball about 0.6 m per metre along the pitch and 0.4 across it.
+  const depth=att?1.03-0.2*fin:0.73,width=att?1.07:0.72;
+  const tc=T.tac||TAC_DEF,shift=(att?0.45+bxn*0.6+fin*0.18:0.09+bxn*0.6)+(T.pushT>0?0.1:0)+tc.m*0.08+(att?0:(tc.l-1)*0.1);   // mentality, defensive line
   let xn=p.base[0]*depth+shift;
-  let zn=p.base[1]*width+bzn*(att?0.16:0.3);
+  let zn=p.base[1]*width+bzn*(att?0.36:0.42);
   if(!att&&p.line<=2)xn=Math.min(xn,bxn-0.03*(3-p.line));
   if(!att&&p.line===1)xn=Math.max(xn,-0.9);
   xn=clamp(xn,-0.93,0.9);zn=clamp(zn,-0.93,0.93);
   if(!(p.runT>0)){const off=offsideLineN(p.team);if(xn>off-0.012)xn=off-0.016;}
   out.set(xn*HL*dir,0,zn*HW*dir);return out;
 }
+// Pace by urgency, fitted to match tracking (MOVEMENT_ANALYSIS.md section 6: real outfield players walk 44% of the
+// time in play, jog 40%, run 11% and go above 5.5 m/s only 4%): 0 walks (about 1.3 m/s), 0.25 a brisk walk, 0.5 a
+// jog, 0.75 a run, 0.95 high speed; only 0.97 and up is a flat-out sprint.
+// Following a moving spot (a place in the shape, a marking or screening position): his velocity is the spot's own
+// (as it moves with the play) plus the gap closed gently (0.5 per second, so he slows as he arrives), capped at the
+// pace for the urgency: when the ball flies across, the spot does too, and he follows at his own pace. No
+// stop-and-go: real players drift with the block. key names where the spot was last step (to get its velocity).
+function trackSpot(p,s,key,dt,urg){
+  const prev=p[key];let vx=0,vz=0;if(prev&&dt>0){vx=(s.x-prev.x)/dt;vz=(s.z-prev.z)/dt;const vs=Math.hypot(vx,vz);if(vs>9){vx*=9/vs;vz*=9/vs;}}
+  if(prev)prev.copy(s);else p[key]=s.clone();
+  const ex=s.x-p.pos.x,ez=s.z-p.pos.z,d=Math.hypot(ex,ez);
+  let wx=vx+ex*0.5,wz=vz+ez*0.5;const ws=Math.hypot(wx,wz);
+  const cap=p.maxSpd()*(urg>=0.97?1:0.17+0.7*Math.pow(Math.max(0,urg),1.6));
+  if(ws>cap){wx*=cap/ws;wz*=cap/ws;}
+  if(d<0.5&&ws<0.35){wx=0;wz=0;}
+  p.wantVel.set(wx,0,wz);return d;
+}
 function moveTo(p,tgt,urg){
   const dx=tgt.x-p.pos.x,dz=tgt.z-p.pos.z,d=Math.hypot(dx,dz);
   if(d<0.25){p.wantVel.set(0,0,0);return d;}
-  let s=p.maxSpd()*(urg>=0.9?1:(0.32+0.48*urg));
+  let s=p.maxSpd()*(urg>=0.97?1:0.17+0.7*Math.pow(Math.max(0,urg),1.6));
   if(d<2.5)s=Math.min(s,d*1.7+0.3);
   p.wantVel.set(dx/d*s,0,dz/d*s);return d;
 }
@@ -2075,24 +2095,26 @@ function teamThink(T,dt){
     if(p===T.presser2&&ball.owner){const c=ball.owner,v=c.vel.length()>0.5?c.vel:fwd(c);tmpC.set(c.pos.x+v.x*0.45,0,c.pos.z+v.z*0.45);moveTo(p,tmpC,1);p.faceBall=true;
       if(d2(p.pos,ball.pos)<1.6&&!c.holding&&Math.random()<dt*1.4*T.ai.press)startTackle(p,null);continue;}
     if(p===T.cover&&ball.owner){const c=ball.owner,ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1;
-      tmpC.set(c.pos.x+gx/gl*Math.min(6,gl*0.4),0,c.pos.z+gz/gl*Math.min(6,gl*0.4));moveTo(p,tmpC,0.8);p.faceBall=true;continue;}
-    if(!att&&p.defJob){const j=p.defJob,dj=d2(p.pos,j.pt);   // mark or screen a lane: sprint only to close a real gap
-      moveTo(p,j.pt,dj>6?(j.kind==='mark'?1:0.92):dj>2.5?0.75:dj>1.2?0.45:0.3);p.faceBall=true;continue;}
+      tmpC.set(c.pos.x+gx/gl*Math.min(9,gl*0.4),0,c.pos.z+gz/gl*Math.min(9,gl*0.4));moveTo(p,tmpC,0.6);p.faceBall=true;continue;}   // the second man covers about 9 m behind
+    if(!att&&p.defJob){const j=p.defJob;   // mark or screen a lane: run only to close a real gap, otherwise move with the man
+      // the job's spot followed smoothly (about 0.3 s): jobs are re-dealt five times a second and the spot jumps
+      if(!p.djS||p.djR!==j.r){p.djS=j.pt.clone();p.djP=null;}else p.djS.lerp(j.pt,1-Math.exp(-dt/0.3));p.djR=j.r;
+      const dj=d2(p.pos,p.djS);
+      trackSpot(p,p.djS,'djP',dt,dj>10?(j.kind==='mark'?0.92:0.8):dj>5?0.62:dj>2.5?0.45:dj>1.2?0.3:0.15);p.faceBall=true;continue;}
     if(att&&p.runT>0){const d=moveTo(p,p.runTarget,p.runUrg||1);if(p.runKind==='box'||p.runKind==='support')p.faceBall=d<2.5;continue;}   // on a run: at the run's own pace
     formTarget(p,tmpA);
     if(!att)applyMarking(p,tmpA);else applyRuns(p,tmpA,dt);
+    // players react to the play a beat late and smoothly (about 0.8 s), not to every small move of the ball
+    if(!p.tgS)p.tgS=tmpA.clone();else p.tgS.lerp(tmpA,1-Math.exp(-dt/0.8));tmpA.copy(p.tgS);
     const d=d2(p.pos,tmpA),beaten=!att&&(p.pos.x-ball.pos.x)*T.dir>4;   // caught upfield: recovery run
-    // Keeping shape: real players walk and jog most of the time and sprint only when it matters (match analyses: about
-    // 90% of the time standing, walking or jogging; engine3d/MOVEMENT_ANALYSIS.md). Close to the spot: stand; a few
-    // metres: walk; further: jog; well out of position or beaten: run. Far from the ball, one step easier.
-    // settled: once there, stay put until the spot has drifted 2 m (real players spend about a tenth of the match standing)
-    if(beaten||d>2)p.settled=false;else if(d<0.9)p.settled=true;
-    if(p.settled){p.wantVel.set(0,0,0);p.faceBall=true;continue;}
+    // Keeping shape as real players do (match tracking, MOVEMENT_ANALYSIS.md section 6: they walk 44% of the time in
+    // play and jog 40%, and hardly ever stand): move with the spot as it drifts, closing what is left of the gap gently
+    // (trackSpot), at a pace capped by how far out of shape he is; well out of position or beaten: run. Far from the
+    // ball, one step easier.
     const far=!beaten&&d2(p.pos,ball.pos)>30;
-    const urg=beaten?0.95:d>12?0.75:d>8?(att?0.55:0.75):d>3?0.25:0;   // a long way out of shape: run, not sprint (only when beaten)
-    moveTo(p,tmpA,far?Math.max(0,urg-0.25):urg);
+    const urg=beaten?0.95:d>15?(att?0.6:0.7):d>8?(att?0.4:0.5):d>3?0.25:0.15;
+    trackSpot(p,tmpA,'tgP',dt,far?Math.max(0,urg-0.2):urg);
     p.faceBall=!beaten&&d<8;   // settling into shape, players keep the ball in view (and so back off or step across)
-    if(!beaten&&d<=3){const w=p.wantVel,ws=Math.hypot(w.x,w.z),cap=1.6;if(ws>cap)w.multiplyScalar(cap/ws);}   // walking up to the spot
   }
 }
 function applyMarking(p,tgt){
@@ -2263,29 +2285,36 @@ function defThink(T,dt,ctrl){
   const n=Math.min(opts.length,Math.round(4+sm*1.5)),used=new Set();
   for(let i=0;i<n;i++){const {r,deep,dc}=opts[i];
     let pt;
-    if(deep||dc<7){   // mark: goal-side of him, a little toward the ball
+    if(deep||dc<5){   // mark: goal-side of him (about 2 m), a little toward the ball
       const ux=gx-r.pos.x,uz=-r.pos.z,ul=Math.hypot(ux,uz)||1,lag=r.runT>0&&r.runKind!=='support'?0.5*(1-sm*0.5):0;   // a runner is read a beat late
-      pt=new V3(r.pos.x-r.vel.x*lag+ux/ul*1.5+(c.pos.x-r.pos.x)*0.06,0,r.pos.z-r.vel.z*lag+uz/ul*1.5+(c.pos.z-r.pos.z)*0.06);}
+      pt=new V3(r.pos.x-r.vel.x*lag+ux/ul*2.0+(c.pos.x-r.pos.x)*0.06,0,r.pos.z-r.vel.z*lag+uz/ul*1.5+(c.pos.z-r.pos.z)*0.06);}
     else{             // screen the lane: stand on the pass line, nearer the receiver, shaded goal-side
       const k=clamp(0.62-4/Math.max(dc,6),0.35,0.62);pt=new V3(c.pos.x+(r.pos.x-c.pos.x)*k+T.dir*-0.8,0,c.pos.z+(r.pos.z-c.pos.z)*k);}
     let best=null,bc=1e9;
     for(const p of free){if(used.has(p))continue;
       // back men take the deep runners, midfielders and forwards take the lanes
       const cost=d2(p.pos,pt)+(deep?(p.line===1?0:6):(p.line===1?8:0));if(cost<bc){bc=cost;best=p;}}
-    if(!best||bc>26)continue;used.add(best);best.defJob={kind:deep||dc<7?'mark':'lane',r,pt};
+    if(!best||bc>26)continue;used.add(best);best.defJob={kind:deep||dc<5?'mark':'lane',r,pt};
   }
 }
 // the presser: sprint to close him down, slow to a jockey at arm's length, and lunge when the ball gets away from him
+// The presser engages by zone, as real defenders do (match tracking, MOVEMENT_ANALYSIS.md section 6: the nearest
+// defender to the ball carrier is a median 7 m away, a quarter of the time under 4.5 m): goal-side of the carrier at
+// a stand-off distance, tight near his own goal (under 22 m), about 3.5 m in midfield, about 6 m higher up,
+// closing right in on a pressing cue (a heavy touch, a man receiving with his back to goal). He closes at a pace
+// for the gap (run, jog, then a jockeying shuffle) and goes in for the ball only from close.
 function aiPress(p,c,dt,T){
   const ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1,d=d2(p.pos,c.pos);
-  tmpC.set(c.pos.x+gx/gl*(d>3?0.6:1.1)+c.vel.x*0.3,0,c.pos.z+gz/gl*(d>3?0.6:1.1)+c.vel.z*0.3);
-  const loose=d2(c.pos,ball.pos)>0.75,backToGoal=fwd(c).x*T.dir>0.5,fresh=gtime-c.gainT<0.7;
-  moveTo(p,tmpC,d>2.4||loose||fresh&&backToGoal?1:0.78);p.faceBall=d<5;
+  const loose=d2(c.pos,ball.pos)>0.75,backToGoal=fwd(c).x*T.dir>0.5,fresh=gtime-c.gainT<0.7,cue=loose||fresh&&backToGoal;
+  const off=cue||gl<22?(d>3?0.6:1.1):gl<40?3.5:6;
+  tmpC.set(c.pos.x+gx/gl*off+c.vel.x*0.3,0,c.pos.z+gz/gl*off+c.vel.z*0.3);
+  const gap=d2(p.pos,tmpC);
+  moveTo(p,tmpC,cue&&d<8?1:gap>8?0.85:gap>3?0.6:gap>1?0.4:0.2);p.faceBall=d<8;
   const db=d2(p.pos,ball.pos),pr=T.ai.press;
   // a heavy touch, a man receiving with his back to goal: go in now
-  if(db<2.2&&db>0.4&&!c.holding&&(loose||fresh&&backToGoal)&&Math.random()<dt*3.2*pr)return startTackle(p,null);
-  if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*2.0*pr)return startTackle(p,null);
-  if(db<3.2&&db>1.3&&!inBox(p.pos,p.team)&&Math.random()<dt*0.35*pr&&p.st.def>60){p.face=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);startSlide(p);}
+  if(db<2.2&&db>0.4&&!c.holding&&cue&&Math.random()<dt*2.0*pr)return startTackle(p,null);
+  if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*0.8*pr)return startTackle(p,null);
+  if(db<3.2&&db>1.3&&!inBox(p.pos,p.team)&&Math.random()<dt*0.12*pr&&p.st.def>60){p.face=Math.atan2(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);startSlide(p);}
 }
 // players under a dropping ball go up for it together: both jump in a header duel
 function aerialJumps(){
@@ -2419,9 +2448,11 @@ function aiCarrier(p,dt){
   if(p.decT>0&&!(pr<1.3&&p.decT>0.15&&Math.random()<0.03)){carrierSteer(p,pr);return;}
   p.decT=ai.react*rnd(0.7,1.3);
   const gx=T.dir*HL,dG=Math.hypot(gx-p.pos.x,p.pos.z);
-  if(dG<30){let want=shotQuality(p)*ai.shootIQ*0.8;if(dG<14)want+=0.3;if(dG<9)want+=0.4;
+  // Shots are chosen, not taken whenever possible: a real side shoots about 25 times in 90 minutes, mostly from good
+  // positions (MOVEMENT_ANALYSIS.md section 6), so a long or blocked shot needs a much better look than a close one.
+  if(dG<30){const q=shotQuality(p);let want=q*q*ai.shootIQ*0.6;if(dG<14)want+=0.2;if(dG<9)want+=0.35;
     const f=fwd(p),fa=Math.acos(clamp((f.x*(gx-p.pos.x)-f.z*p.pos.z)/dG,-1,1))*180/Math.PI;
-    if(Math.random()<want){if(fa<=60||pr<1.2&&fa<=95){aiShoot(p);return;}   // square enough: hit it (crowded: take what he has)
+    if(Math.random()<want){if(fa<=60||pr<1.2&&fa<=95&&dG<18){aiShoot(p);return;}   // square enough: hit it (crowded: take what he has)
       p.aiDir.set(gx-p.pos.x,0,-p.pos.z).normalize();p.aiSprint=false;p.decT=0.18+fa/900;carrierSteer(p,pr);return;}}   // back to goal: turn first, then look again
   const xn=xN(p);
   if(xn<-0.55&&pr<2.6&&Math.random()<0.45){const zs=Math.sign(p.pos.z)||1;kick(p,new V3(T.dir*rnd(13,20),rnd(8,12),zs*rnd(3,11)),'clear');say(p.short+'이(가) 걷어냅니다.');return;}
@@ -2887,6 +2918,8 @@ function resolveTouches(){
     // a through ball is collected in stride: he lets it run past him until it is out in front and slowing
     if(p===intended&&lastPass&&lastPass.open&&lastPass.kind==='through'&&lastPass.team===p.team){const dr=teams[p.team].dir;
       const bs=Math.hypot(ball.vel.x,ball.vel.z),ps=Math.hypot(p.vel.x,p.vel.z);if(ball.vel.x*dr>3&&bs>ps+1.5&&(ball.pos.x-p.pos.x)*dr<0.8)continue;}
+    // a team-mate lets a pass meant for someone else run on to him (it is still moving and he is within 15 m)
+    if(intended&&p!==intended&&!p.isGK&&p.team===intended.team&&lastPass&&lastPass.open&&Math.hypot(ball.vel.x,ball.vel.z)>4&&d2(intended.pos,ball.pos)<15)continue;
     if(wallShot&&!p.isGK&&p.team!==ball.lastTouch.team){reach=0.5;hmax=1.85+p.y*1.4;}
     const d=Math.hypot(ball.pos.x-p.pos.x,ball.pos.z-p.pos.z);
     if(d<reach&&ball.pos.y<hmax){const air=ball.pos.y>1.3&&!p.isGK,w=d-(p===intended?0.45:0)-(gkBox?0.3:0)+Math.random()*0.25-(air?(p.st.phy-65)*0.004+(p.runKind==='box'&&p.runT>0&&p.spd>4?0.3:0):0);   /* in the air: strength, and a runner attacking the ball */if(w<bd){bd=w;best=p;}}
@@ -3174,6 +3207,21 @@ function cutTurn(p,want,dt){   // true while the turn is still under way: no spe
   p.cutT=gtime+0.3;if(th>Math.PI/4)p.cutRecT=Math.max(p.cutRecT||0,gtime+(th-Math.PI/4)/(Math.PI*3/4)*0.8*clamp(cur/5.5,1,1.5));
   return true;
 }
+// Running as real players do (engine3d/MOVEMENT_ANALYSIS.md section 6, from match tracking: SkillCorner open data,
+// 20 matches). The change of velocity is split along the way he is going and across it: speeding up is limited by
+// how fast he already goes (about 5.5 m/s2 from a standstill, little near top speed), slowing down to about 6 m/s2,
+// and turning to about 4.5 m/s2 sideways (6 when nearly standing). So turns at speed are bends, not corners, and a
+// reversal is a stop and a start. Players the AI moves; the user's player keeps the game's quicker response.
+const LOCO={acc:4.2,accPac:0.02,dec:6,turn:4.5,turnSlow:6};
+function locoStep(p,want,dt,K){
+  const v=p.vel,cur=Math.hypot(v.x,v.z),ws=Math.hypot(want.x,want.z);
+  let ux=0,uz=0;if(cur>0.3){ux=v.x/cur;uz=v.z/cur;}else if(ws>1e-6){ux=want.x/ws;uz=want.z/ws;}
+  const dx=want.x-v.x,dz=want.z-v.z;let at=dx*ux+dz*uz,nx=dx-at*ux,nz=dz-at*uz;const an=Math.hypot(nx,nz);
+  const vmax=p.maxSpd()*1.05+0.5;
+  const up=(LOCO.acc+p.st.pac*LOCO.accPac)*Math.max(0.15,1-cur/vmax)*K*dt,dn=LOCO.dec*K*dt,tn=(cur<2?LOCO.turnSlow:LOCO.turn)*K*dt;
+  at=clamp(at,-dn,up);if(an>tn){nx*=tn/an;nz*=tn/an;}
+  v.x+=at*ux+nx;v.z+=at*uz+nz;v.y=0;
+}
 function updatePlayer(p,dt){
   if(p.sentOff){
     if(p.rig.root.visible){const dz=HW+8-p.pos.z;p.vel.set(0,0,Math.sign(dz)*1.7);if(Math.abs(dz)<0.5){p.rig.root.visible=false;p.vel.set(0,0,0);}
@@ -3193,10 +3241,12 @@ function updatePlayer(p,dt){
   }else if(p.sk){skillTick(p,dt);
   }else{
     let want=p.wantVel;if(p.stun>0)want=tmpB.copy(want).multiplyScalar(0.3);
-    const cutting=cutTurn(p,want,dt);
-    const dv=tmpC.subVectors(want,p.vel),cur=p.vel.length();
-    const maxA=(want.length()>cur?(cutting?0:(10+p.st.pac*0.05)*((p.cutRecT||0)>gtime?0.3:1)):17)*dt*(p.boostT>0||p.chaseOn?1.5:1)*(ball.owner===p&&p.trait==='trickster'?1.35:1)*(p.faceUp?1.25:1);
-    if(dv.length()>maxA)dv.setLength(maxA);p.vel.add(dv);p.vel.y=0;
+    const cutting=cutTurn(p,want,dt),K=(p.boostT>0||p.chaseOn?1.5:1)*(ball.owner===p&&p.trait==='trickster'?1.35:1)*(p.faceUp?1.25:1);
+    if(isHumanTeam(p.team)&&CTRL[p.team].controlled===p){   // the user's player: the game's quick response and cuts
+      const dv=tmpC.subVectors(want,p.vel),cur=p.vel.length();
+      const maxA=(want.length()>cur?(cutting?0:(10+p.st.pac*0.05)*((p.cutRecT||0)>gtime?0.3:1)):17)*dt*K;
+      if(dv.length()>maxA)dv.setLength(maxA);p.vel.add(dv);p.vel.y=0;}
+    else locoStep(p,want,dt,K);
     p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:0;
   }
   p.pos.x+=p.vel.x*dt;p.pos.z+=p.vel.z*dt;
@@ -3327,7 +3377,7 @@ function officialsUpdate(dt){
 }
 
 /* ================= set pieces ================= */
-function resetTransient(p){p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
+function resetTransient(p){p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
 function pushAway(T,pos,R){for(const p of T.players){const dx=p.pos.x-pos.x,dz=p.pos.z-pos.z,d=Math.hypot(dx,dz);if(d<R-0.05){if(d>0.01){p.pos.x=pos.x+dx/d*R;p.pos.z=pos.z+dz/d*R;}else{p.pos.x=pos.x+R;}}}}
 function startSetPiece(type,ti,pos,opts={}){
   state='setpiece';const T=teams[ti],O=teams[1-ti];
@@ -3341,7 +3391,7 @@ function startSetPiece(type,ti,pos,opts={}){
   if(type==='kickoff'){
     for(const p of players){if(p.isGK||p.sentOff)continue;const dir=teams[p.team].dir;let xn=Math.min(p.base[0]*0.92,-0.03);p.pos.set(xn*HL*dir,0,p.base[1]*HW*0.9*dir);}
     pushAway(O,SP.ballPos,9.4);
-    taker=outT.slice().sort((a,b)=>b.base[0]-a.base[0])[0];
+    taker=outT.slice().sort((a,b)=>b.base[0]-a.base[0])[0]||T.gk;   // a side down to its keeper: he kicks off
     const mate=outT.filter(p=>p!==taker).sort((a,b)=>b.base[0]-a.base[0])[0];if(mate)mate.pos.set(-T.dir*1.0,0,-2.2*T.dir);
   }else if(type==='throw'){
     taker=outT.slice().sort((a,b)=>d2(a.pos,pos)-d2(b.pos,pos))[0];

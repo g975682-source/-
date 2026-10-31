@@ -24,7 +24,8 @@ engine3d/
   models/mh_player.glb   선수 모델 (MakeHuman CC0, 손가락 포함 52뼈, 1.80 m); .glb.json은 같은 파일의 base64 (아티팩트용)
   anim/clips.json        모션 캡처 클립 8개 (CMU, 이 모델에 리타게팅), tools/bake_clips.js가 만듦
   tools/                 개발용 (웹사이트 사본에는 안 들어감): bake_clips.js, measure_loco.js, render_loco.js,
-                         measure_match_motion.js, render_look.js
+                         measure_match_motion.js, render_look.js, export_match_track.js, track_an.py,
+                         pose_an.py, fetch_skillcorner.sh (실제 경기 데이터 비교, MOVEMENT_ANALYSIS.md 6절)
   vendor/GLTFLoader.js   three.js r128 examples (MIT)
   vendor/SkeletonUtils.js three.js r128 examples (MIT)
   LICENSES.md            자산별 라이선스
@@ -89,7 +90,7 @@ engine3d/
   쪽으로 되돌림(최대 50°). 이동 방향이 몸 방향과 115° 넘게 다르면 뒷걸음(걷기·조깅 역재생, 100°에서 해제).
 - 경합 자세: 견제(공을 보며 4.5 m 안의 상대 볼 보유자, 또는 사람의 견제 키), 볼 지키기, 어깨 경합(1 m 안에서 공을 다툼).
   `window.__game`의 공 소유와 선수 상태를 읽으므로 리플레이·온라인 게스트에서는 평소 자세.
-- 브레이크·출발: 게임 속도의 변화로 급감속 때 낮추고 뒤로, 급가속 때 앞으로.
+- 가속·감속: 상체가 가속도에 비례해 기울어짐(1 m/s²당 약 3°, 실제 선수 몸 자세 데이터, `MOVEMENT_ANALYSIS.md` 6절), 급감속 때 낮춤.
 - 드리블: 상체 숙임, 팔 조금 벌림(걸음은 그대로).
 - 킥(게임 상태 kick): CMU 킥 클립, 클립의 발 접촉(0.575 s)이 게임의 차는 순간(슛 visT 0.15, 패스는 첫 프레임)에 오게.
   왼발은 좌우 반전. 차는 발 반대 팔 벌림. 발리·헤딩·태클 등은 자세 옮기기 그대로.

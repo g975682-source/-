@@ -399,10 +399,12 @@ window.P3D=(()=>{
   function stance(A,s,dt){
     const st=stanceOf(A,s),k=dt>0?1-Math.exp(-dt*7):1,W=A.st;
     for(const n of ['jockey','shield','contact','dribble'])W[n]+=((st[n]?1:0)-W[n])*k;W.side+=(st.side-W.side)*k;
-    // braking and pushing off (sources: change-of-direction studies): from the change of the game's speed, smoothed;
-    // hard braking (past -3 m/s2) lowers him and leans him back, hard acceleration (past 2 m/s2) leans him forward
+    // braking and pushing off, from the change of the game's speed, smoothed. The trunk leans with the acceleration
+    // as real players' do (SkillCorner body pose from broadcast video, MOVEMENT_ANALYSIS.md section 6: about 3 deg per
+    // m/s2 either way, from about 9 deg running at an even pace to about 25 deg pushing off hard and -3 deg braking);
+    // hard braking (past 2 m/s2, full at 6) also lowers him
     if(dt>0&&A.sp0!=null)A.acc+=((s-A.sp0)/dt-A.acc)*(1-Math.exp(-dt*8));A.sp0=s;
-    const wb=clampN((-A.acc-3)/9,0,1)*(1-W.shield),wa=clampN((A.acc-2)/6,0,1)*smooth(0.5,2,s);W.brake+=(wb-W.brake)*k*1.5;W.push+=(wa-W.push)*k*1.5;
+    const wb=clampN((-A.acc-2)/4,0,1)*(1-W.shield),wa=clampN((A.acc-1)/4,0,1)*smooth(0.5,2,s);W.brake+=(wb-W.brake)*k*1.5;W.push+=(wa-W.push)*k*1.5;
     // (no knee bend for dribbling: bending the clip's legs at running speed changes the foot path and slides the feet)
     const bone=A.bone,c=0.45*W.jockey+0.4*W.shield+0.25*W.contact+0.3*W.brake;
     if(c>1e-3){
@@ -411,8 +413,9 @@ window.P3D=(()=>{
         qL.setFromAxisAngle(xAxis,1.6*c);bone[sd+'Leg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'Foot'].quaternion.multiply(qL);}
       bone.Hips.position.y-=0.92*(1-Math.cos(0.8*c));
       qL.setFromAxisAngle(xAxis,0.35*c);bone.Spine.quaternion.multiply(qL);}
-    // the whole body pitched about the hips: back when braking, forward when pushing off or dribbling
-    const pitch=-0.22*W.brake+0.15*W.push+0.08*W.dribble;if(Math.abs(pitch)>1e-3){qL.setFromAxisAngle(xAxis,pitch);bone.Hips.quaternion.premultiply(qL);}
+    // the whole body pitched about the hips forward when dribbling; the trunk with the acceleration (above)
+    const pitch=0.08*W.dribble;if(Math.abs(pitch)>1e-3){qL.setFromAxisAngle(xAxis,pitch);bone.Hips.quaternion.premultiply(qL);}
+    const lean=clampN(0.052*A.acc,-0.26,0.42)*smooth(0.3,1.5,s)*(1-W.shield);if(Math.abs(lean)>1e-3){qL.setFromAxisAngle(xAxis,lean);bone.Spine.quaternion.multiply(qL);}
     // jockey: side-on (hips turned 0.45 rad, the trunk turned most of the way back to the ball carrier)
     if(W.jockey>1e-3){const y=0.45*W.jockey*(A.p.slot%2?1:-1);qL.setFromAxisAngle(yAxis,y);bone.Hips.quaternion.premultiply(qL);
       qL.setFromAxisAngle(yAxis,-y*0.35);bone.Spine1.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,-y*0.35);bone.Spine2.quaternion.multiply(qL);}
