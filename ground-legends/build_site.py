@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Website copy of the game: docs/index.html from ground-legends/index.html, and docs/engine3d/ from engine3d/.
+Also writes engine3d/models/mh_player.glb.json (the model in base64) for hosts that do not serve .glb.
 
 The game file is written for the claude.ai artifact, which wraps it in a document of its own. The website copy adds
 that document around it: doctype, <html lang="ko">, <head> with the charset, viewport and theme colour, the game's
@@ -7,7 +8,7 @@ first lines (title, description, fonts), the og: tags, then <body> ... </body></
   python3 ground-legends/build_site.py            write docs/index.html and docs/engine3d/
   python3 ground-legends/build_site.py --check SRC   print whether SRC would give the docs/index.html there now
 """
-import os, shutil, sys
+import base64, json, os, shutil, sys
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 DOCS = os.path.join(ROOT, 'docs')
 TOP = ('<!doctype html>\n<html lang="ko">\n<head>\n<meta charset="utf-8">\n'
@@ -26,6 +27,9 @@ if __name__ == '__main__':
     if len(sys.argv) > 2 and sys.argv[1] == '--check':
         same = site(open(sys.argv[2], encoding='utf-8').read()) == open(os.path.join(DOCS, 'index.html'), encoding='utf-8').read()
         print('same as docs/index.html:', same); sys.exit(0 if same else 1)
+    # the model also as base64 JSON, for hosts that do not serve .glb files (claude.ai artifacts)
+    glb = os.path.join(HERE, 'engine3d', 'models', 'mh_player.glb')
+    with open(glb + '.json', 'w') as f: json.dump({'about': 'engine3d/models/mh_player.glb in base64 (CC0, see engine3d/LICENSES.md)', 'glb': base64.b64encode(open(glb, 'rb').read()).decode()}, f)
     out = site(open(os.path.join(HERE, 'index.html'), encoding='utf-8').read())
     open(os.path.join(DOCS, 'index.html'), 'w', encoding='utf-8').write(out)
     dst = os.path.join(DOCS, 'engine3d')

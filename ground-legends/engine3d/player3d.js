@@ -35,9 +35,19 @@ window.P3D=(()=>{
   const short=n=>n.replace(/^mixamorig:?/i,'');
 
   // ---- the model, once ----
+  // the model file: the .glb itself, or (where .glb files are not served, as on claude.ai artifacts) the same bytes in
+  // base64 in a .json beside it ({glb:"..."}); a page answering for a missing file is skipped
+  async function fetchModel(url){
+    const tried=[];
+    for(const [u,kind] of [[url,'glb'],[url+'.json','json']]){
+      try{const r=await fetch(u);if(!r.ok||/html/i.test(r.headers.get('content-type')||'')){tried.push(u+': '+r.status);continue;}
+        if(kind==='glb')return await r.arrayBuffer();
+        const s=atob((await r.json()).glb),a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a.buffer;}
+      catch(e){tried.push(u+': '+(e&&e.message||e));}}
+    throw new Error(tried.join('; '));
+  }
   async function load(url){
-    const r=await fetch(url);if(!r.ok)throw new Error(url+': '+r.status);
-    const buf=await r.arrayBuffer();
+    const buf=await fetchModel(url);
     const gltf=await new Promise((res,rej)=>new TH.GLTFLoader().parse(buf,'',res,rej));
     const root=gltf.scene;let mesh=null;const bone={};
     root.traverse(o=>{if(o.isBone)bone[short(o.name)]=o;if(o.isSkinnedMesh&&!mesh)mesh=o;});

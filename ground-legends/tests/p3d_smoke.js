@@ -11,6 +11,7 @@
 //         rig stands and faces the same way, the boots stand on the grass when idle
 //   play  keyboard: that player, set as the controlled one, runs with the arrow keys; the copy follows him
 //   html  the engine's files answered with the game page: not run, no page error
+//   json  no .glb served: the model comes from the base64 .json beside it
 //   bad   a missing model file: the engine reports the error, no player is changed, no page error
 //   all   ?p3d=all: all 22 players, the engine's own time per frame
 const fs=require('fs'),path=require('path');
@@ -32,9 +33,10 @@ async function open(browser,query,opts={}){
     if(u.host==='game.local'&&(u.pathname==='/'||u.pathname==='/index.html'))return r.fulfill({body:html,contentType:'text/html'});
     if(u.href.includes('three.min.js'))return r.fulfill({body:three,contentType:'application/javascript'});
     if(u.host==='game.local'&&u.pathname.startsWith('/engine3d/')){
-      if(opts.missingModel&&u.pathname.endsWith('.glb'))return r.fulfill({status:404,body:'not found'});
+      if(opts.missingModel&&/\.glb(\.json)?$/.test(u.pathname))return r.fulfill({status:404,body:'not found'});
+      if(opts.noGlb&&u.pathname.endsWith('.glb'))return r.fulfill({status:404,body:'not found'});   // a host without .glb: the .json copy
       if(opts.htmlForEngine)return r.fulfill({body:html,contentType:'text/html'});   // a server that answers any path with the page
-      const f=path.join(GL,decodeURIComponent(u.pathname));if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':'model/gltf-binary'});
+      const f=path.join(GL,decodeURIComponent(u.pathname));if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':f.endsWith('.json')?'application/json':'model/gltf-binary'});
       return r.fulfill({status:404,body:'not found'});}
     return r.abort();});
   await page.goto('http://game.local/'+query);
@@ -103,6 +105,11 @@ const waitReady=page=>page.waitForFunction(()=>window.P3D&&(window.P3D.status.re
     {const {page,errors}=await open(browser,'?p3d=all',{htmlForEngine:true});await startMatch(page);await page.waitForTimeout(2000);
       const r=await page.evaluate(()=>({p3d:!!window.P3D,state:__game.state}));
       ok(!r.p3d&&errors.length===0,`html: engine files answered with a page -> engine not started (${r.p3d}), match ${r.state}, page errors ${errors.length}${errors.length?' '+errors[0]:''}`);
+      await page.close();}
+    // json: no .glb served, the base64 copy instead
+    {const {page,errors}=await open(browser,'?p3d=one',{noGlb:true});await waitReady(page);await startMatch(page);
+      await page.waitForFunction('!!P3D.measure('+ST+')',null,{timeout:20000});const st=await page.evaluate(()=>P3D.status);
+      ok(st.ready&&st.attached.length===1&&errors.length===0,`json: .glb not served -> model from mh_player.glb.json, ready ${st.ready}, ${st.attached.length} player, page errors ${errors.length}`);
       await page.close();}
     // default: no parameter and nothing stored means every player
     {const {page,errors}=await open(browser,'');await waitReady(page);await startMatch(page);
