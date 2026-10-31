@@ -4068,7 +4068,7 @@ function syncAnimState(p){
 }
 function applyVisual(p,x,y,z,face,a,t,ph,spd,side){
   const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);rigLife(p,r,a,t,ph,spd,side);
-  r.va=a;r.vspd=spd;   // what was drawn, for the 3D models (engine3d/): the same in a replay and on an online guest
+  r.va=a;r.vspd=spd;r.vph=ph;   // what was drawn, for the 3D models (engine3d/): the same in a replay and on an online guest
 }
 const cam={focus:new V3(),pos:new V3(0,30,60),look:new V3(),snap:true};
 const P_=new V3(),L_=new V3();

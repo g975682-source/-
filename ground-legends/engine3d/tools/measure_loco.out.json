@@ -5,7 +5,7 @@
    "frames": 240,
    "fps": 60,
    "stanceSamples": 239,
-   "slideMean": 0.024,
+   "slideMean": 0.023,
    "slideMedian": 0.015,
    "slideP90": 0.023,
    "weights": {
@@ -226,6 +226,26 @@
    "slideP90": 0.611,
    "hipsYaw": 0,
    "backwards": true
+  }
+ ],
+ "dribble": [
+  {
+   "spd": 3,
+   "slideMean": 0.419,
+   "slideMedian": 0.176,
+   "slideP90": 1.471
+  },
+  {
+   "spd": 5,
+   "slideMean": 0.975,
+   "slideMedian": 0.714,
+   "slideP90": 2.35
+  },
+  {
+   "spd": 7,
+   "slideMean": 0.494,
+   "slideMedian": 0.344,
+   "slideP90": 1.212
   }
  ],
  "turn": {

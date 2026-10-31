@@ -30,7 +30,8 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   await page.waitForFunction('!!P3D.measure('+ST+')',null,{timeout:30000});
   await page.evaluate('window.__freeze=true;window.__st='+ST);
   // move him each drawn frame (before the game draws: a requestAnimationFrame registered now runs ahead of the game's next one)
-  await page.evaluate(()=>{window.__rafPause=true;P3D.clock(1/60);});
+  // nobody on the ball (at the kick-off it is his): the plain runs are measured off the ball, dribbling separately
+  await page.evaluate(()=>{window.__rafPause=true;P3D.clock(1/60);__game.ball.owner=null;});
   // ang: travel against facing (rad): 0 forwards, pi/2 sideways, pi backwards
   const run=(spd,secs,turn,ang)=>page.evaluate(([spd,secs,turn,ang])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
     p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);
@@ -56,6 +57,12 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
     await run(spd,0.8,0,ang);const rows=(await run(spd,3,0,ang)).filter(r=>r.dt>0),sl=slideOf(rows),last=rows[rows.length-1];
     out.directions.push({deg,spd,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3),hipsYaw:last.hy,backwards:last.back});
     console.log(`travel ${String(deg).padStart(3)} deg off the facing at ${spd} m/s | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)} | hips turned ${last.hy} rad, backwards ${last.back}`);}
+  // dribbling: on the ball (the gait locks to the game's touches), straight ahead
+  out.dribble=[];await page.evaluate(()=>{__game.give(window.__st.team,window.__st.slot);});
+  for(const spd of [3,5,7]){await run(spd,0.8);const rows=(await run(spd,3)).filter(r=>r.dt>0),sl=slideOf(rows);
+    out.dribble.push({spd,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3)});
+    console.log(`dribble at ${spd} m/s | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)}`);}
+  await page.evaluate(()=>{__game.ball.owner=null;});
   const turn=await run(6,2.5,1.2);const leans=turn.map(r=>r.lean);out.turn={spd:6,yawRate:1.2,leanMax:Math.max(...leans.map(Math.abs))};
   console.log(`turn at 6 m/s, 1.2 rad/s: lean up to ${out.turn.leanMax.toFixed(3)} rad`);
   out.errors=errors;console.log('page errors',errors.length);

@@ -1,7 +1,7 @@
 // Close-up frames of the 3D model's standing, walking, jogging, running and a shot out of a run, in the real game page
 // with time stepped by this script (as measure_loco.js), for looking at. Development tool.
 //   node ground-legends/engine3d/tools/render_loco.js <out folder>
-//   SCENE=contest: jockey, shield and shoulder-to-shoulder against an opponent moved by hand
+//   SCENE=brake: run, hard stop, push off; SCENE=dribble: on the ball at 3 and 5 m/s; SCENE=contest: jockey, shield and shoulder-to-shoulder against an opponent moved by hand
 //   CAM=side|front|hand|both|all (default side; hand: close to the right hand), NEAR=1 for a closer camera, SIZE=<width px>
 // One player is moved along +z; the game's camera is placed beside him (a side view following him). Each phase is
 // drawn at 60 steps a second and every 3rd step is saved: stand 0.6 s, walk 1.4 m/s, jog 2.8, run 5.5, sprint 8.5,
@@ -12,7 +12,7 @@ const P=require(path.join(GL,'tests','legacy','paths.js'));const {chromium}=requ
 const OUT=path.resolve(process.argv[2]||'loco_frames');fs.mkdirSync(OUT,{recursive:true});
 const three=fs.readFileSync(P.THREE_JS,'utf8'),game=fs.readFileSync(path.join(GL,'index.html'),'utf8');
 const k=game.indexOf('window.__game={');
-const INJECT='window.__vis={applyVisual,scene,renderer,camera,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
+const INJECT='window.__vis={applyVisual,scene,renderer,camera,ballMesh,get players(){return players;},get teams(){return teams;},setVisDt(v){visDt=v;}};\n';
 const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game.slice(0,k)+INJECT+game.slice(k)+'</body></html>';
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
@@ -42,6 +42,17 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
         V.renderer.render(V.scene,V.camera);imgs[v]=V.renderer.domElement.toDataURL('image/png');}
       if(i%3===0){const m=P3D.measure(p);out.push({label,img:imgs[views[0]],imgs,w:m.weights,tr:m.transfer});}i++;};
     const hold=(a,spd,secs,label)=>{for(let s=0;s<secs;s+=dt)step(a,spd,12+s,label);};
+    if(SCENE==='brake'){
+      // run at 7 m/s, stop in 0.6 s (about -12 m/s2), stand, push off to 7 m/s in 1.2 s
+      const ramp=(a0,a1,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){const v=a0+(a1-a0)*s2/secs;step(v>0.05?1:0,v,12+s2,label);}};
+      ramp(7,7,0.8,'run 7');ramp(7,0,0.6,'brake');ramp(0,0,0.5,'stopped');ramp(0,7,1.2,'push off');ramp(7,7,0.5,'run 7');return out;}
+    if(SCENE==='dribble'){
+      // on the ball at 3 and 5 m/s; the ball placed as the game places it for its owner (ball offset from visPh)
+      __game.give(p.team,p.slot);const B=__game.ball;
+      const drib=(v,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){const ph=(p.visPh||0)+dt*(v*1.2+1.5);
+        const off=0.5+v*0.055+Math.max(0,Math.sin(ph))*0.14*Math.min(1,v/4);B.pos.set(p.pos.x,0.11,p.pos.z+v*dt+off);V.ballMesh.position.set(B.pos.x,0.11+0.033,B.pos.z);
+        step(1,v,12+s2,label);}};
+      drib(3,1.6,'dribble 3');drib(5,1.6,'dribble 5');return out;}
     if(SCENE==='contest'){
       // an opponent from the other team, moved by hand like him
       const q=V.players.find(o=>o.team!==p.team&&!o.isGK),place=(dx,dz)=>{q.pos.set(p.pos.x+dx,0,p.pos.z+dz);q.face=Math.PI;q.spd=p.spd;q.visA=p.spd>0.05?1:0;

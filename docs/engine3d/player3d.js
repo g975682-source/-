@@ -122,7 +122,7 @@ window.P3D=(()=>{
     // the game's own meshes for this player go to a layer the camera does not draw
     const hidden=[];p.rig.root.traverse(o=>{if(o!==p.rig.root&&(o.isMesh||o.isSprite||o.isLine)&&o.layers.mask!==0){hidden.push([o,o.layers.mask]);o.layers.set(HIDDEN_LAYER);}});
     const A={p,rig:p.rig,holder,root,mesh,bone,hidden,qa:new TH.Quaternion(),e:new TH.Euler(),
-      wp:null,ph:0,it:0,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,side:1},lq:{},lh:new TH.Vector3()};
+      wp:null,ph:0,it:0,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,dribble:0,brake:0,push:0,side:1},acc:0,sp0:null,lq:{},lh:new TH.Vector3()};
     for(const b in MAP)A.lq[b]=new TH.Quaternion();A.lq.Spine2=new TH.Quaternion();A.lq.LeftToeBase=new TH.Quaternion();A.lq.RightToeBase=new TH.Quaternion();
     if(S.clips){A.mixer=new TH.AnimationMixer(root);A.act={};
       for(const k of ['idle','walk','jog','run']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();A.act[k]=a;}}
@@ -152,6 +152,9 @@ window.P3D=(()=>{
     for(const [k] of GAITS)if(w[k]>0)stride+=w[k]*c[k].speed*c[k].dur;
     // one gait phase for all: cycles per second so that the blended stride covers the ground at the game's speed
     if(stride>0)A.ph=((A.ph+(back?-1:1)*dt*s*mv/stride)%1+1)%1;   // stride/mv: the moving gaits' stride, their weights taken to 1
+    // Dribbling keeps the natural cadence. Locking the steps to the game's touches (its ball offset follows visPh at
+    // speed*1.2+1.5 rad/s, unrelated to stride) made the standing foot slide 0.6-0.8 m/s (measure_loco.js), so the
+    // touch rhythm stays the game's to change; dribbling here is posture only (stance()).
     A.it=(A.it+dt)%c.idle.dur;
     A.act.idle.time=A.it;A.act.idle.setEffectiveWeight(w.idle);
     for(const [k] of GAITS)if(A.act[k]){A.act[k].time=(c[k].foot+A.ph*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight(w[k]);}
@@ -183,6 +186,7 @@ window.P3D=(()=>{
       // stances: jockey arms out and a little forward; shield: the arm on the opponent's side out to the side, the other
       // for balance; contact: elbows in
       const near=(W.side>0)===(sx>0),wj=W.jockey,ws=W.shield,wc=W.contact*(1-ws);
+      if(W.dribble>1e-3)z+=sx*0.15*W.dribble;   // dribbling: arms a little out for balance
       if(wj>1e-3){x+=(-0.25-x)*wj*0.6;z+=(sx*0.5-z)*wj;e+=(0.75-e)*wj;}
       if(ws>1e-3){if(near){x+=(-0.15-x)*ws;z+=(sx*1.0-z)*ws;e+=(0.35-e)*ws;}else{z+=(sx*0.35-z)*ws;e+=(0.9-e)*ws;}}
       if(wc>1e-3&&near){z+=(sx*0.05-z)*wc;e+=(1.2-e)*wc;}
@@ -205,20 +209,28 @@ window.P3D=(()=>{
     const jockey=owner!==p&&((p.jockeyT||0)>0||(p.faceBall&&toOwner<4.5&&s<5));
     const shield=owner===p&&(p.shielding||(od<1.6&&s<3));
     const contact=od<1.0&&!!owner&&(owner===p||owner===opp);
+    const dribble=owner===p&&s>0.8&&!shield;
     // which side the nearest opponent is on, in his own frame (+1 left, -1 right)
     let side=1;if(opp){const dx=opp.pos.x-p.pos.x,dz=opp.pos.z-p.pos.z,f=p.face;side=(dx*Math.cos(f)-dz*Math.sin(f))>=0?1:-1;}
-    return {jockey,shield,contact,side};
+    return {jockey,shield,contact,dribble,side};
   }
   function stance(A,s,dt){
     const st=stanceOf(A,s),k=dt>0?1-Math.exp(-dt*7):1,W=A.st;
-    for(const n of ['jockey','shield','contact'])W[n]+=((st[n]?1:0)-W[n])*k;W.side+=(st.side-W.side)*k;
-    const bone=A.bone,c=0.45*W.jockey+0.4*W.shield+0.25*W.contact;
+    for(const n of ['jockey','shield','contact','dribble'])W[n]+=((st[n]?1:0)-W[n])*k;W.side+=(st.side-W.side)*k;
+    // braking and pushing off (sources: change-of-direction studies): from the change of the game's speed, smoothed;
+    // hard braking (past -3 m/s2) lowers him and leans him back, hard acceleration (past 2 m/s2) leans him forward
+    if(dt>0&&A.sp0!=null)A.acc+=((s-A.sp0)/dt-A.acc)*(1-Math.exp(-dt*8));A.sp0=s;
+    const wb=clampN((-A.acc-3)/9,0,1)*(1-W.shield),wa=clampN((A.acc-2)/6,0,1)*smooth(0.5,2,s);W.brake+=(wb-W.brake)*k*1.5;W.push+=(wa-W.push)*k*1.5;
+    // (no knee bend for dribbling: bending the clip's legs at running speed changes the foot path and slides the feet)
+    const bone=A.bone,c=0.45*W.jockey+0.4*W.shield+0.25*W.contact+0.3*W.brake;
     if(c>1e-3){
       // knees bent, thighs forward, feet flat; the hips come down by what the legs lose in height
       for(const sd of ['Left','Right']){qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'UpLeg'].quaternion.multiply(qL);
         qL.setFromAxisAngle(xAxis,1.6*c);bone[sd+'Leg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'Foot'].quaternion.multiply(qL);}
       bone.Hips.position.y-=0.92*(1-Math.cos(0.8*c));
       qL.setFromAxisAngle(xAxis,0.35*c);bone.Spine.quaternion.multiply(qL);}
+    // the whole body pitched about the hips: back when braking, forward when pushing off or dribbling
+    const pitch=-0.22*W.brake+0.15*W.push+0.08*W.dribble;if(Math.abs(pitch)>1e-3){qL.setFromAxisAngle(xAxis,pitch);bone.Hips.quaternion.premultiply(qL);}
     // jockey: side-on (hips turned 0.45 rad, the trunk turned most of the way back to the ball carrier)
     if(W.jockey>1e-3){const y=0.45*W.jockey*(A.p.slot%2?1:-1);qL.setFromAxisAngle(yAxis,y);bone.Hips.quaternion.premultiply(qL);
       qL.setFromAxisAngle(yAxis,-y*0.35);bone.Spine1.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,-y*0.35);bone.Spine2.quaternion.multiply(qL);}
