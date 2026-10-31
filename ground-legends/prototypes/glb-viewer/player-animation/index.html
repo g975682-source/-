@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>선수 애니메이션 실험실</title>
+<style>
+:root{--bg:#0b1424;--panel:#111d33;--line:#24365a;--text:#e8eefb;--dim:#9fb0cf;--acc:#f5c542;--ok:#4fd18b;--bad:#ff6b6b;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;display:flex;height:100vh;overflow:hidden}
+#side{width:360px;flex:none;overflow-y:auto;padding:12px 14px 40px;border-right:1px solid var(--line);background:var(--panel)}
+#view{flex:1;position:relative;min-width:0}
+#view canvas{display:block;width:100%;height:100%}
+h1{font-size:16px;margin:0 0 4px}
+h2{font-size:13px;margin:16px 0 6px;color:var(--acc);font-weight:600}
+.dim{color:var(--dim)}
+table{border-collapse:collapse;width:100%}
+td,th{padding:2px 4px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-weight:normal}
+th{color:var(--dim)}
+button,select{background:#1b2b4b;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:4px 8px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#111}
+.row{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:4px 0}
+label.sl{display:grid;grid-template-columns:92px 1fr 52px;gap:6px;align-items:center;margin:3px 0}
+input[type=range]{width:100%}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+#hud:empty{display:none}
+#hud{position:absolute;left:10px;top:10px;background:rgba(7,16,31,.85);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:12px/1.5 ui-monospace,Menlo,monospace;white-space:pre;pointer-events:none;max-width:calc(100% - 20px);overflow:hidden}
+#label{position:absolute;right:10px;top:10px;background:rgba(7,16,31,.85);padding:6px 8px;border:1px solid var(--acc);border-radius:6px;font-size:13px;max-width:60%;display:none}
+#status{margin:6px 0;color:var(--dim)}
+#events{font:11px/1.4 ui-monospace,Menlo,monospace;color:var(--dim);white-space:pre-wrap}
+@media (max-width:760px){body{flex-direction:column;height:auto;overflow:auto}#side{width:auto;border-right:0;border-bottom:1px solid var(--line)}#view{height:70vh}}
+</style>
+</head>
+<body>
+<div id="side">
+  <h1>선수 애니메이션 실험실</h1>
+  <div class="dim">MakeHuman(CC0) 선수 + CMU 모션 캡처. 게임 본체와 분리된 프로토타입입니다.</div>
+  <div id="status">불러오는 중…</div>
+
+  <h2>모델과 스켈레톤</h2>
+  <table id="model"></table>
+
+  <h2>킥 동작</h2>
+  <div class="row"><select id="kick"></select><span class="dim" id="kickInfo"></span></div>
+
+  <h2>클립 목록</h2>
+  <table id="clips"><tr><th>상태</th><th>테이크 구간</th><th>길이</th><th>속도</th><th></th></tr></table>
+
+  <h2>재생</h2>
+  <label class="sl">속도 배율<input id="ts" type="range" min="0.1" max="2" step="0.05" value="1"><span id="tsV">1.00</span></label>
+  <label class="sl">시작 위상<input id="ph" type="range" min="0" max="1" step="0.01" value="0"><span id="phV">0.00</span></label>
+  <label class="sl">크로스페이드<input id="xf" type="range" min="0" max="1" step="0.05" value="0.25"><span id="xfV">0.25 s</span></label>
+  <div class="row">
+    <label><input type="checkbox" id="root" checked> 루트 모션</label>
+    <label><input type="checkbox" id="trail" checked> 발 궤적</label>
+    <label><input type="checkbox" id="skel"> 스켈레톤</label>
+  </div>
+  <div class="row"><button id="pause">일시정지</button><button id="stepB">1/60 s</button><button id="reset">원점</button><button id="clearT">궤적 지우기</button></div>
+
+  <h2>상태 체인과 시나리오</h2>
+  <div class="row"><button id="chain">대기→출발→달리기→감속→킥→회복</button></div>
+  <div class="row"><button id="repeat">반복 킥과 재시작</button></div>
+  <div class="row"><select id="game"><option value="">게임 슛 장면 (out/game_probe.json)</option></select><button id="gameB">재생</button></div>
+  <div class="dim">게임 장면은 check_player.js가 게임을 읽기 전용으로 돌려 기록한 선수 위치·방향과 공입니다.</div>
+
+  <h2>이벤트</h2>
+  <div id="events"></div>
+</div>
+<div id="view"><div id="hud"></div><div id="label"></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../vendor/GLTFLoader.js"></script>
+<script src="../vendor/BVHLoader.js"></script>
+<script src="../retarget.js"></script>
+<script src="lab.js"></script>
+<script>
+'use strict';
+(()=>{
+const $=s=>document.querySelector(s),V=()=>new THREE.Vector3();
+const MODEL='out/mh_player.glb',CMU='assets/cmu/';
+const view=$('#view'),R=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});R.setPixelRatio(Math.min(2,devicePixelRatio));view.prepend(R.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x7d9bb8);
+scene.add(new THREE.HemisphereLight(0xffffff,0x3c5a2c,0.95));const sun=new THREE.DirectionalLight(0xffffff,0.85);sun.position.set(3,6,4);scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0x4f8a3c}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+const grid=new THREE.GridHelper(200,200,0x6fa95a,0x5e9a4c);grid.position.y=0.002;scene.add(grid);
+const ball=new THREE.Mesh(new THREE.SphereGeometry(PALab.BALL_R,24,16),new THREE.MeshLambertMaterial({color:0xffffff}));ball.visible=false;scene.add(ball);
+const ring=new THREE.Mesh(new THREE.RingGeometry(0.16,0.22,32),new THREE.MeshBasicMaterial({color:0xf5c542,side:THREE.DoubleSide}));ring.rotation.x=-Math.PI/2;ring.position.y=0.01;scene.add(ring);
+const cam=new THREE.PerspectiveCamera(38,1,0.05,300);
+const orbit={yaw:0.6,pitch:0.18,dist:4.2,target:V().set(0,0.9,0),follow:true};
+function placeCam(){const c=Math.cos(orbit.pitch);cam.position.set(orbit.target.x+orbit.dist*c*Math.sin(orbit.yaw),orbit.target.y+orbit.dist*Math.sin(orbit.pitch),orbit.target.z+orbit.dist*c*Math.cos(orbit.yaw));cam.lookAt(orbit.target);}
+let drag=null;R.domElement.addEventListener('pointerdown',e=>{drag=[e.clientX,e.clientY];R.domElement.setPointerCapture(e.pointerId);});
+R.domElement.addEventListener('pointermove',e=>{if(!drag)return;orbit.yaw-=(e.clientX-drag[0])*0.008;orbit.pitch=Math.max(-0.2,Math.min(1.4,orbit.pitch+(e.clientY-drag[1])*0.006));drag=[e.clientX,e.clientY];});
+R.domElement.addEventListener('pointerup',()=>drag=null);
+R.domElement.addEventListener('wheel',e=>{e.preventDefault();orbit.dist=Math.max(1.2,Math.min(20,orbit.dist*(e.deltaY>0?1.1:0.9)));},{passive:false});
+function resize(){const w=view.clientWidth,h=view.clientHeight;R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+addEventListener('resize',resize);
+
+// foot trails: the ankles' world path; green on the ground and still, red on the ground and sliding, blue in the air
+const TRAIL=900;
+function makeTrail(){const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(TRAIL*3),3));g.setAttribute('color',new THREE.BufferAttribute(new Float32Array(TRAIL*3),3));g.setDrawRange(0,0);
+  const l=new THREE.Line(g,new THREE.LineBasicMaterial({vertexColors:true}));l.frustumCulled=false;scene.add(l);return {line:l,n:0};}
+const trails={Left:makeTrail(),Right:makeTrail()};
+function trailPush(side,p,touch,speed){const T=trails[side],g=T.line.geometry,pa=g.attributes.position,ca=g.attributes.color;
+  if(T.n>=TRAIL){pa.array.copyWithin(0,3);ca.array.copyWithin(0,3);T.n=TRAIL-1;}
+  pa.setXYZ(T.n,p[0],Math.max(0.004,p[1]),p[2]);const c=!touch?[0.35,0.6,1]:speed>0.3?[1,0.25,0.25]:[0.3,1,0.45];ca.setXYZ(T.n,...c);T.n++;g.setDrawRange(0,T.n);pa.needsUpdate=ca.needsUpdate=true;}
+function trailClear(){for(const s in trails){trails[s].n=0;trails[s].line.geometry.setDrawRange(0,0);}}
+
+let M=null,lib=null,P=null,skel=null,paused=false,live=null,lastProbe=null;const libs={},takeCache={};
+const events=[];function logEv(s){events.unshift(s);events.length=Math.min(events.length,10);$('#events').textContent=events.join('\n');}
+function status(s,bad){$('#status').textContent=s;$('#status').className=bad?'bad':'';}
+
+async function loadModel(){
+  if(M)return M;M=await PALab.loadModel(MODEL);scene.add(M.holder);skel=new THREE.SkeletonHelper(M.root);skel.visible=$('#skel').checked;scene.add(skel);
+  const c=M.check,row=(k,v,ok)=>`<tr><td>${k}</td><td class="${ok==null?'':ok?'ok':'bad'}">${v}</td></tr>`;
+  $('#model').innerHTML=row('파일',MODEL)+row('뼈 / 메시',c.bones+' / '+c.meshes)+row('정점 / 삼각형',c.vertices+' / '+c.triangles)+row('Mixamo 이름',c.missing.length?'없음: '+c.missing.join(', '):'22개 모두',!c.missing.length)
+    +row('부모 관계',c.wrongParent.length?c.wrongParent.join(', '):'정상',!c.wrongParent.length)+row('가중치',`합 오차 ${c.skinWeightSumMaxError}, 잘못된 인덱스 ${c.skinBadIndex}, 무가중치 ${c.skinZeroWeight}`,!c.skinBadIndex&&!c.skinZeroWeight)
+    +row('역바인드 행렬',c.bindMatrixMaxError,c.bindMatrixMaxError<1e-4)+row('키 / 골반 높이',(c.restBox.max[1]).toFixed(2)+' m / '+c.hipsHeight+' m')+row('방향','왼쪽 +x '+(c.leftOnPlusX?'예':'아니오')+', 정면 +z '+(c.facesPlusZ?'예':'아니오'),c.leftOnPlusX&&c.facesPlusZ)
+    +row('발 정점','왼 '+c.footVertices.Left+' / 오 '+c.footVertices.Right)+row('파일 안 클립',c.fileClips.length?c.fileClips.join(', '):'없음 (동작은 CMU에서)')+row('판정',c.ok?'통과':'실패',c.ok);
+  return M;
+}
+async function useKick(k){
+  await loadModel();if(!libs[k])libs[k]=await PALab.buildLib(M,CMU,k,{cache:takeCache});lib=libs[k];
+  const rows=['idle','start','run','decel','kick','recover'].map(s=>{const c=lib[s];return `<tr><td>${s}</td><td>${c.take} ${c.from.toFixed(2)}–${c.to.toFixed(2)} s${c.loop?' (반복)':''}</td><td>${c.duration.toFixed(2)} s</td><td>${c.speed.toFixed(2)} m/s</td><td><button data-s="${s}">▶</button></td></tr>`;}).join('');
+  $('#clips').innerHTML='<tr><th>상태</th><th>테이크 구간</th><th>길이</th><th>속도</th><th></th></tr>'+rows;
+  $('#clips').querySelectorAll('button').forEach(b=>b.onclick=()=>playState(b.dataset.s));
+  const kc=lib.kick.contact;$('#kickInfo').textContent=`접촉 추정 ${kc.contact.toFixed(3)} s, 발끝 최고 ${kc.toeSpeed} m/s`;
+  newPlayer('root');P.play('idle',{fade:0});return lib;
+}
+function newPlayer(mode){P=new PALab.Player(M,lib,{mode});live=null;trailClear();ball.visible=false;$('#label').style.display='none';}
+function playState(s){if(live){const pos=P.pos.slice(),yaw=P.yaw;newPlayer($('#root').checked?'root':'game');P.pos=pos;P.yaw=yaw;P.play('idle',{fade:0});}
+  P.mode=$('#root').checked?'root':'game';const c=lib[s];P.play(s,{fade:+$('#xf').value,phase:+$('#ph').value*c.duration,timeScale:+$('#ts').value,why:'버튼'});logEv(`${P.t.toFixed(2)} s  ${s}  (페이드 ${$('#xf').value} s, 위상 ${(+$('#ph').value*c.duration).toFixed(2)} s, 배율 ${$('#ts').value})`);}
+
+// a plan played in real time (live) or run to a moment (pose, checks)
+function makePlan(name,g){if(name==='chain')return PALab.planChain(lib);if(name==='repeat')return PALab.planRepeat(lib);return PALab.planGame(lib,g);}
+function playLive(plan){newPlayer(plan.mode);live={plan,t:0,ei:0,ev:plan.events.slice().sort((a,b)=>a.t-b.t)};logEv('— 시나리오 시작 —');}
+function gameAt(plan,t){if(!plan.game)return null;const f=t*60,j=Math.min(plan.game.length-2,Math.max(0,Math.floor(f))),u=Math.max(0,Math.min(1,f-j)),a=plan.game[j],b=plan.game[j+1];
+  return {x:a.x+(b.x-a.x)*u,z:a.z+(b.z-a.z)*u,yaw:a.yaw+(b.yaw-a.yaw)*u,speed:a.speed+(b.speed-a.speed)*u,ball:a.ball&&b.ball?a.ball.map((v,k)=>v+(b.ball[k]-v)*u):null};}
+function tick(dt){
+  if(!P)return;
+  if(live){const L=live;while(L.ei<L.ev.length&&L.ev[L.ei].t<=L.t+1e-9){const e=L.ev[L.ei++];P.play(e.state,e);logEv(`${e.t.toFixed(2)} s  ${e.state}  ${e.why||''}`);}
+    L.t+=dt;const g=gameAt(L.plan,L.t);P.step(dt,g);if(g&&g.ball){ball.visible=true;ball.position.fromArray(g.ball);}
+    if(L.t>=L.plan.tEnd){live=null;logEv('— 시나리오 끝 —');}}
+  else P.step(dt,null);
+  const pr=PALab.probe(M,{});const sl=lastProbe?PALab.slide(lastProbe,pr,0.02):{};lastProbe=pr;
+  if($('#trail').checked)for(const s of ['Left','Right']){const p=M.by[s+'Foot'].getWorldPosition(V());const touch=pr.feet[s].low<0.02;trailPush(s,p.toArray(),touch,sl[s]?sl[s].d/dt:0);}
+  return {pr,sl};
+}
+let acc=0,last=performance.now(),hudAt=0,lastInfo=null;
+function frame(now){requestAnimationFrame(frame);const real=Math.min(0.1,(now-last)/1000);last=now;
+  if(P&&!paused){acc+=real;while(acc>=1/60){lastInfo=tick(1/60)||lastInfo;acc-=1/60;}}
+  if(P&&orbit.follow){const h=M.holder.position;orbit.target.lerp(V().set(h.x,0.9,h.z),0.15);ring.position.set(h.x,0.01,h.z);}
+  placeCam();R.render(scene,cam);
+  if(P&&lastInfo&&now-hudAt>100){hudAt=now;const pr=lastInfo.pr,w=P.weights(),cur=P.cur;
+    const f=s=>{const lo=pr.feet[s].low,sl=lastInfo.sl[s];return `${(lo*100).toFixed(1).padStart(5)} cm${lo<0?' 관통':''}${sl?'  미끄럼 '+(sl.d*60).toFixed(2)+' m/s':''}`;};
+    $('#hud').textContent=`상태 ${cur?cur.state:'-'}  ${Object.entries(w).map(([k,v])=>k+' '+v.toFixed(2)).join(' · ')}\n클립 시간 ${cur?cur.action.time.toFixed(3):'-'} s  배율 ${cur?cur.action.timeScale.toFixed(2):'-'}\n왼발 ${f('Left')}\n오른발 ${f('Right')}\n위치 ${P.pos.map(x=>x.toFixed(2)).join(', ')}  모드 ${P.mode==='root'?'루트 모션':'게임 위치'}`;}
+}
+
+// ---- for check_player.js and screenshots ----
+async function alone(state){const c=lib[state];return PALab.runScenario(M,lib,{mode:'root',events:[{t:0,state,fade:0,phase:0}],tEnd:c.loop?c.duration*2:c.duration,edges:true});}
+async function plan(name,g){const pl=makePlan(name,g);const r=PALab.runScenario(M,lib,pl);r.plan=Object.assign({},pl,{game:undefined});return r;}
+// the scene at one moment of a plan: the model posed there, the trail of the feet so far, the ball, a label
+function pose(o,viewName){
+  live=null;paused=true;trailClear();ball.visible=false;$('#label').style.display='none';$('#hud').textContent='';
+  if(o.rest){P=null;M.mixer.stopAllAction();PALab.toRest(M);M.holder.position.set(0,0,0);M.holder.rotation.set(0,0,0);M.holder.updateMatrixWorld(true);
+    orbit.target.set(0,0.9,0);ring.position.set(0,0.01,0);}
+  else{const pl=makePlan(o.plan,o.game);let t=o.t;
+    if(o.contact)t=o.plan==='game'?pl.tC:(pl.events.find(e=>e.state==='kick').t+lib.kick.contact.contact);
+    if(o.plan==='game'&&!o.contact&&o.dt!=null)t=pl.tC+o.dt;
+    if(o.end||t==null)t=pl.tEnd;pl.tEnd=Math.min(pl.tEnd,t);pl.edges=false;
+    const r=PALab.runScenario(M,lib,pl);const last=r.ticks[r.ticks.length-1];
+    for(const k of r.ticks)for(const s of ['Left','Right'])trailPush(s,k.j[s+'Foot'],k.feet[s].low<0.02,k.slide&&k.slide[s]!=null?k.slide[s]*60:0);
+    if(last.ball){ball.visible=true;ball.position.fromArray(last.ball);}
+    const h=M.holder.position;orbit.target.set(h.x,0.7,h.z);ring.position.set(h.x,0.01,h.z);
+    const gap=last.feet.Right.gap;$('#label').style.display='block';
+    $('#label').textContent=`${o.plan==='game'?o.game.name:o.plan} · t=${t.toFixed(3)} s · ${last.state} · 왼발 ${(last.feet.Left.low*100).toFixed(1)} cm · 오른발 ${(last.feet.Right.low*100).toFixed(1)} cm${gap!=null?' · 오른발-공 '+(gap*100).toFixed(1)+' cm':''}`;}
+  orbit.follow=false;orbit.dist=3.6;if(viewName==='front'){orbit.yaw=0.35;orbit.pitch=0.15;}else{orbit.yaw=Math.PI/2;orbit.pitch=0.08;}
+  resize();placeCam();R.render(scene,cam);
+}
+window.__pa={loadModel,useKick,alone,plan,pose,get lib(){return lib;},get M(){return M;}};
+
+// ---- controls ----
+for(const [id,out,fmt] of [['#ts','#tsV',v=>(+v).toFixed(2)],['#ph','#phV',v=>(+v).toFixed(2)],['#xf','#xfV',v=>(+v).toFixed(2)+' s']])$(id).oninput=()=>{$(out).textContent=fmt($(id).value);if(id==='#ts'&&P&&P.cur)P.cur.action.timeScale=+$(id).value;};
+$('#pause').onclick=()=>{paused=!paused;$('#pause').classList.toggle('on',paused);};
+$('#stepB').onclick=()=>{paused=true;$('#pause').classList.add('on');lastInfo=tick(1/60)||lastInfo;};
+$('#reset').onclick=()=>{if(!P)return;P.pos=[0,0];P.yaw=0;trailClear();};
+$('#clearT').onclick=trailClear;
+$('#skel').onchange=()=>{if(skel)skel.visible=$('#skel').checked;};
+$('#root').onchange=()=>{if(P)P.mode=$('#root').checked?'root':'game';};
+$('#chain').onclick=()=>{orbit.follow=true;paused=false;$('#pause').classList.remove('on');playLive(makePlan('chain'));};
+$('#repeat').onclick=()=>{orbit.follow=true;paused=false;$('#pause').classList.remove('on');playLive(makePlan('repeat'));};
+let probeData=null;
+$('#gameB').onclick=()=>{const k=$('#game').value;if(!probeData||k==='')return;orbit.follow=true;paused=false;$('#pause').classList.remove('on');playLive(makePlan('game',probeData.scenarios[+k]));};
+$('#kick').onchange=async()=>{status('킥 동작을 옮기는 중…');await useKick($('#kick').value);status('준비됨: '+$('#kick').value);};
+
+resize();requestAnimationFrame(frame);
+if(new URLSearchParams(location.search).get('autoload')!=='0')(async()=>{
+  try{for(const k of Object.keys(PALab.KICKS)){const o=document.createElement('option');o.value=k;o.textContent=k+(k==='143_24'?' (143 같은 배우)':'');$('#kick').appendChild(o);}
+    await useKick($('#kick').value);status('준비됨: 킥 '+$('#kick').value+'. 버튼으로 상태를 바꾸거나 시나리오를 재생하세요.');
+    try{const r=await fetch('out/game_probe.json');if(r.ok){probeData=await r.json();probeData.scenarios.forEach((s,k)=>{const o=document.createElement('option');o.value=k;o.textContent=s.name;$('#game').appendChild(o);});}}catch(e){}
+  }catch(e){status('오류: '+e.message,true);console.error(e);}})();
+else{paused=true;for(const k of Object.keys(PALab.KICKS)){const o=document.createElement('option');o.value=k;o.textContent=k;$('#kick').appendChild(o);}status('autoload=0 (검사용: 실시간 재생 멈춤)');}
+})();
+</script>
+</body>
+</html>

@@ -757,6 +757,21 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+// New 3D player models (engine3d/), on for every player unless asked otherwise: ?p3d=one|team|all (remembered),
+// ?p3d=0 back to the procedural players. Loaded on the side; until it is ready, or if it fails, the game draws its own
+// players.
+(function(){let m=null;try{m=new URLSearchParams(location.search).get('p3d');if(m!==null)localStorage.setItem('gl-p3d',m);else m=localStorage.getItem('gl-p3d');}catch(e){}
+  if(!m)m='all';
+  if(m==='0'||m==='off')return;
+  const files=['engine3d/vendor/GLTFLoader.js','engine3d/vendor/SkeletonUtils.js','engine3d/player3d.js'];
+  // fetched first and run only if it is a script: a server can answer a missing file with an HTML page
+  const next=i=>{if(i===files.length){window.P3D&&window.P3D.init({mode:m==='1'?'one':m});return;}
+    fetch(files[i]).then(r=>{if(!r.ok||/html/i.test(r.headers.get('content-type')||''))throw new Error(files[i]+' '+r.status);return r.text();})
+      .then(code=>{if(/^\s*</.test(code))throw new Error(files[i]+' is not a script');const s=document.createElement('script');s.textContent=code;document.head.appendChild(s);next(i+1);})
+      .catch(e=>console.warn('3D players off: '+(e&&e.message||e)));};
+  next(0);})();
+</script>
+<script>
 (function(){
 'use strict';
 const $=s=>document.querySelector(s);
@@ -1234,7 +1249,7 @@ function buildRig(mats,pd,isGK,opts){
 // its new angle instead of snapping. All of it is driven by time and the actor's own seed, so replays match.
 const RJ=['hips','torso','chest','neck','head','shL','shR','armL','armR','elbowL','elbowR','wristL','wristR','legL','legR','kneeL','kneeR','ankleL','ankleR'];
 let visDt=1/60;
-function rigLife(p,r,aid,t,ph,spd){
+function rigLife(p,r,aid,t,ph,spd,side){
   if(!r.chest)return;
   const g=r.g,sd=g.seed,T=gtime,a=clamp(spd/8.5,0,1);
   const running=aid===A.run||aid===A.celeb,still=aid===A.idle||aid===A.gkready||aid===A.gkhold;
@@ -1248,7 +1263,9 @@ function rigLife(p,r,aid,t,ph,spd){
   const tX=r.hips.rotation.x,kick=aid===A.kick||aid===A.volley;
   for(const [L,K,An,w] of [[r.legL,r.kneeL,r.ankleL,0],[r.legR,r.kneeR,r.ankleR,1]]){
     const swing=clamp((K.rotation.x-0.45)/0.6,0,1);
-    let an=(1-swing)*-(tX+L.rotation.x+K.rotation.x)*0.9+swing*0.45+(kick&&w===1?0.5:0);
+    // the kicking foot (the left one when side < 0) points its toes; in a kick only as far as the leg swings, so the
+    // toe does not dig in while that foot still stands or passes low
+    let an=(1-swing)*-(tX+L.rotation.x+K.rotation.x)*0.9+swing*0.45+(kick&&w===(side<0?0:1)?0.5*(aid===A.kick?swing:1):0);
     if(aid===A.slide||aid===A.fall||aid===A.dive)an=0.35;
     An.rotation.x=clamp(an,-0.75,1.0);An.rotation.z=-L.rotation.z*0.5;
   }
@@ -1788,7 +1805,7 @@ function poseValues(r,aid,t,phase,spd,side,out){
     case A.run:runPose(1);break;
     case A.kick:{const k=clamp(t/0.4,0,1);
       if(k<0.35){const q=k/0.35;rT=0.95*q;rK=1.35*q;}else{const q=(k-0.35)/0.65,e=1-Math.pow(1-q,3);rT=0.95-2.2*e;rK=1.35*(1-e);}
-      lT=-0.15;lK=0.3;lAz=0.7;rAz=-0.4;lA=-0.35;rA=0.45;toX=-0.06;hipY=0.92;
+      lT=-0.15;lK=0.3;lAz=0.7;rAz=-0.4;lA=-0.35;rA=0.45;toX=-0.06;hipY=0.94;   // hips as low as the bent plant leg lets its sole touch
       if(side<0){[lT,rT]=[rT,lT];[lK,rK]=[rK,lK];[lA,rA]=[rA,lA];const z=lAz;lAz=-rAz;rAz=-z;}break;}   // left foot
     case A.tackle:{const k=clamp(t/0.3,0,1),e=Math.sin(k*Math.PI);lT=-1.0*e;lK=0.2;rK=0.6*e;toX=0.25*e;hipY=0.95-0.12*e;lAz=0.5;rAz=-0.5;break;}
     case A.slide:{const q=clamp(t/0.15,0,1);hipY=lerp(0.9,0.28,q);tX=-1.2*q;lT=-0.25*q;lK=0.05;rT=0.35*q;rK=1.25*q;lA=0.6;rA=-0.2;lAz=0.9;rAz=-1.0;toX=0.45*q;break;}
@@ -4050,7 +4067,7 @@ function syncAnimState(p){
   p.visA=a;p.visT=t;p.visPh=ph;p.visSide=side;
 }
 function applyVisual(p,x,y,z,face,a,t,ph,spd,side){
-  const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);rigLife(p,r,a,t,ph,spd);
+  const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);rigLife(p,r,a,t,ph,spd,side);
 }
 const cam={focus:new V3(),pos:new V3(0,30,60),look:new V3(),snap:true};
 const P_=new V3(),L_=new V3();
@@ -4084,6 +4101,7 @@ function renderVisuals(dt){
   if(state==='replay'&&rp&&!(net&&net.role==='guest')){applyFrame((rp.first+Math.min(rp.idx,rp.len-1))%REC_N);}
   else{for(const p of players)applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,p.visSide);
     ballMesh.position.copy(ball.pos);ballMesh.position.y=ball.pos.y+BR*0.3;ballMesh.quaternion.copy(ball.quat);}
+  if(window.P3D)P3D.frame(players,scene,teams,controlled);   // new 3D models (engine3d/), when switched on: follow the rigs just posed
   const bp=ballMesh.position;ballShadow.position.set(bp.x,0.015,bp.z);const sc=1/(1+bp.y*0.35);ballShadow.scale.set(sc,sc,sc);
   const closeCam=(SP&&SP.fk&&state==='setpiece')||(state==='dead'&&foulSeq&&foulSeq.shown);
   const showMark=human&&mode==='match'&&controlled&&state!=='replay'&&!closeCam;

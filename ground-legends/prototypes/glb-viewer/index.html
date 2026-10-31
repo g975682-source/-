@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GLB Player Viewer</title>
+<style>
+:root{--bg:#07101f;--panel:#0d1a33;--line:#24365c;--ink:#e8eefb;--mute:#8fa1c4;--ok:#5dffa6;--warn:#ffd36b;--bad:#ff8a80;--acc:#f5c542}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:13px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+#app{display:grid;grid-template-columns:minmax(300px,380px) 1fr;height:100%}
+#side{overflow:auto;padding:12px;border-right:1px solid var(--line);background:var(--panel)}
+#view{position:relative;min-width:0}
+#view canvas{display:block;width:100%;height:100%}
+h1{font-size:15px;margin:0 0 4px}
+h2{font-size:12px;letter-spacing:.08em;color:var(--mute);margin:14px 0 6px;text-transform:uppercase}
+.row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0}
+input[type=text],input[type=number],select{background:#091428;border:1px solid var(--line);color:var(--ink);padding:5px 6px;font:inherit;min-width:0}
+input[type=text]{flex:1}
+button{background:#13274a;border:1px solid var(--line);color:var(--ink);padding:5px 9px;font:inherit;cursor:pointer}
+button:hover{border-color:var(--acc)}button.on{background:var(--acc);color:#1b1300;border-color:var(--acc)}
+#status{padding:6px 8px;border:1px solid var(--line);background:#091428;min-height:32px;white-space:pre-wrap}
+#status.err{border-color:var(--bad);color:var(--bad)}#status.ok{border-color:var(--ok)}
+#drop{border:1px dashed var(--line);padding:10px;text-align:center;color:var(--mute)}
+#drop.over{border-color:var(--acc);color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+td,th{padding:3px 4px;border-bottom:1px solid #18284a;text-align:left;vertical-align:top}
+th{color:var(--mute);font-weight:500}
+tr.clip{cursor:pointer}tr.clip:hover td{background:#13274a}tr.clip.on td{background:#3a3010}
+.tag{display:inline-block;padding:0 4px;border:1px solid var(--line);font-size:11px;color:var(--mute)}
+.tag.warn{color:var(--warn);border-color:var(--warn)}.tag.bad{color:var(--bad);border-color:var(--bad)}.tag.ok{color:var(--ok);border-color:var(--ok)}
+pre{white-space:pre-wrap;word-break:break-all;background:#091428;border:1px solid var(--line);padding:6px;max-height:240px;overflow:auto;font-size:11px}
+#hud{position:absolute;left:10px;top:10px;background:rgba(7,16,31,.75);padding:6px 8px;border:1px solid var(--line);font-variant-numeric:tabular-nums;pointer-events:none}
+.foot{color:var(--mute);font-size:12px}
+@media (max-width:760px){#app{grid-template-columns:1fr;grid-template-rows:auto 60vh}#side{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="side">
+  <h1>GLB 선수 모델 뷰어</h1>
+  <div class="foot">Ground Legends 외부 모델 프로토타입. 본 게임과 분리되어 있습니다.</div>
+
+  <h2>모델 불러오기</h2>
+  <div class="row"><input type="text" id="url" value="models/Xbot.glb" aria-label="모델 주소"><button id="btnLoad">불러오기</button></div>
+  <div class="row"><input type="file" id="file" accept=".glb,.gltf" aria-label="모델 파일"></div>
+  <div id="drop">GLB 파일을 여기에 끌어다 놓으세요</div>
+  <div class="row"><div id="status" style="flex:1">모델을 불러오세요.</div></div>
+
+  <h2>보정</h2>
+  <div class="row"><label>키(m) <input type="number" id="height" value="1.8" step="0.05" min="0.5" max="3" style="width:70px"></label>
+    <label>방향 <select id="yaw"><option value="auto">자동</option><option value="0">0°</option><option value="90">90°</option><option value="180">180°</option><option value="270">270°</option></select></label></div>
+  <div class="row"><label><input type="checkbox" id="snap" checked> 발을 바닥(y=0)에 맞춤</label></div>
+  <div class="row"><label><input type="checkbox" id="inplace" checked> 제자리 재생 (루트 모션의 수평 이동 제거)</label></div>
+
+  <h2>외부 동작 (BVH 리타깃)</h2>
+  <div class="foot">CMU 모캡 BVH(cgspeed 변환)를 지금 모델의 Mixamo 이름 뼈대로 옮겨 클립으로 더합니다. 모델을 다시 불러오면 지워집니다.</div>
+  <div class="row"><input type="text" id="bvhUrl" value="models/cmu/10_01.bvh" aria-label="BVH 주소"><button id="btnBvh">옮겨 붙이기</button></div>
+  <div class="row"><input type="file" id="bvhFile" accept=".bvh" aria-label="BVH 파일"></div>
+  <div class="row"><label><input type="checkbox" id="bvhTrim" checked> 킥 구간만: 타격 전</label><input type="number" id="bvhBefore" value="0.6" step="0.1" min="0" max="5" style="width:52px"><label>후</label><input type="number" id="bvhAfter" value="0.5" step="0.1" min="0" max="5" style="width:52px"><span class="foot">초</span></div>
+
+  <h2>애니메이션 클립</h2>
+  <div class="row"><label>전환 시간(초) <input type="number" id="xfade" value="0.25" step="0.05" min="0" max="2" style="width:64px"></label>
+    <label>속도 <input type="number" id="speed" value="1" step="0.1" min="0.1" max="3" style="width:56px"></label><button id="btnPause">일시정지</button><button id="btnStop">정지</button></div>
+  <table><thead><tr><th>이름</th><th>길이</th><th>트랙</th><th>루트 모션</th><th>출처</th></tr></thead><tbody id="clips"><tr><td colspan="5" class="foot">-</td></tr></tbody></table>
+
+  <h2>공 (게임 위치)</h2>
+  <div class="row"><label><input type="checkbox" id="showBall"> 공 표시: 선수 정면 0.5 m, 바닥 (게임이 드리블 공을 두는 곳)</label></div>
+  <div class="foot">첫 선수의 오른발에서 공 중심까지 선을 긋고, 발 표면과 공 표면 사이 거리를 HUD에 씁니다.</div>
+
+  <h2>게임 위치 따라가기</h2>
+  <div class="foot">게임 로직이 정한 위치와 방향을 모델이 따라가는 모의 이동입니다. 애니메이션은 모양만 맡고 위치를 바꾸지 않습니다.</div>
+  <div class="row"><button id="btnMove">이동 시작</button><label>속도(m/s) <input type="number" id="mvSpeed" value="3" step="0.5" min="0" max="10" style="width:60px"></label></div>
+
+  <h2>여러 명 (성능 확인)</h2>
+  <div class="row"><button data-n="1" class="inst on">1</button><button data-n="11" class="inst">11</button><button data-n="22" class="inst">22</button><button data-n="44" class="inst">44</button></div>
+  <div class="foot">복제본은 지오메트리와 재질을 공유하고, 선수마다 AnimationMixer를 따로 가집니다.</div>
+
+  <h2>검사 보고</h2>
+  <pre id="report">-</pre>
+  <h2>뼈 이름</h2>
+  <pre id="bones">-</pre>
+</div>
+<div id="view"><div id="hud">-</div></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/GLTFLoader.js"></script>
+<script src="vendor/SkeletonUtils.js"></script>
+<script src="vendor/BVHLoader.js"></script>
+<script src="retarget.js"></script>
+<script src="kick_align.js"></script>
+<script>
+'use strict';
+// A standalone viewer for one external skinned player model. It loads a GLB/glTF with THREE.GLTFLoader (r128),
+// reports what the file holds (skins, bones, clips, root motion, size, facing), plays the clips it really has with a
+// crossfade, and follows a "game" position and heading the way the game would drive it. Nothing here touches the
+// game: ground-legends/index.html is not loaded or changed.
+const $=s=>document.querySelector(s);
+const view=$('#view'),status=$('#status');
+const say=(msg,kind)=>{status.textContent=msg;status.className=kind||'';(kind==='err'?console.error:console.log)('[viewer] '+msg);};
+
+if(!window.THREE){say('three.js r128 을 불러오지 못했습니다 (cdnjs). 네트워크를 확인하세요.','err');throw new Error('THREE missing');}
+if(!THREE.GLTFLoader){say('vendor/GLTFLoader.js 를 불러오지 못했습니다.','err');throw new Error('GLTFLoader missing');}
+
+/* ---------- scene ---------- */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6));renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+view.appendChild(renderer.domElement);
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x0b1a2e);
+const camera=new THREE.PerspectiveCamera(40,1,0.05,400);
+scene.add(new THREE.HemisphereLight(0xc4d6ff,0x1d3a1d,0.65));
+const sun=new THREE.DirectionalLight(0xfff8ee,0.9);sun.position.set(-6,12,8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-12,right:12,top:12,bottom:-12,near:1,far:40});scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(60,60),new THREE.MeshLambertMaterial({color:0x2f7a3a}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const grid=new THREE.GridHelper(60,60,0x9fd6a8,0x4e9a5b);grid.position.y=0.002;grid.material.opacity=0.35;grid.material.transparent=true;scene.add(grid);
+// the game's forward is +z (face 0); this arrow shows it, and the model should look the same way
+const fwdArrow=new THREE.ArrowHelper(new THREE.Vector3(0,0,1),new THREE.Vector3(0,0.02,0),1.2,0xf5c542,0.25,0.15);scene.add(fwdArrow);
+
+/* ---------- camera: drag to orbit, wheel to zoom (no extra library) ---------- */
+const orbit={yaw:0.6,pitch:0.25,dist:4.2,target:new THREE.Vector3(0,0.9,0)};
+function placeCamera(){const o=orbit,cp=Math.cos(o.pitch);camera.position.set(o.target.x+o.dist*cp*Math.sin(o.yaw),o.target.y+o.dist*Math.sin(o.pitch),o.target.z+o.dist*cp*Math.cos(o.yaw));camera.lookAt(o.target);}
+let drag=null;
+renderer.domElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId);});
+renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;orbit.yaw-=(e.clientX-drag.x)*0.008;orbit.pitch=Math.max(-0.2,Math.min(1.4,orbit.pitch+(e.clientY-drag.y)*0.006));drag={x:e.clientX,y:e.clientY};});
+renderer.domElement.addEventListener('pointerup',()=>{drag=null;});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();orbit.dist=Math.max(0.8,Math.min(60,orbit.dist*(1+Math.sign(e.deltaY)*0.1)));},{passive:false});
+function resize(){const w=view.clientWidth,h=view.clientHeight||400;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);
+
+/* ---------- model state ---------- */
+let gltf=null,base=null;      // the loaded file and its calibrated copy (the template every instance is cloned from)
+const inst=[];                 // {root, holder, mixer, actions:Map, cur}
+let clipsIn=[],clipsPlay=[],curName=null,report=null;
+const moveSim={on:false,ang:0,radius:3};
+
+function disposeAll(){
+  for(const i of inst){i.mixer.stopAllAction();scene.remove(i.holder);}
+  inst.length=0;
+  if(base)base.traverse(o=>{if(o.isMesh){o.geometry.dispose();for(const m of [].concat(o.material)){for(const k in m)if(m[k]&&m[k].isTexture)m[k].dispose();m.dispose();}}});
+  base=null;gltf=null;curName=null;
+}
+
+/* ---------- inspection ---------- */
+const LEFT=/left|_l$|\.l$|l_|_l_/i,RIGHT=/right|_r$|\.r$|r_|_r_/i;
+function boneSide(name,re){return re.test(name.replace(/mixamorig:?/i,''));}
+function topBone(skel){return skel.bones.find(b=>!b.parent||!b.parent.isBone)||skel.bones[0];}
+function inspect(g){
+  const r={skinnedMeshes:0,meshes:0,bones:0,skeletons:0,materials:0,textures:[],missingTextures:[],triangles:0,animations:g.animations.length};
+  const mats=new Set(),skels=new Set(),bones=new Set();
+  g.scene.updateMatrixWorld(true);
+  g.scene.traverse(o=>{
+    if(o.isBone)bones.add(o);
+    if(o.isMesh){r.meshes++;if(o.isSkinnedMesh){r.skinnedMeshes++;skels.add(o.skeleton);}
+      const geo=o.geometry;r.triangles+=geo.index?geo.index.count/3:geo.attributes.position.count/3;
+      for(const m of [].concat(o.material)){mats.add(m);for(const k of ['map','normalMap','roughnessMap','metalnessMap','emissiveMap','aoMap'])if(m[k]){const im=m[k].image;const ok=!!(im&&(im.width||im.videoWidth));(ok?r.textures:r.missingTextures).push(`${m.name||'mat'}.${k}${ok?` ${im.width}x${im.height}`:''}`);}}}});
+  r.materials=mats.size;r.skeletons=skels.size;r.bones=bones.size;r.triangles=Math.round(r.triangles);
+  // size as drawn (skinned vertices, rest pose), in the file's own units: a mesh's plain bounds miss the armature's
+  // scale (Mixamo exports carry 0.01 on the armature)
+  const box=skinnedBox(g.scene),size=box.getSize(new THREE.Vector3());
+  r.bindBox={min:box.min.toArray().map(v=>+v.toFixed(3)),max:box.max.toArray().map(v=>+v.toFixed(3)),height:+size.y.toFixed(3)};
+  // facing: a character facing +z has its left side at +x
+  const bl=[...bones];let L=null,R=null;
+  for(const re of [/upleg|thigh/i,/shoulder|upperarm|arm/i,/foot/i]){L=bl.find(b=>re.test(b.name)&&boneSide(b.name,LEFT));R=bl.find(b=>re.test(b.name)&&boneSide(b.name,RIGHT));if(L&&R)break;}
+  if(L&&R){const a=L.getWorldPosition(new THREE.Vector3()),b=R.getWorldPosition(new THREE.Vector3()),d=a.sub(b);
+    const yawToPlusZ=Math.abs(d.x)>=Math.abs(d.z)?(d.x>0?0:180):(d.z>0?90:270);   // turn needed so the left side ends at +x (left at +z: it faces -x)
+    r.facing={leftBone:L.name,rightBone:R.name,leftMinusRight:d.toArray().map(v=>+v.toFixed(3)),yawToFaceGameForward:yawToPlusZ};}
+  else r.facing={note:'왼쪽/오른쪽 뼈 이름을 찾지 못해 방향을 추정하지 못했습니다'};
+  r.boneNames=bl.map(b=>b.name);
+  const sk=[...skels][0];r.rootBone=sk?topBone(sk).name:null;
+  return r;
+}
+function skinnedBox(root){
+  root.updateMatrixWorld(true);const box=new THREE.Box3(),v=new THREE.Vector3();
+  root.traverse(o=>{if(!o.isMesh)return;const pos=o.geometry.attributes.position,step=Math.max(1,Math.floor(pos.count/3000));
+    for(let k=0;k<pos.count;k+=step){v.fromBufferAttribute(pos,k);if(o.isSkinnedMesh)o.boneTransform(k,v);v.applyMatrix4(o.matrixWorld);box.expandByPoint(v);}});
+  return box;
+}
+// rest pose = the bones' own transforms as the file gave them (saved in setup, arrays so that clones copy them).
+// Not skeleton.pose(): with Mixamo files it leaves the bones in bind space, a hundredth of their size under the
+// armature's 0.01 scale. The file's clips carry scale tracks and hid that; a clip without them does not.
+function restPose(root){root.traverse(o=>{const r=o.isBone&&o.userData.rest;if(r){o.position.fromArray(r.p);o.quaternion.fromArray(r.q);o.scale.fromArray(r.s);}});root.updateMatrixWorld(true);}
+// root motion: the top bone's (or hips') position track moving across the ground over the clip
+function rootTrack(clip,rootName){
+  const pos=clip.tracks.filter(t=>t.name.endsWith('.position'));
+  return pos.find(t=>t.name.split('.')[0]===rootName)||pos.find(t=>/hips|pelvis|root/i.test(t.name.split('.')[0]))||null;
+}
+function clipInfo(clip,boneNames,rootName){
+  const known=new Set(boneNames),targets=new Set(clip.tracks.map(t=>t.name.split('.')[0]));
+  const missing=[...targets].filter(n=>!known.has(n)&&n),rt=rootTrack(clip,rootName);
+  return {name:clip.name,duration:+clip.duration.toFixed(3),tracks:clip.tracks.length,missingBones:missing,rootTrack:rt?rt.name:null,rootMotion:null};
+}
+// measured on the calibrated model, in metres on the ground: the clip played as it is (does the hips bone travel?),
+// the lowest foot or toe joint over the clip (joints, not soles), and the same clip in place (does the body stay over
+// the spot the game puts it on?)
+function analyseClips(){
+  const root=base,hips=[];root.traverse(o=>{if(o.isBone&&/hips|pelvis/i.test(o.name))hips.push(o);});
+  let H=hips[0];if(!H)root.traverse(o=>{if(!H&&o.isBone&&o.name===report.rootBone)H=o;});
+  const feet=[];root.traverse(o=>{if(o.isBone&&/foot|toe/i.test(o.name))feet.push(o);});
+  const mixer=new THREE.AnimationMixer(root),v=new THREE.Vector3(),N=30;
+  gltf.animations.forEach((clip,ci)=>{const info=clipsIn[ci];
+    for(const [key,c] of [['raw',clip],['inPlace',clipsPlay[ci]]]){
+      const a=mixer.clipAction(c);a.reset().play();let x0=0,z0=0,net=0,maxH=0,lo=1e9,hiLo=-1e9;
+      for(let k=0;k<=N;k++){a.time=c.duration*k/N;mixer.update(0);root.updateMatrixWorld(true);
+        if(H){H.getWorldPosition(v);if(k===0){x0=v.x;z0=v.z;}const d=Math.hypot(v.x-x0,v.z-z0);maxH=Math.max(maxH,d);if(k===N)net=d;
+          if(key==='inPlace')maxH=Math.max(maxH,Math.hypot(v.x-root.position.x,v.z-root.position.z));}
+        if(feet.length){let m=1e9;for(const f of feet){f.getWorldPosition(v);m=Math.min(m,v.y);}lo=Math.min(lo,m);hiLo=Math.max(hiLo,m);}}
+      a.stop();mixer.uncacheAction(c);
+      if(key==='raw'){info.rootMotion=H?{bone:H.name,netMetres:+net.toFixed(3),maxMetres:+maxH.toFixed(3),moves:net>0.1||maxH>0.25}:null;
+        info.footJointMinY=feet.length?+lo.toFixed(3):null;info.footJointMaxOfLowest=feet.length?+hiLo.toFixed(3):null;}
+      else info.inPlaceHipsMaxOffset=H?+maxH.toFixed(3):null;}});
+  mixer.uncacheRoot(root);restPose(root);
+}
+// an in-place copy: the root track loses its travel across the ground (the straight line from its first key to its
+// last), and keeps its height and the sway around that line
+function inPlace(clip,rootName){
+  if(clip.inPlaceVersion)return clip.inPlaceVersion;   // a retargeted clip brings its own (smoothed path removed)
+  const c=clip.clone(),rt=rootTrack(c,rootName);if(!rt)return c;
+  const v=rt.values,t=rt.times,n=t.length-1,T=t[n]-t[0]||1,dx=v[n*3]-v[0],dz=v[n*3+2]-v[2];
+  for(let k=0;k<=n;k++){const f=(t[k]-t[0])/T;v[k*3]-=dx*f;v[k*3+2]-=dz*f;}return c;
+}
+
+/* ---------- loading ---------- */
+const loader=new THREE.GLTFLoader();
+function loadFrom(src,label){
+  disposeAll();renderClips();$('#report').textContent='-';$('#bones').textContent='-';
+  if(typeof src==='string')$('#url').value=src;
+  say(`불러오는 중: ${label}`);
+  return new Promise(resolve=>{
+    const done=g=>{try{setup(g,label);resolve(report);}catch(err){say(`모델 처리 실패: ${err.message}`,'err');console.error(err);resolve(null);}};
+    const fail=err=>{const m=err&&(err.message||err.target&&err.target.status&&('HTTP '+err.target.status))||String(err);
+      say(`불러오기 실패 (${label}): ${m}\n파일이 없거나 GLB/glTF 형식이 아닐 수 있습니다. 로컬 파일은 간단한 웹 서버로 열거나 끌어다 놓으세요.`,'err');resolve(null);};
+    if(typeof src==='string')loader.load(src,done,xhr=>{if(xhr.total)say(`불러오는 중: ${label} ${Math.round(xhr.loaded/xhr.total*100)}%`);},fail);
+    else loader.parse(src,'',done,fail);
+  });
+}
+function setup(g,label){
+  gltf=g;
+  g.scene.traverse(o=>{if(o.isBone)o.userData.rest={p:o.position.toArray(),q:o.quaternion.toArray(),s:o.scale.toArray()};});
+  const r=inspect(g);
+  const targetH=+$('#height').value||1.8,scale=targetH/(r.bindBox.height||1);
+  clipsIn=g.animations.map(c=>Object.assign(clipInfo(c,r.boneNames,r.rootBone),{source:label}));
+  r.clips=clipsIn;r.file=label;r.scaleApplied=+scale.toFixed(4);
+  if(!r.skinnedMeshes)r.warnings=(r.warnings||[]).concat('SkinnedMesh 가 없습니다: 뼈대 애니메이션을 쓸 수 없는 모델입니다');
+  if(!g.animations.length)r.warnings=(r.warnings||[]).concat('애니메이션 클립이 없습니다: 다른 파일의 클립을 쓰려면 같은 리그인지 확인해야 합니다');
+  if(r.missingTextures.length)r.warnings=(r.warnings||[]).concat('불러오지 못한 텍스처: '+r.missingTextures.join(', '));
+  report=r;
+  rebuild();
+  renderClips();
+  $('#report').textContent=JSON.stringify(Object.assign({},r,{boneNames:undefined}),null,1);
+  $('#bones').textContent=r.boneNames.join('\n')||'-';
+  say(`불러옴: ${label} · SkinnedMesh ${r.skinnedMeshes} · 뼈 ${r.bones} · 클립 ${r.animations} · 삼각형 ${r.triangles.toLocaleString()}`,'ok');
+  const first=pickDefault();if(first)play(first);
+}
+function pickDefault(){const n=clipsPlay.map(c=>c.name);return n.find(x=>/idle/i.test(x))||n[0]||null;}
+
+// calibrated template: scaled to the target height, turned to face +z, feet on the ground
+function rebuild(){
+  if(!gltf)return;
+  for(const i of inst){i.mixer.stopAllAction();scene.remove(i.holder);}inst.length=0;
+  base=gltf.scene;
+  const scale=report.scaleApplied,yawSel=$('#yaw').value,yawDeg=yawSel==='auto'?(report.facing.yawToFaceGameForward||0):+yawSel;
+  base.scale.setScalar(scale);base.rotation.set(0,yawDeg*Math.PI/180,0);base.position.set(0,0,0);base.updateMatrixWorld(true);
+  if($('#snap').checked){restPose(base);const b=skinnedBox(base);base.position.y=-b.min.y;}
+  report.yawApplied=yawDeg;
+  base.traverse(o=>{if(o.isMesh){o.castShadow=true;o.frustumCulled=false;}});
+  clipsPlay=gltf.animations.map(c=>$('#inplace').checked?inPlace(c,report.rootBone):c);
+  analyseClips();renderClips();$('#report').textContent=JSON.stringify(Object.assign({},report,{boneNames:undefined}),null,1);
+  setInstances(+document.querySelector('.inst.on').dataset.n);
+}
+function setInstances(n){
+  for(const i of inst){i.mixer.stopAllAction();scene.remove(i.holder);}inst.length=0;
+  if(!base)return;
+  const cols=Math.ceil(Math.sqrt(n));
+  for(let k=0;k<n;k++){
+    const root=k===0?base:THREE.SkeletonUtils.clone(base);   // clones share geometry and materials
+    const holder=new THREE.Group();holder.add(root);   // the holder takes the game's position and heading
+    holder.position.set(n===1?0:((k%cols)-(cols-1)/2)*1.6,0,n===1?0:(Math.floor(k/cols)-(cols-1)/2)*1.6);
+    scene.add(holder);
+    inst.push({root,holder,mixer:new THREE.AnimationMixer(root),actions:new Map(),cur:null,home:holder.position.clone(),phase:k*0.37});
+  }
+  if(curName)for(const i of inst)startAction(i,curName,0);
+  orbit.dist=n===1?4.2:Math.max(6,cols*2.2);
+}
+function actionFor(i,name){
+  if(!i.actions.has(name)){const c=clipsPlay.find(x=>x.name===name);if(!c)return null;const a=i.mixer.clipAction(c);
+    const once=clipsIn.some(x=>x.name===name&&x.strikeAt!=null);   // a kick plays once and holds its last pose, as the game would use it
+    a.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);a.clampWhenFinished=once;i.actions.set(name,a);}
+  return i.actions.get(name);
+}
+// one action per clip per mixer (clipAction caches it); switching fades the old one out and the new one in
+function startAction(i,name,xf){
+  const a=actionFor(i,name);if(!a)return;
+  if(i.cur===a&&a.loop===THREE.LoopRepeat)return;   // a looping clip already on: nothing; a one-shot: start it again
+  a.reset();a.setEffectiveTimeScale(+$('#speed').value||1);a.setEffectiveWeight(1);a.time=(i.phase||0)%Math.max(a.getClip().duration,0.001);
+  if(i.cur&&xf>0){a.play();i.cur.crossFadeTo(a,xf,false);}else{if(i.cur)i.cur.stop();a.play();}
+  i.cur=a;
+}
+function play(name){if(!clipsPlay.some(c=>c.name===name)){say(`클립이 없습니다: ${name}`,'err');return false;}curName=name;const xf=+$('#xfade').value||0;for(const i of inst)startAction(i,name,xf);renderClips();return true;}
+function stopAll(){for(const i of inst){i.mixer.stopAllAction();i.cur=null;}curName=null;renderClips();}
+
+function renderClips(){
+  const tb=$('#clips');
+  if(!clipsIn.length){tb.innerHTML=`<tr><td colspan="5" class="foot">${gltf?'이 파일에는 애니메이션 클립이 없습니다':'-'}</td></tr>`;return;}
+  tb.innerHTML=clipsIn.map(c=>{const rm=c.rootMotion;const rmTag=!c.rootTrack?'<span class="tag">위치 트랙 없음</span>':!rm?'-':rm.moves?`<span class="tag warn" title="최대 ${rm.maxMetres}m">있음 ${rm.netMetres}m</span>`:`<span class="tag ok" title="최대 ${rm.maxMetres}m">없음</span>`;
+    const miss=c.missingBones.length?` <span class="tag bad" title="${c.missingBones.join(', ')}">없는 뼈 ${c.missingBones.length}</span>`:'';
+    return `<tr class="clip ${c.name===curName?'on':''}" data-clip="${encodeURIComponent(c.name)}"><td>${c.name}${miss}</td><td>${c.duration}s</td><td>${c.tracks}</td><td>${rmTag}</td><td class="foot">${c.source||''}${c.strikeAt!=null?` · 타격 ${c.strikeAt}s (${c.strikeFoot==='left'?'왼발':'오른발'})`:''}</td></tr>`;}).join('');
+}
+$('#clips').addEventListener('click',e=>{const tr=e.target.closest('[data-clip]');if(tr)play(decodeURIComponent(tr.dataset.clip));});
+
+/* ---------- external motion: BVH retargeted onto the loaded model ---------- */
+// opts: {trim:true, before, after}. The clip is added to the model's own list and goes through the same in-place copy,
+// analysis and table as the file's clips. Returns the retarget info, or null (the status line says why).
+async function addBVH(src,label,opts){
+  if(!gltf){say('먼저 모델을 불러오세요.','err');return null;}
+  if(!window.THREE.BVHLoader||!window.GLRetarget){say('vendor/BVHLoader.js 또는 retarget.js 를 불러오지 못했습니다.','err');return null;}
+  opts=Object.assign({trim:$('#bvhTrim').checked,before:+$('#bvhBefore').value,after:+$('#bvhAfter').value},opts||{});
+  say(`BVH 불러오는 중: ${label}`);
+  try{
+    let text=src;
+    if(typeof src==='string'&&!/^HIERARCHY/.test(src.trimStart())){const res=await fetch(src);if(!res.ok)throw new Error(`HTTP ${res.status}`);text=await res.text();}
+    const bvh=GLRetarget.parseBVH(text,label),kick=GLRetarget.findKick(bvh),file=label.split('/').pop().replace(/\.bvh$/i,'');
+    for(const i of inst){i.mixer.stopAllAction();i.cur=null;}
+    const from=opts.trim?kick.time-opts.before:undefined,to=opts.trim?kick.time+opts.after:undefined;
+    const name=opts.name||(opts.trim?`${file} 킥`:`${file} 전체`);
+    if(gltf.animations.some(c=>c.name===name))throw new Error(`이미 있는 클립입니다: ${name}`);
+    base.rotation.set(0,0,0);base.updateMatrixWorld(true);   // retarget in the model's own frame (rebuild sets the calibration again)
+    const {clip,clipInPlace,info}=GLRetarget.retarget(base,bvh,{name,from,to,fps:60,alignAt:kick.time,alignFoot:kick.foot});
+    info.kick=kick;info.file=label;
+    clip.inPlaceVersion=clipInPlace;   // used by inPlace() instead of the straight-line removal
+    gltf.animations.push(clip);
+    clipsIn.push(Object.assign(clipInfo(clip,report.boneNames,report.rootBone),{source:`CMU ${file}.bvh → 리타깃`,strikeAt:+(kick.time-info.from).toFixed(3),strikeFoot:kick.foot,retarget:info}));
+    rebuild();
+    say(`옮겨 붙임: ${name} · 뼈 ${info.mappedBones}개 대응 · ${clip.duration.toFixed(2)}s · 타격 ${(kick.time-info.from).toFixed(2)}s (${kick.foot==='left'?'왼발':'오른발'})`,'ok');
+    return info;
+  }catch(err){say(`BVH 처리 실패 (${label}): ${err.message}`,'err');console.error(err);if(gltf)rebuild();return null;}
+}
+$('#btnBvh').onclick=()=>addBVH($('#bvhUrl').value.trim(),$('#bvhUrl').value.trim());
+$('#bvhFile').onchange=e=>{const f=e.target.files[0];if(f)f.text().then(t=>addBVH(t,f.name));};
+
+/* ---------- controls ---------- */
+$('#btnLoad').onclick=()=>loadFrom($('#url').value.trim(),$('#url').value.trim());
+$('#file').onchange=e=>{const f=e.target.files[0];if(f)f.arrayBuffer().then(b=>loadFrom(b,f.name));};
+const drop=$('#drop');
+for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('over');});
+for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('over');});
+drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0];if(f)f.arrayBuffer().then(b=>loadFrom(b,f.name));});
+for(const id of ['#height','#yaw','#snap','#inplace'])$(id).addEventListener('change',()=>{if(!gltf)return;
+  if(id==='#height'){const s=(+$('#height').value||1.8)/(report.bindBox.height||1);report.scaleApplied=+s.toFixed(4);}
+  const keep=curName;rebuild();if(keep)play(keep);});
+$('#speed').addEventListener('change',()=>{for(const i of inst)if(i.cur)i.cur.setEffectiveTimeScale(+$('#speed').value||1);});
+$('#btnStop').onclick=stopAll;
+let paused=false;
+function setPaused(v){paused=!!v;$('#btnPause').classList.toggle('on',paused);$('#btnPause').textContent=paused?'계속':'일시정지';}
+$('#btnPause').onclick=()=>setPaused(!paused);
+$('#btnMove').onclick=()=>{moveSim.on=!moveSim.on;$('#btnMove').classList.toggle('on',moveSim.on);$('#btnMove').textContent=moveSim.on?'이동 멈춤':'이동 시작';if(!moveSim.on)for(const i of inst){i.holder.position.copy(i.home);i.holder.rotation.y=0;}};
+for(const b of document.querySelectorAll('.inst'))b.onclick=()=>{for(const x of document.querySelectorAll('.inst'))x.classList.toggle('on',x===b);setInstances(+b.dataset.n);};
+
+// the game's ball for the first player: 0.5 m ahead on the ground, and a line from the right foot's nearest point
+const ballVis=(()=>{const g=new THREE.Group(),ball=new THREE.Mesh(new THREE.SphereGeometry(0.11,20,14),new THREE.MeshLambertMaterial({color:0xffffff}));
+  const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]),new THREE.LineBasicMaterial({color:0xff2d55}));
+  ball.castShadow=true;g.add(ball,line);g.visible=false;scene.add(g);return {g,ball,line,gap:null};})();
+function updateBall(){const on=$('#showBall').checked&&inst[0]&&window.GLKick;ballVis.g.visible=!!on;if(!on){ballVis.gap=null;return;}
+  const i=inst[0],n=GLKick.nearest(i,'Right',0.5);i.holder.updateMatrixWorld(true);
+  ballVis.ball.position.copy(n.ball).applyMatrix4(i.holder.matrixWorld);
+  ballVis.line.geometry.setFromPoints([n.point.clone().applyMatrix4(i.holder.matrixWorld),ballVis.ball.position.clone()]);ballVis.gap=n.gap;}
+function lowestSole(i){i.holder.updateMatrixWorld(true);let lo=Infinity;const w=new THREE.Vector3();
+  i.root.traverse(o=>{if(!o.isSkinnedMesh)return;const pos=o.geometry.attributes.position,step=Math.max(1,Math.floor(pos.count/1500));
+    for(let k=0;k<pos.count;k+=step){w.fromBufferAttribute(pos,k);o.boneTransform(k,w);w.applyMatrix4(o.matrixWorld);if(w.y<lo)lo=w.y;}});
+  return lo===Infinity?null:lo;}
+
+/* ---------- loop: the mixers advance once per frame, by the frame's delta ---------- */
+const clock=new THREE.Clock();
+const perf={frames:0,acc:0,last:'-'};
+function frame(){
+  const dt=Math.min(clock.getDelta(),0.1);
+  // the "game" moves the holder; the animation never moves it (in-place clips)
+  if(moveSim.on){const v=+$('#mvSpeed').value||0;moveSim.ang+=v/moveSim.radius*dt;
+    for(const i of inst){const a=moveSim.ang;i.holder.position.set(i.home.x+Math.cos(a)*moveSim.radius,0,i.home.z+Math.sin(a)*moveSim.radius);i.holder.rotation.y=Math.atan2(-Math.sin(a),Math.cos(a));}}   // facing along the circle, +z forward
+  if(!paused)for(const i of inst)i.mixer.update(dt);
+  const t0=performance.now();placeCamera();renderer.render(scene,camera);
+  perf.acc+=performance.now()-t0;perf.frames++;   // CPU time of the render call only
+  if(perf.frames>=30){const inf=renderer.info.render;perf.last=`그리기 ${inf.calls}회 · 삼각형 ${inf.triangles.toLocaleString()} · 렌더 ${(perf.acc/perf.frames).toFixed(1)}ms/프레임 · 선수 ${inst.length}`;perf.frames=0;perf.acc=0;}
+  if(perf.frames%10===0&&inst[0])perf.sole=lowestSole(inst[0]);   // the lowest skinned vertex: feet sunk below 0, or floating
+  updateBall();
+  $('#hud').textContent=(curName?`${paused?'일시정지':'재생'}: ${curName}`:'정지')+' · '+perf.last+(perf.sole!=null?` · 발바닥 최저 ${perf.sole.toFixed(3)}m`:'')+(ballVis.gap!=null?` · 오른발-공 ${ballVis.gap.toFixed(3)}m`:'');
+  requestAnimationFrame(frame);
+}
+resize();placeCamera();requestAnimationFrame(frame);
+
+// for tests and the console
+window.__viewer={load:(u)=>loadFrom(u,u),play,stopAll,setInstances,addBVH:(u,o)=>addBVH(u,u,o),setPaused,orbit,actionFor,startAction,get clipsIn(){return clipsIn;},get clipsPlay(){return clipsPlay;},get animations(){return gltf?gltf.animations:[];},get report(){return report;},get inst(){return inst;},renderer,scene,camera,
+  footHeights(name,samples){   // lowest foot/toe bone height over a clip, sampled, for the first instance (after calibration)
+    const i=inst[0];if(!i)return null;const a=actionFor(i,name);if(!a)return null;
+    const feet=[];i.root.traverse(o=>{if(o.isBone&&/foot|toe/i.test(o.name))feet.push(o);});if(!feet.length)return {note:'발 뼈 이름 없음'};
+    const keep=i.cur;i.mixer.stopAllAction();a.reset().play();const d=a.getClip().duration,out=[];const v=new THREE.Vector3();
+    for(let k=0;k<=samples;k++){a.time=d*k/samples;i.mixer.update(0);i.holder.updateMatrixWorld(true);let lo=1e9;for(const f of feet){f.getWorldPosition(v);lo=Math.min(lo,v.y);}out.push(lo);}
+    a.stop();i.cur=null;if(keep)startAction(i,keep.getClip().name,0);
+    return {min:+Math.min(...out).toFixed(3),max:+Math.max(...out).toFixed(3)};},
+  holderDrift(name,secs){   // with the in-place clip, does the visible body wander from the holder? (hips over the root)
+    const i=inst[0];if(!i)return null;startAction(i,name,0);const hips=[];i.root.traverse(o=>{if(o.isBone&&/hips|pelvis/i.test(o.name))hips.push(o);});const h=hips[0];if(!h)return {note:'hips 뼈 없음'};
+    const v=new THREE.Vector3();let max=0;const steps=Math.round(secs*30);for(let k=0;k<steps;k++){i.mixer.update(1/30);i.holder.updateMatrixWorld(true);h.getWorldPosition(v);max=Math.max(max,Math.hypot(v.x-i.holder.position.x,v.z-i.holder.position.z));}
+    return {maxHipsOffsetMetres:+max.toFixed(3)};}};
+// start with the default model if it is there
+if(new URLSearchParams(location.search).get('autoload')!=='0')loadFrom($('#url').value,$('#url').value);
+</script>
+</body>
+</html>

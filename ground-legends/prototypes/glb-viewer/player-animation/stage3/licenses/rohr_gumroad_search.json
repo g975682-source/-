@@ -1,0 +1,42 @@
+{
+ "source": "https://gumroad.com/products/search?query=anderson%20rohr%20soccer",
+ "fetched": "2026-10-29 (UTC, fetched in this session)",
+ "note": "search listing only; the product page and its licence text are on andersonrohr.gumroad.com (blocked)",
+ "products": [
+  {
+   "id": "sgWyCGXK5uVMPTiwcW45ug==",
+   "permalink": "vqlel",
+   "name": "Free mocap pack 05: Soccer",
+   "seller": {
+    "id": "9924511783452",
+    "name": "Anderson Rohr",
+    "avatar_url": "https://public-files.gumroad.com/6xbuokj9bpqaxqxaco9tkz4tktdy",
+    "profile_url": "https://andersonrohr.gumroad.com?recommended_by=search",
+    "is_verified": false
+   },
+   "ratings": {
+    "count": 21,
+    "average": 5.0
+   },
+   "thumbnail_url": "https://public-files.gumroad.com/29x5g7ekr3yidcd9qdl675rstdkf",
+   "native_type": "digital",
+   "quantity_remaining": null,
+   "is_sales_limited": false,
+   "price_cents": 0,
+   "currency_code": "usd",
+   "buyer_currency_display": {
+    "product_id": "sgWyCGXK5uVMPTiwcW45ug==",
+    "buyer_currency_shown": "usd",
+    "product_currency": "usd",
+    "buyer_local_price_cents": null,
+    "rate": null,
+    "display_mode": "default"
+   },
+   "is_pay_what_you_want": true,
+   "url": "https://andersonrohr.gumroad.com/l/mocap_pack5?layout=discover&recommended_by=search",
+   "duration_in_months": null,
+   "recurrence": null,
+   "description": "This pack is part of a series of free motion capture packs for the community. You can use it in y..."
+  }
+ ]
+}

@@ -1,0 +1,20 @@
+repo: https://github.com/Shriinivas/cmubvh (cgspeed BVH conversion of the CMU Graphics Lab Motion Capture Database, http://mocap.cs.cmu.edu/)
+commit: 3bc9c75c481ac6e622f3c378369b293d8de9be45
+zips:
+Sequence-010-014/10/Data/10_01.zip
+Sequence-010-014/10/Data/10_02.zip
+Sequence-010-014/10/Data/10_03.zip
+Sequence-010-014/10/Data/10_05.zip
+Sequence-010-014/10/Data/10_06.zip
+Sequence-010-014/11/Data/11_01.zip
+Sequence-015-019/16/Data/16_08.zip
+Sequence-015-019/16/Data/16_35.zip
+Sequence-015-019/16/Data/16_36.zip
+Sequence-015-019/16/Data/16_55.zip
+Sequence-015-019/16/Data/16_57.zip
+Sequence-141-144/143/Data/143_01.zip
+Sequence-141-144/143/Data/143_02.zip
+Sequence-141-144/143/Data/143_03.zip
+Sequence-141-144/143/Data/143_04.zip
+Sequence-141-144/143/Data/143_24.zip
+Sequence-141-144/143/Data/143_32.zip
