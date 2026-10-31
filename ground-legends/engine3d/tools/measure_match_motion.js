@@ -1,6 +1,6 @@
 // How the game's outfield players move in an AI-against-AI match, for comparing with match analyses of real football.
 // Development tool; reads the game only.
-//   node ground-legends/engine3d/tools/measure_match_motion.js [game minutes, default 20] [out.json]
+//   [GAME=other.html] [SEED=n] node ground-legends/engine3d/tools/measure_match_motion.js [game minutes, default 20] [out.json]
 // The match runs with __game.sim in 0.1 s game-time steps (no drawing); every step each outfield player is sampled:
 //  - speed band (m/s): standing < 0.2, walking 0.2-2, jogging 2-4, running 4-5.5, high speed 5.5-7, sprinting > 7
 //  - travel against facing, for speeds above 0.5 m/s: forward (< 30 deg), diagonal (30-60), sideways (60-120),
@@ -11,13 +11,15 @@
 const path=require('path'),fs=require('fs');
 const GL=path.join(__dirname,'..','..');
 const P=require(path.join(GL,'tests','legacy','paths.js'));const {chromium}=require(P.PLAYWRIGHT);
-const three=fs.readFileSync(P.THREE_JS,'utf8'),game=fs.readFileSync(path.join(GL,'index.html'),'utf8');
+const three=fs.readFileSync(P.THREE_JS,'utf8'),game=fs.readFileSync(process.env.GAME||path.join(GL,'index.html'),'utf8');
 const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game+'</body></html>';
 const MIN=+(process.argv[2]||20);
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
   const page=await b.newPage({viewport:{width:640,height:360}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.addInitScript(()=>{try{localStorage.setItem('gl-tut-v1','1');localStorage.setItem('gl-p3d','0');}catch(e){}});
+  // SEED=<n>: the page's Math.random from a fixed sequence, so that two builds can be compared on the same match
+  if(process.env.SEED)await page.addInitScript(seed=>{let a=seed>>>0;Math.random=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};},+process.env.SEED);
   await page.route('**/*',r=>{const u=new URL(r.request().url());
     if(u.host==='game.local'&&u.pathname==='/')return r.fulfill({body:html,contentType:'text/html'});
     if(u.href.includes('three.min.js'))return r.fulfill({body:three,contentType:'application/javascript'});return r.abort();});

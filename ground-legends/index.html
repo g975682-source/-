@@ -2070,12 +2070,21 @@ function teamThink(T,dt){
       if(d2(p.pos,ball.pos)<1.6&&!c.holding&&Math.random()<dt*1.4*T.ai.press)startTackle(p,null);continue;}
     if(p===T.cover&&ball.owner){const c=ball.owner,ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1;
       tmpC.set(c.pos.x+gx/gl*Math.min(6,gl*0.4),0,c.pos.z+gz/gl*Math.min(6,gl*0.4));moveTo(p,tmpC,0.8);p.faceBall=true;continue;}
-    if(!att&&p.defJob){const j=p.defJob;const d=moveTo(p,j.pt,d2(p.pos,j.pt)>1.2?(j.kind==='mark'?1:0.92):0.5);p.faceBall=true;continue;}   // mark or screen a lane
+    if(!att&&p.defJob){const j=p.defJob,dj=d2(p.pos,j.pt);   // mark or screen a lane: sprint only to close a real gap
+      moveTo(p,j.pt,dj>6?(j.kind==='mark'?1:0.92):dj>2.5?0.75:dj>1.2?0.45:0.3);p.faceBall=true;continue;}
     if(att&&p.runT>0){const d=moveTo(p,p.runTarget,p.runUrg||1);if(p.runKind==='box'||p.runKind==='support')p.faceBall=d<2.5;continue;}   // on a run: at the run's own pace
     formTarget(p,tmpA);
     if(!att)applyMarking(p,tmpA);else applyRuns(p,tmpA,dt);
     const d=d2(p.pos,tmpA),beaten=!att&&(p.pos.x-ball.pos.x)*T.dir>4;   // caught upfield: recovery run
-    moveTo(p,tmpA,beaten||d>12?0.95:d>4?(att?0.6:0.8):0.3);
+    // Keeping shape: real players walk and jog most of the time and sprint only when it matters (match analyses: about
+    // 90% of the time standing, walking or jogging; engine3d/MOVEMENT_ANALYSIS.md). Close to the spot: stand; a few
+    // metres: walk; further: jog; well out of position or beaten: run. Far from the ball, one step easier.
+    if(!beaten&&d<0.9){p.wantVel.set(0,0,0);continue;}
+    const far=!beaten&&d2(p.pos,ball.pos)>30;
+    const urg=beaten?0.95:d>12?0.75:d>8?(att?0.55:0.75):d>3?0.25:0;   // a long way out of shape: run, not sprint (only when beaten)
+    moveTo(p,tmpA,far?Math.max(0,urg-0.25):urg);
+    p.faceBall=!beaten&&d<8;   // settling into shape, players keep the ball in view (and so back off or step across)
+    if(!beaten&&d<=3){const w=p.wantVel,ws=Math.hypot(w.x,w.z),cap=1.6;if(ws>cap)w.multiplyScalar(cap/ws);}   // walking up to the spot
   }
 }
 function applyMarking(p,tgt){
@@ -4068,7 +4077,7 @@ function syncAnimState(p){
 }
 function applyVisual(p,x,y,z,face,a,t,ph,spd,side){
   const r=p.rig;r.root.position.set(x,y,z);r.root.rotation.y=face;applyPose(r,a,t,ph,spd,side);rigLife(p,r,a,t,ph,spd,side);
-  r.va=a;r.vspd=spd;r.vph=ph;   // what was drawn, for the 3D models (engine3d/): the same in a replay and on an online guest
+  r.va=a;r.vspd=spd;r.vph=ph;r.vt=t;r.vside=side;   // what was drawn, for the 3D models (engine3d/): the same in a replay and on an online guest
 }
 const cam={focus:new V3(),pos:new V3(0,30,60),look:new V3(),snap:true};
 const P_=new V3(),L_=new V3();

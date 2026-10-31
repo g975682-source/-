@@ -10,7 +10,7 @@
 //         on the hidden layer while his rig root stays visible (the online sync reads it), the copy stands where the
 //         rig stands and faces the same way, the boots stand on the grass when idle
 //   play  keyboard: that player, set as the controlled one, runs with the arrow keys; the copy follows him on the
-//         motion clips; a shot switches him to the game's kick pose (the transfer)
+//         motion clips; a shot plays the captured kick clip
 //   html  the engine's files answered with the game page: not run, no page error
 //   json  no .glb served: the model comes from the base64 .json beside it
 //   bad   a missing model file: the engine reports the error, no player is changed, no page error
@@ -94,10 +94,10 @@ const waitReady=page=>page.waitForFunction(()=>window.P3D&&(window.P3D.status.re
       // shoot: D held briefly
       await page.evaluate('(p=>{__game.give(p.team,p.slot);__game.setCtl(p);})('+ST+')');
       await page.keyboard.down('d');await page.waitForTimeout(200);await page.keyboard.up('d');
-      let kicked=false,shots=[],maxT=0;for(let i=0;i<12;i++){await page.waitForTimeout(60);const s=await page.evaluate('(p=>({a:p.visA,t:p.visT,ball:__game.ball.vel.length(),tr:P3D.measure(p).transfer}))('+ST+')');shots.push(s);if(s.a===2)kicked=true;maxT=Math.max(maxT,s.tr);
+      let kicked=false,shots=[],maxT=0;for(let i=0;i<12;i++){await page.waitForTimeout(60);const s=await page.evaluate('(p=>({a:p.visA,t:p.visT,ball:__game.ball.vel.length(),tr:P3D.measure(p).kick}))('+ST+')');shots.push(s);if(s.a===2)kicked=true;maxT=Math.max(maxT,s.tr);
         if(i===4)await page.screenshot({path:path.join(OUT,'one_kick.png')});}
-      // the switch takes 0.12 s of drawn time; SwiftShader draws only a few frames in the kick, so more than half is the check
-      ok(kicked&&maxT>0.5,`play: the shot plays the kick on him (anim 2 seen: ${kicked}; the transferred kick pose up to ${maxT.toFixed(2)}; ball speed after ${shots[shots.length-1].ball.toFixed(1)} m/s)`);
+      // the kick plays the captured kick clip (its weight comes in over 0.06 s of drawn time)
+      ok(kicked&&maxT>0.5,`play: the shot plays the kick on him (anim 2 seen: ${kicked}; the kick clip's weight up to ${maxT.toFixed(2)}; ball speed after ${shots[shots.length-1].ball.toFixed(1)} m/s)`);
       ok(errors.length===0,`one/play: page errors ${errors.length}${errors.length?' '+errors.slice(0,3).join(' | '):''}`);
       await page.close();}
     // bad

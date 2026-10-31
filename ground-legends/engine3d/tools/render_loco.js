@@ -1,6 +1,7 @@
 // Close-up frames of the 3D model's standing, walking, jogging, running and a shot out of a run, in the real game page
 // with time stepped by this script (as measure_loco.js), for looking at. Development tool.
 //   node ground-legends/engine3d/tools/render_loco.js <out folder>
+//   SCENE=kick: standing shots, right and left foot, with the toe-to-ball distance around the strike (toes.json)
 //   SCENE=brake: run, hard stop, push off; SCENE=dribble: on the ball at 3 and 5 m/s; SCENE=contest: jockey, shield and shoulder-to-shoulder against an opponent moved by hand
 //   CAM=side|front|hand|both|all (default side; hand: close to the right hand), NEAR=1 for a closer camera, SIZE=<width px>
 // One player is moved along +z; the game's camera is placed beside him (a side view following him). Each phase is
@@ -33,7 +34,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   const frames=await page.evaluate(([CAM,NEAR,SCENE])=>{const V=window.__vis,p=window.__st,dt=1/60,out=[];let i=0;
     p.pos.set(-30,0,-12);p.face=0;V.setVisDt(dt);const hud=document.getElementById('hud');if(hud)hud.style.display='none';
     const step=(a,spd,t,label)=>{if(SCENE!=='contest')p.pos.z+=spd*dt;p.spd=spd;p.visA=a;p.visT=t;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
-      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,a,t,p.visPh,spd,0);P3D.frame(V.players,V.scene,V.teams,null);
+      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,a,t,p.visPh,spd,window.__side||0);P3D.frame(V.players,V.scene,V.teams,null);
       const views=CAM==='both'?['side','front']:CAM==='all'?['side','front','hand']:[CAM],imgs={};
       if(i%3===0)for(const v of views){const d=NEAR?2.4:4.2;
         if(v==='hand'){const h=P3D.bones(p,['RightHand'])['RightHand'];V.camera.position.set(h[0]-0.55,h[1]+0.1,h[2]+0.35);V.camera.lookAt(h[0],h[1]-0.04,h[2]);}
@@ -42,6 +43,19 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
         V.renderer.render(V.scene,V.camera);imgs[v]=V.renderer.domElement.toDataURL('image/png');}
       if(i%3===0){const m=P3D.measure(p);out.push({label,img:imgs[views[0]],imgs,w:m.weights,tr:m.transfer});}i++;};
     const hold=(a,spd,secs,label)=>{for(let s=0;s<secs;s+=dt)step(a,spd,12+s,label);};
+    if(SCENE==='kick'){
+      // a standing shot with each foot on the game's kick timeline (visT -0.083 ... 0.133, the strike, 0.167 ... 0.45);
+      // the ball 0.5 m ahead (where the game holds it for a standing owner) until the strike, then away at 20 m/s.
+      // Records the kicking toe's distance to the ball centre around the strike.
+      const B=V.ballMesh,toes=[];
+      for(const side of [0,-1]){window.__side=side;const toe=side<0?'LeftToeBase':'RightToeBase',foot=side<0?'LeftFoot':'RightFoot';
+        const bx=p.pos.x,bz=p.pos.z+0.5;B.position.set(bx,0.11,bz);
+        for(let s2=0;s2<0.5;s2+=dt)step(0,0,12+s2,'stand');
+        const T=[];for(let i=1;i<=14;i++)T.push(-0.1+i/60);for(let i=1;i<=18;i++)T.push(0.15+i/60);
+        for(const t of T){if(t>0.15)B.position.z=bz+(t-0.15)*20;step(2,0,t,side<0?'shot, left foot':'shot, right foot');
+          const b=P3D.bones(p,[toe,foot]);const d=Math.hypot(b[toe][0]-bx,b[toe][1]-0.11,b[toe][2]-bz);if(t>0.05&&t<0.3)toes.push({side,t:+t.toFixed(4),toe:b[toe].map(v=>+v.toFixed(3)),toBall:+d.toFixed(3)});}
+        B.position.set(bx,0.11,bz+9);for(let s2=0;s2<0.6;s2+=dt)step(0,0,12+s2,'stand');}
+      window.__side=0;window.__toes=toes;return out;}
     if(SCENE==='brake'){
       // run at 7 m/s, stop in 0.6 s (about -12 m/s2), stand, push off to 7 m/s in 1.2 s
       const ramp=(a0,a1,secs,label)=>{for(let s2=0;s2<secs;s2+=dt){const v=a0+(a1-a0)*s2/secs;step(v>0.05?1:0,v,12+s2,label);}};
@@ -74,6 +88,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
     hold(0,0,0.8,'stand');
     return out;},[CAM,NEAR,SCENE]);
   frames.forEach((f,n)=>{for(const [v,d] of Object.entries(f.imgs))fs.writeFileSync(path.join(OUT,`${v}_${String(n).padStart(3,'0')}.png`),Buffer.from(d.split(',')[1],'base64'));if(f.imgs.side||f.img)fs.writeFileSync(path.join(OUT,`f_${String(n).padStart(3,'0')}.png`),Buffer.from(f.img.split(',')[1],'base64'));});
+  const toes=await page.evaluate(()=>window.__toes||null);if(toes)fs.writeFileSync(path.join(OUT,'toes.json'),JSON.stringify(toes,null,1));
   fs.writeFileSync(path.join(OUT,'frames.json'),JSON.stringify(frames.map((f,n)=>({n,label:f.label,weights:f.w,transfer:f.tr}))));
   console.log('frames',frames.length,'page errors',errors.length);await b.close();
 })().catch(e=>{console.error(e);process.exit(1);});

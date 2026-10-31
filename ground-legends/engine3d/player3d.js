@@ -96,7 +96,13 @@ window.P3D=(()=>{
     for(const [k,c] of Object.entries(doc.clips)){
       const tracks=c.tracks.filter(t=>names[t.bone]).map(t=>t.prop==='quaternion'?new TH.QuaternionKeyframeTrack(names[t.bone]+'.quaternion',t.times,t.values)
         :new TH.VectorKeyframeTrack(names[t.bone]+'.'+t.prop,t.times,t.values));
-      out[k]={clip:new TH.AnimationClip(k,c.duration,tracks),dur:c.duration,loop:c.loop,speed:c.speed,foot:c.footPhase%c.duration,contact:c.contact||null};}
+      out[k]={clip:new TH.AnimationClip(k,c.duration,tracks),dur:c.duration,loop:c.loop,speed:c.speed,foot:c.footPhase%c.duration,contact:c.contact||null};
+      // the left-foot kick: the right one mirrored (left and right bones swapped, reflected in the body's middle plane)
+      if(k==='kick'){const sw=b=>b.startsWith('Left')?'Right'+b.slice(4):b.startsWith('Right')?'Left'+b.slice(5):b;
+        const mt=c.tracks.filter(t=>names[sw(t.bone)]).map(t=>{const v=t.values.slice();
+          if(t.prop==='quaternion'){for(let i=0;i<v.length;i+=4){v[i+1]=-v[i+1];v[i+2]=-v[i+2];}return new TH.QuaternionKeyframeTrack(names[sw(t.bone)]+'.quaternion',t.times,v);}
+          for(let i=0;i<v.length;i+=3)v[i]=-v[i];return new TH.VectorKeyframeTrack(names[sw(t.bone)]+'.'+t.prop,t.times,v);});
+        out.kickL={clip:new TH.AnimationClip('kickL',c.duration,mt),dur:c.duration,loop:false,speed:c.speed,foot:0,contact:c.contact||null};}}
     return out;
   }
 
@@ -122,10 +128,11 @@ window.P3D=(()=>{
     // the game's own meshes for this player go to a layer the camera does not draw
     const hidden=[];p.rig.root.traverse(o=>{if(o!==p.rig.root&&(o.isMesh||o.isSprite||o.isLine)&&o.layers.mask!==0){hidden.push([o,o.layers.mask]);o.layers.set(HIDDEN_LAYER);}});
     const A={p,rig:p.rig,holder,root,mesh,bone,hidden,qa:new TH.Quaternion(),e:new TH.Euler(),
-      wp:null,ph:0,it:0,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,dribble:0,brake:0,push:0,side:1},acc:0,sp0:null,lq:{},lh:new TH.Vector3()};
+      wp:null,ph:0,it:0,kw:0,kt:0,kOn:false,kside:1,w:{idle:1,walk:0,jog:0,run:0},lean:0,yaw:null,hy:0,back:false,tr:null,st:{jockey:0,shield:0,contact:0,dribble:0,brake:0,push:0,side:1},acc:0,sp0:null,lq:{},lh:new TH.Vector3()};
     for(const b in MAP)A.lq[b]=new TH.Quaternion();A.lq.Spine2=new TH.Quaternion();A.lq.LeftToeBase=new TH.Quaternion();A.lq.RightToeBase=new TH.Quaternion();
     if(S.clips){A.mixer=new TH.AnimationMixer(root);A.act={};
-      for(const k of ['idle','walk','jog','run']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();A.act[k]=a;}}
+      for(const k of ['idle','walk','jog','run']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();A.act[k]=a;}
+      for(const k of ['kick','kickL']){if(!S.clips[k])continue;const a=A.mixer.clipAction(S.clips[k].clip);a.setLoop(TH.LoopOnce,1);a.clampWhenFinished=true;a.setEffectiveWeight(0);a.play();A.act[k]=a;}}
     for(const [b,q] of Object.entries(S.tpl.curl))if(bone[b])bone[b].quaternion.copy(q);
     S.actors.set(p,A);drive(A,0);return A;
   }
@@ -156,9 +163,23 @@ window.P3D=(()=>{
     // speed*1.2+1.5 rad/s, unrelated to stride) made the standing foot slide 0.6-0.8 m/s (measure_loco.js), so the
     // touch rhythm stays the game's to change; dribbling here is posture only (stance()).
     A.it=(A.it+dt)%c.idle.dur;
-    A.act.idle.time=A.it;A.act.idle.setEffectiveWeight(w.idle);
-    for(const [k] of GAITS)if(A.act[k]){A.act[k].time=(c[k].foot+A.ph*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight(w[k]);}
+    // a kick (kick()) takes its share from the gaits
+    const wk=A.kw||0,rest=1-wk;
+    A.act.idle.time=A.it;A.act.idle.setEffectiveWeight(w.idle*rest);
+    for(const [k] of GAITS)if(A.act[k]){A.act[k].time=(c[k].foot+A.ph*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight(w[k]*rest);}
+    for(const k of ['kick','kickL'])if(A.act[k]){const on=k===(A.kside<0?'kickL':'kick')&&wk>0;A.act[k].setEffectiveWeight(on?wk:0);if(on)A.act[k].time=clampN(A.kt,0,c[k].dur-1e-3);}
     A.w=w;A.mixer.update(0);
+  }
+  // Kicks (game state kick: shots and passes) play the captured kick (CMU 143_24, right foot; mirrored for the left)
+  // timed so that the clip's foot strike (contact) falls on the game's strike: visT 0.15 for a shot (the back-swing
+  // shows from visT -0.1), the first kick frame for a pass (the game starts those at the strike). In and out over
+  // 0.06 / 0.2 s.
+  function kick(A,dt){
+    const r=A.rig,c=S.clips&&S.clips.kick;if(!c||!c.contact)return;const inKick=r.va===2;
+    if(inKick&&!A.kOn){A.kOn=true;A.k0=r.vt;A.kc=r.vt<0.05?0.15:r.vt;A.kside=r.vside<0?-1:1;}
+    if(!inKick)A.kOn=false;
+    if(A.kOn)A.kt=c.contact.contact+(r.vt-A.kc);else if(A.kw>0)A.kt=(A.kt||0)+dt;
+    const tgt=A.kOn?1:0;A.kw=tgt>A.kw?Math.min(1,A.kw+(dt>0?dt/0.06:1)):Math.max(0,A.kw-(dt>0?dt/0.2:1));
   }
   // Arms while standing, walking and running: drawn here from the gait phase instead of the clips (the captured arms and
   // wrists land on this model folded across the chest). Values from gait studies: walking keeps the elbow nearly straight
@@ -187,6 +208,9 @@ window.P3D=(()=>{
       // for balance; contact: elbows in
       const near=(W.side>0)===(sx>0),wj=W.jockey,ws=W.shield,wc=W.contact*(1-ws);
       if(W.dribble>1e-3)z+=sx*0.15*W.dribble;   // dribbling: arms a little out for balance
+      // kicking: the arm across from the kicking leg swings out and forward for balance, the other back and in
+      const wk=A.kw||0;if(wk>1e-3){const across=(A.kside<0)===(sx<0);   // the right arm when the left foot kicks
+        if(across){x+=(-0.35-x)*wk;z+=(sx*0.95-z)*wk;e+=(0.45-e)*wk;}else{x+=(0.25-x)*wk;z+=(sx*0.25-z)*wk;e+=(0.7-e)*wk;}}
       if(wj>1e-3){x+=(-0.25-x)*wj*0.6;z+=(sx*0.5-z)*wj;e+=(0.75-e)*wj;}
       if(ws>1e-3){if(near){x+=(-0.15-x)*ws;z+=(sx*1.0-z)*ws;e+=(0.35-e)*ws;}else{z+=(sx*0.35-z)*ws;e+=(0.9-e)*ws;}}
       if(wc>1e-3&&near){z+=(sx*0.05-z)*wc;e+=(1.2-e)*wc;}
@@ -250,7 +274,7 @@ window.P3D=(()=>{
     A.holder.position.copy(r.root.position);A.holder.rotation.set(0,r.root.rotation.y,0);A.holder.scale.setScalar(k);
     A.holder.visible=r.root.visible;
     // which source: the clips for standing and running (game states idle 0 and run 1), the transfer for the rest
-    const s=r.vspd||0,loco=!!S.clips&&(r.va===0||r.va===1),target=loco?0:1;
+    const s=r.vspd||0,loco=!!S.clips&&(r.va===0||r.va===1||(r.va===2&&!!S.clips.kick)),target=loco?0:1;
     if(A.wp===null||!(dt>0))A.wp=target;else A.wp=target>A.wp?Math.min(target,A.wp+dt/BLEND):Math.max(target,A.wp-dt/BLEND);
     // where he is going: the drawn position's change, smoothed (a jump of more than 2 m, a reset, starts over)
     const yaw=r.root.rotation.y,pos=r.root.position,kf=dt>0?1-Math.exp(-dt*12):1;
@@ -266,6 +290,7 @@ window.P3D=(()=>{
     // lean into turns: how fast the path bends, times speed
     let rate=0;if(A.tr!=null&&dt>0&&vm>0.3)rate=wrap(travel-A.tr)/dt;A.tr=vm>0.3?travel:null;A.yaw=yaw;
     const leanT=loco?clampN(-rate*s*0.035,-0.3,0.3):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
+    kick(A,dt);
     if(A.wp<1){locomotion(A,s,dt,A.back);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
       if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
@@ -322,7 +347,7 @@ window.P3D=(()=>{
       const hiddenOk=A.hidden.every(([o])=>o.layers.mask===1<<HIDDEN_LAYER);
       return {holder:A.holder.position.toArray(),rig:A.rig.root.position.toArray(),face:[A.holder.rotation.y,A.rig.root.rotation.y],scale:A.holder.scale.x,
         lowBoot:lo,hiddenMeshes:A.hidden.length,hiddenOk,rigRootVisible:A.rig.root.visible,inScene:!!A.holder.parent,
-        transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd};},
+        transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd};},
     // for checks: world positions of any of the copy's bones (short names)
     bones(p,list){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const o={};for(const b of list)if(A.bone[b])o[b]=A.bone[b].getWorldPosition(new TH.Vector3()).toArray();return o;},
     // for checks: world positions of the copy's toes and feet (bones), and which of the two toes is lower
