@@ -9,7 +9,8 @@
 //   one   ?p3d=one: the model loads, one player (the human team's striker) gets it, the game's own meshes for him are
 //         on the hidden layer while his rig root stays visible (the online sync reads it), the copy stands where the
 //         rig stands and faces the same way, the boots stand on the grass when idle
-//   play  keyboard: that player, set as the controlled one, runs with the arrow keys; the copy follows him
+//   play  keyboard: that player, set as the controlled one, runs with the arrow keys; the copy follows him on the
+//         motion clips; a shot switches him to the game's kick pose (the transfer)
 //   html  the engine's files answered with the game page: not run, no page error
 //   json  no .glb served: the model comes from the base64 .json beside it
 //   bad   a missing model file: the engine reports the error, no player is changed, no page error
@@ -61,6 +62,7 @@ const waitReady=page=>page.waitForFunction(()=>window.P3D&&(window.P3D.status.re
       await page.waitForFunction('!!P3D.measure('+ST+')',null,{timeout:20000});
       const st=await page.evaluate(()=>P3D.status);
       ok(st.ready&&!st.error,`one: model loaded (${st.verts} vertices), error ${st.error}`);
+      ok(Array.isArray(st.clips)&&['idle','walk','jog','run'].every(k=>st.clips.includes(k)),`one: motion clips loaded: ${JSON.stringify(st.clips)} ${st.clipError||''}`);
       const who=await page.evaluate(()=>{const T=__game.teams.find(t=>t.human)||__game.teams[0];const p=T.players.find(q=>q.label==='ST');return {short:p.short,label:p.label,team:p.team};});
       ok(st.attached.length===1&&st.attached[0]===who.short,`one: one player has the model: ${JSON.stringify(st.attached)} (striker ${who.short}, team ${who.team})`);
       // idle: stand still a moment
@@ -83,6 +85,8 @@ const waitReady=page=>page.waitForFunction(()=>window.P3D&&(window.P3D.status.re
       await page.screenshot({path:path.join(OUT,'one_running.png')});
       await page.keyboard.up('ArrowUp');await page.keyboard.up('ArrowRight');await page.waitForTimeout(800);
       const moved=Math.hypot(mid.x-before.x,mid.z-before.z),dm=Math.hypot(mid.m.holder[0]-mid.m.rig[0],mid.m.holder[2]-mid.m.rig[2]);
+      const moving=mid.m.weights.walk+mid.m.weights.jog+mid.m.weights.run;
+      ok(mid.m.transfer<0.5&&moving>0.5,`play: running plays the clips (transfer ${mid.m.transfer}, weights ${JSON.stringify(mid.m.weights)}, game speed ${mid.m.gameSpeed.toFixed(2)})`);
       ok(moved>0.3&&mid.spd>1&&mid.visA===1&&dm<1e-6,`play: arrows moved him ${moved.toFixed(2)} m (speed ${mid.spd.toFixed(2)} m/s, anim ${mid.visA}); copy follows (|d| ${dm.toExponential(1)} m)`);
       const after=await page.evaluate('(p=>({spd:p.spd,m:P3D.measure(p)}))('+ST+')');
       await page.screenshot({path:path.join(OUT,'one_after.png')});
@@ -90,9 +94,10 @@ const waitReady=page=>page.waitForFunction(()=>window.P3D&&(window.P3D.status.re
       // shoot: D held briefly
       await page.evaluate('(p=>{__game.give(p.team,p.slot);__game.setCtl(p);})('+ST+')');
       await page.keyboard.down('d');await page.waitForTimeout(200);await page.keyboard.up('d');
-      let kicked=false,shots=[];for(let i=0;i<12;i++){await page.waitForTimeout(60);const s=await page.evaluate('(p=>({a:p.visA,t:p.visT,ball:__game.ball.vel.length()}))('+ST+')');shots.push(s);if(s.a===2)kicked=true;
+      let kicked=false,shots=[],maxT=0;for(let i=0;i<12;i++){await page.waitForTimeout(60);const s=await page.evaluate('(p=>({a:p.visA,t:p.visT,ball:__game.ball.vel.length(),tr:P3D.measure(p).transfer}))('+ST+')');shots.push(s);if(s.a===2)kicked=true;maxT=Math.max(maxT,s.tr);
         if(i===4)await page.screenshot({path:path.join(OUT,'one_kick.png')});}
-      ok(kicked,`play: the shot plays the kick on him (anim 2 seen: ${kicked}; ball speed after ${shots[shots.length-1].ball.toFixed(1)} m/s)`);
+      // the switch takes 0.12 s of drawn time; SwiftShader draws only a few frames in the kick, so more than half is the check
+      ok(kicked&&maxT>0.5,`play: the shot plays the kick on him (anim 2 seen: ${kicked}; the transferred kick pose up to ${maxT.toFixed(2)}; ball speed after ${shots[shots.length-1].ball.toFixed(1)} m/s)`);
       ok(errors.length===0,`one/play: page errors ${errors.length}${errors.length?' '+errors.slice(0,3).join(' | '):''}`);
       await page.close();}
     // bad

@@ -34,5 +34,5 @@ if __name__ == '__main__':
     open(os.path.join(DOCS, 'index.html'), 'w', encoding='utf-8').write(out)
     dst = os.path.join(DOCS, 'engine3d')
     if os.path.isdir(dst): shutil.rmtree(dst)
-    shutil.copytree(os.path.join(HERE, 'engine3d'), dst)
+    shutil.copytree(os.path.join(HERE, 'engine3d'), dst, ignore=shutil.ignore_patterns('tools'))   # the tools are for development only
     print('wrote docs/index.html (%d bytes) and docs/engine3d/' % len(out.encode('utf-8')))

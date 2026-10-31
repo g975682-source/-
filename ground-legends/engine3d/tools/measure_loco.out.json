@@ -1,0 +1,172 @@
+{
+ "speeds": [
+  {
+   "spd": 0,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 239,
+   "slideMean": 0.024,
+   "slideP90": 0.023,
+   "weights": {
+    "idle": 1,
+    "walk": 0,
+    "jog": 0,
+    "run": 0
+   },
+   "lowToe": [
+    0.044,
+    0.047
+   ]
+  },
+  {
+   "spd": 1.4,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 239,
+   "slideMean": 0.52,
+   "slideP90": 0.45,
+   "weights": {
+    "idle": 0,
+    "walk": 1,
+    "jog": 0,
+    "run": 0
+   },
+   "lowToe": [
+    0.035,
+    0.039
+   ]
+  },
+  {
+   "spd": 2.1,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 187,
+   "slideMean": 0.45,
+   "slideP90": 0.591,
+   "weights": {
+    "idle": 0,
+    "walk": 0.5,
+    "jog": 0.5,
+    "run": 0
+   },
+   "lowToe": [
+    0.02,
+    0.027
+   ]
+  },
+  {
+   "spd": 2.8,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 138,
+   "slideMean": 0.243,
+   "slideP90": 0.597,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 1,
+    "run": 0
+   },
+   "lowToe": [
+    0.026,
+    0.021
+   ]
+  },
+  {
+   "spd": 4.2,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 132,
+   "slideMean": 0.32,
+   "slideP90": 0.723,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 1,
+    "run": 0
+   },
+   "lowToe": [
+    0.026,
+    0.021
+   ]
+  },
+  {
+   "spd": 4.9,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 75,
+   "slideMean": 1.148,
+   "slideP90": 3.645,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 0.5,
+    "run": 0.5
+   },
+   "lowToe": [
+    0.022,
+    -0.015
+   ]
+  },
+  {
+   "spd": 5.5,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 87,
+   "slideMean": 0.266,
+   "slideP90": 0.425,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 0,
+    "run": 1
+   },
+   "lowToe": [
+    0.016,
+    0.021
+   ]
+  },
+  {
+   "spd": 7,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 82,
+   "slideMean": 0.268,
+   "slideP90": 0.449,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 0,
+    "run": 1
+   },
+   "lowToe": [
+    0.017,
+    0.021
+   ]
+  },
+  {
+   "spd": 8.5,
+   "frames": 240,
+   "fps": 60,
+   "stanceSamples": 75,
+   "slideMean": 0.338,
+   "slideP90": 0.544,
+   "weights": {
+    "idle": 0,
+    "walk": 0,
+    "jog": 0,
+    "run": 1
+   },
+   "lowToe": [
+    0.016,
+    0.021
+   ]
+  }
+ ],
+ "turn": {
+  "spd": 6,
+  "yawRate": 1.2,
+  "leanMax": 0.252
+ },
+ "errors": []
+}
