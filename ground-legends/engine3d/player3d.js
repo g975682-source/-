@@ -191,7 +191,7 @@ window.P3D=(()=>{
   function clipLean(){
     const t=S.tpl,root=t.root,bones=[];root.traverse(o=>{if(o.isBone)bones.push([o,o.quaternion.clone(),o.position.clone()]);});
     const by={};for(const [o] of bones)by[short(o.name)]=o;const mx=new TH.AnimationMixer(root),out={},v=new TH.Vector3(),u=new TH.Vector3(),n=new TH.Vector3();
-    for(const k of ['walk','jog','run','side','sideR']){const c=S.clips[k];if(!c)continue;const a=mx.clipAction(c.clip);a.play();a.setEffectiveWeight(1);let sum=0;
+    for(const k of ['idle','walk','jog','run','side','sideR']){const c=S.clips[k];if(!c)continue;const a=mx.clipAction(c.clip);a.play();a.setEffectiveWeight(1);let sum=0;
       for(let i=0;i<12;i++){a.time=c.dur*i/12;mx.update(0);root.updateMatrixWorld(true);
         by.LeftUpLeg.getWorldPosition(v);by.RightUpLeg.getWorldPosition(u);v.add(u).multiplyScalar(0.5);by.Neck.getWorldPosition(n);
         sum+=Math.atan2(n.z-v.z,n.y-v.y)*180/Math.PI;}
@@ -397,14 +397,16 @@ window.P3D=(()=>{
   // Refitted to real players (MOVEMENT_ANALYSIS.md section 7): walking, the elbow bent about 45 deg and the hand
   // swinging about 0.38 m; jogging, about 90 deg and a small swing (0.16-0.2 m); faster, the arm opens (about 75 deg at
   // 7 m/s) and swings further (0.4-0.47 m).
-  const ARMK=[[0,     0,     0.04,  0.45,  0,         0.07, 0],
-              [1.4,   0.30,  0.04,  0.70,  0.20,      0.06, 0.02],
-              [1.9,   0.32,  0.02,  0.80,  0.25,      0.07, 0.03],
-              [2.3,   0.30,  -0.10, 1.30,  0.30,      0.10, 0.08],
-              [2.8,   0.30,  -0.12, 1.35,  0.30,      0.10, 0.10],
-              [4.75,  0.50,  -0.15, 1.20,  0.35,      0.11, 0.11],
-              [7.0,   0.85,  -0.18, 1.05,  0.40,      0.12, 0.12],
-              [8.5,   0.95,  -0.20, 0.95,  0.40,      0.12, 0.12]];
+  const ARMK=[[0,     0,     0.10,  0.62,  0,         0.24, 0],
+              [1.4,   0.30,  0.13,  0.70,  0.20,      0.25, 0.01],
+              [1.9,   0.32,  0.18,  0.80,  0.25,      0.28, 0.02],
+              [2.3,   0.30,  0.42,  1.38,  0.30,      0.38, 0.03],
+              [2.8,   0.30,  0.50,  1.48,  0.30,      0.40, 0.03],
+              [4.75,  0.50,  0.65,  1.30,  0.35,      0.42, 0.03],
+              [7.0,   0.85,  0.62,  1.15,  0.40,      0.44, 0.03],
+              [8.5,   0.95,  0.60,  1.15,  0.40,      0.45, 0.03]];
+  // (section 8: the upper arm hangs 16-25 deg out to the side and swings about 10-18 deg behind the body on average;
+  // the mean and out columns above were moved from 4-7 deg out and forward of the body)
   function armParams(s){let i=0;while(i<ARMK.length-2&&s>ARMK[i+1][0])i++;const a=ARMK[i],b=ARMK[i+1],u=clampN((s-a[0])/(b[0]-a[0]),0,1);return a.map((v,k)=>v+(b[k]-v)*u);}
   const eA=new TH.Euler(),qA=new TH.Quaternion(),qB=new TH.Quaternion();
   function setArmBone(A,b,x,y,z){eA.set(x,y,z,'XYZ');qA.setFromEuler(eA);const C=S.tpl.C,cp=C[PARENT[b]],cs=C[b],q=A.bone[b].quaternion;
@@ -417,7 +419,7 @@ window.P3D=(()=>{
       // stances: jockey arms out and a little forward; shield: the arm on the opponent's side out to the side, the other
       // for balance; contact: elbows in
       const near=(W.side>0)===(sx>0),wj=W.jockey,ws=W.shield,wc=W.contact*(1-ws);
-      if(W.dribble>1e-3)z+=sx*0.15*W.dribble;   // dribbling: arms a little out for balance
+      if(W.dribble>1e-3){z+=sx*0.15*W.dribble;e-=0.35*W.dribble;}   // on the ball: arms out and straighter for balance (elbow 115-126 deg)
       // kicking: the arm across from the kicking leg swings out and forward for balance, the other back and in
       const wk=A.kw||0;if(wk>1e-3){const across=(A.kside<0)===(sx<0);   // the right arm when the left foot kicks
         if(across){x+=(-0.35-x)*wk;z+=(sx*0.95-z)*wk;e+=(0.45-e)*wk;}else{x+=(0.25-x)*wk;z+=(sx*0.25-z)*wk;e+=(0.7-e)*wk;}}
@@ -428,7 +430,7 @@ window.P3D=(()=>{
       // the upper arm turns in as the elbow bends, so that a bent arm swings the hand towards the middle, not out to the side
       setArmBone(A,sd+'Arm',x,-sx*0.35*Math.min(1,e/1.4),z);
       setArmBone(A,sd+'ForeArm',-e,0,0);
-      setArmBone(A,sd+'Hand',-0.05,0,0);}
+      setArmBone(A,sd+'Hand',-0.17,0,0);gesture(A,sd,sx);}   // wrist bent about 10 deg (section 8)
   }
   // Contest stances, from what the game already decides (sources in MOVEMENT_ANALYSIS.md):
   //  jockey  defending in front of the ball carrier: side-on, knees bent about 40 deg, arms out for balance
@@ -461,7 +463,7 @@ window.P3D=(()=>{
     if(dt>0&&A.sp0!=null)A.acc+=((s-A.sp0)/dt-A.acc)*(1-Math.exp(-dt*8));A.sp0=s;
     const wb=clampN((-A.acc-2)/4,0,1)*(1-W.shield),wa=clampN((A.acc-1)/4,0,1)*smooth(0.5,2,s);W.brake+=(wb-W.brake)*k*1.5;W.push+=(wa-W.push)*k*1.5;
     // (no knee bend for dribbling: bending the clip's legs at running speed changes the foot path and slides the feet)
-    const bone=A.bone,c=0.45*W.jockey+0.4*W.shield+0.25*W.contact+0.3*W.brake;
+    const bone=A.bone,c=0.52*W.jockey+0.4*W.shield+0.25*W.contact+0.3*W.brake;   // jockeying: hips about 8 cm down (section 8)
     if(c>1e-3){
       // knees bent, thighs forward, feet flat; the hips come down by what the legs lose in height
       for(const sd of ['Left','Right']){qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'UpLeg'].quaternion.multiply(qL);
@@ -514,11 +516,11 @@ window.P3D=(()=>{
   // forward (the neck over the hips' middle) about 3 deg walking, 7-9 jogging, 10-12 running; the clips' own lean
   // (S.clipLean, measured once at start) is set to that. Running, the shoulders turn against the hips with each stride
   // (about 13 deg seen; the right shoulder forward as the left leg goes forward).
-  const TLEAN=[[0,1],[0.75,1.7],[1.25,2.7],[1.75,3.9],[2.25,5.8],[2.75,7.3],[3.25,8.0],[3.75,8.7],[4.75,10.1],[5.75,11.3],[6.75,12.2],[8,12]];
+  const TLEAN=[[0,4.2],[1.25,4.4],[2.25,6.2],[3,8.1],[4.75,10.1],[6.25,11.8],[8,12.4]];   // section 8: standing 4, walking 4, jogging 8, running 10-12
   const TWOSC=[[0,0],[1.5,0.04],[2.5,0.1],[4,0.14],[9,0.14]];
   function trunk(A,s){
     const w=A.w,L=S.clipLean;if(!L)return;let fw=0,cl=0;
-    for(const [k] of GAITS)if(w[k]>0&&L[k]!=null){fw+=w[k];cl+=w[k]*L[k];}
+    for(const k of ['idle','walk','jog','run'])if(w[k]>0&&L[k]!=null){fw+=w[k];cl+=w[k]*L[k];}
     if(fw<1e-3)return;cl/=fw;
     // (the spine turned alone carries about 3/4 of a turn to the line from the hips to the neck: 1.35 makes it up)
     const tgt=A.back?2:interp(TLEAN,s),corr=(tgt-cl)*1.35*Math.PI/180*fw*(1-(A.kw||0));
@@ -527,13 +529,41 @@ window.P3D=(()=>{
     const tw=interp(TWOSC,s)*fw*Math.cos(2*Math.PI*A.ph)*(1-(A.kw||0));
     if(Math.abs(tw)>1e-3){qL.setFromAxisAngle(yAxis,tw*0.5);A.bone.Spine1.quaternion.multiply(qL);A.bone.Spine2.quaternion.multiply(qL);}
   }
+  // Legs (section 8): standing feet about 0.29 m apart (keepers 0.42) and walking 0.21, the thighs turned out to the
+  // side; jogging and running the feet point a little out (the run clips' toes pointed 4-9 deg in)
+  const LEGS={stand:0.065,standGK:0.13,walk:0.05,toeOut:0.08};
+  function legs(A){
+    const w=A.w,ab=(w.idle||0)*(A.p.isGK?LEGS.standGK:LEGS.stand)+(w.walk||0)*LEGS.walk,to=((w.jog||0)+(w.run||0))*LEGS.toeOut;
+    for(const [sd,sg] of [['Left',1],['Right',-1]]){
+      if(ab>1e-3){qL.setFromAxisAngle(zAxis,sg*ab);A.bone[sd+'UpLeg'].quaternion.premultiply(qL);qL.setFromAxisAngle(zAxis,-sg*ab);A.bone[sd+'Foot'].quaternion.multiply(qL);}
+      if(to>1e-3){const ax=vAx.copy(A.bone[sd+'Foot'].position).normalize();qL.setFromAxisAngle(ax,-sg*to);A.bone[sd+'Foot'].quaternion.premultiply(qL);}}
+  }
+  const vAx=new TH.Vector3();
+  // Gestures (section 8): short moves laid over the arms now and then, at about the rates real players show them:
+  // standing players raise an arm (calling for the ball, 1.7% of the time), put an arm out (1%) or point (0.25%);
+  // keepers standing put an arm out (4.5%), raise one (2.4%) or point (0.8%). One at a time, 0.8-1.2 s, one arm.
+  const GEST={field:[['up',0.017],['out',0.010],['point',0.0025]],gk:[['out',0.045],['up',0.024],['point',0.008]]};
+  function gestureTick(A,s,dt){
+    const g=A.gest;if(g){g.t+=dt;if(g.t>=g.dur)A.gest=null;return;}
+    if(!(dt>0)||s>1.2||(A.kw||0)>0.01||A.st.jockey>0.2||A.st.shield>0.2||A.st.contact>0.2||A.st.dribble>0.2)return;
+    for(const [kind,rate] of (A.p.isGK?GEST.gk:GEST.field))if(Math.random()<rate*dt/(1+s)){A.gest={kind,t:0,dur:0.8+Math.random()*0.4,side:Math.random()<0.5?'Left':'Right'};break;}
+  }
+  function gesture(A,sd,sx){
+    const g=A.gest;if(!g||g.side!==sd)return;const u=g.t/g.dur,w=Math.sin(Math.PI*clampN(u,0,1))**0.6;if(w<1e-3)return;
+    const bA=A.bone[sd+'Arm'].quaternion.clone(),bF=A.bone[sd+'ForeArm'].quaternion.clone();
+    if(g.kind==='up'){setArmBone(A,sd+'Arm',-2.5,0,sx*0.25);setArmBone(A,sd+'ForeArm',-0.35,0,0);}
+    else if(g.kind==='out'){setArmBone(A,sd+'Arm',-0.25,0,sx*1.35);setArmBone(A,sd+'ForeArm',-0.2,0,0);}
+    else{setArmBone(A,sd+'Arm',-1.45,-sx*0.2,sx*0.35);setArmBone(A,sd+'ForeArm',-0.05,0,0);}
+    A.bone[sd+'Arm'].quaternion.copy(bA.slerp(A.bone[sd+'Arm'].quaternion,w));A.bone[sd+'ForeArm'].quaternion.copy(bF.slerp(A.bone[sd+'ForeArm'].quaternion,w));
+  }
   // The head turned towards the ball (half the way, up to 34 deg; not for a ball behind him): real players keep it in
   // view (head within 45 deg of it about 75% of the time running, against 50-75% before; turning three quarters of the
   // way made it 90%)
   function look(A,yaw,dt){
     const b=S.ballPos;let t=0;
     if(b){const ang=Math.atan2(Math.sin(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw),Math.cos(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw));
-      t=Math.abs(ang)<1.9?clampN(ang*0.5,-0.6,0.6):0;}
+      const q=A.p,runner=q.runT>0&&q.runKind&&q.runKind!=='support',k=q.isGK?0.8:runner?0.75:0.5,cap=q.isGK?0.9:runner?1.05:0.6;
+      t=Math.abs(ang)<(runner?2.6:1.9)?clampN(ang*k,-cap,cap):0;}   // keepers face it; runners look over the shoulder (section 8)
     A.lk=(A.lk||0)+(t-(A.lk||0))*(dt>0?1-Math.exp(-dt*6):1);
     if(Math.abs(A.lk)>1e-3){qL.setFromAxisAngle(yAxis,A.lk*0.4);A.bone.Neck.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,A.lk*0.6);A.bone.Head.quaternion.multiply(qL);}
   }
@@ -558,7 +588,8 @@ window.P3D=(()=>{
     // facing, the gait in reverse
     const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x)),rel=vm>0.3&&s>0.3?wrap(travel-yaw):0,ar=Math.abs(rel);
     A.back=s<5&&(A.back?ar>2.0:ar>2.3);
-    const swT=loco&&!A.back&&S.clips&&S.clips.side?smooth(0.8,1.05,ar)*(1-smooth(2.05,2.3,ar))*(1-smooth(1.9,2.4,s)):0;
+    // 70-120 deg in open play (real players 21% of walking); 60-130 on the ball and for keepers (41%, 37%)
+    const wide=A.st.dribble>0.3||A.p.isGK,swT=loco&&!A.back&&S.clips&&S.clips.side?smooth(wide?0.8:1.05,wide?1.05:1.25,ar)*(1-smooth(wide?2.05:1.95,wide?2.3:2.15,ar))*(1-smooth(1.9,2.4,s)):0;
     A.sw=(A.sw||0)+(swT-(A.sw||0))*kf;if(ar>0.3)A.sd=rel>0?1:-1;
     // the side clip goes off square (its own travel, dir): the hips turn by what is left over
     const sc=S.clips&&S.clips.side,sideAng=sc?Math.atan2(sc.dir[0],sc.dir[1]):Math.PI/2,sideYaw=clampN(wrap(rel-(A.sd>0?1:-1)*sideAng),-0.6,0.6);
@@ -570,8 +601,8 @@ window.P3D=(()=>{
     // players' do, MOVEMENT_ANALYSIS.md section 7)
     const leanT=loco?clampN(-rate*s*0.07,-0.35,0.35):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
     kick(A,dt);
-    if(A.wp<1){locomotion(A,s,dt,A.back);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
-      trunk(A,s);
+    if(A.wp<1){locomotion(A,s,dt,A.back);gestureTick(A,s,dt);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
+      trunk(A,s);legs(A);
       if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
         // the clip's hips sway (its in-place leftover) turns with the hips, or the feet would slide along the old line
