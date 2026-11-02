@@ -520,17 +520,20 @@ window.P3D=(()=>{
     const w=A.w,L=S.clipLean;if(!L)return;let fw=0,cl=0;
     for(const [k] of GAITS)if(w[k]>0&&L[k]!=null){fw+=w[k];cl+=w[k]*L[k];}
     if(fw<1e-3)return;cl/=fw;
-    const tgt=A.back?2:interp(TLEAN,s),corr=(tgt-cl)*Math.PI/180*fw*(1-(A.kw||0));
-    if(Math.abs(corr)>1e-3){qL.setFromAxisAngle(xAxis,corr);A.bone.Spine.quaternion.multiply(qL);}
+    // (the spine turned alone carries about 3/4 of a turn to the line from the hips to the neck: 1.35 makes it up)
+    const tgt=A.back?2:interp(TLEAN,s),corr=(tgt-cl)*1.35*Math.PI/180*fw*(1-(A.kw||0));
+    // the neck takes most of it back, so the eyes stay level (raising the trunk would tip the head up to the sky)
+    if(Math.abs(corr)>1e-3){qL.setFromAxisAngle(xAxis,corr);A.bone.Spine.quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-corr*0.7);A.bone.Neck.quaternion.multiply(qL);}
     const tw=interp(TWOSC,s)*fw*Math.cos(2*Math.PI*A.ph)*(1-(A.kw||0));
     if(Math.abs(tw)>1e-3){qL.setFromAxisAngle(yAxis,tw*0.5);A.bone.Spine1.quaternion.multiply(qL);A.bone.Spine2.quaternion.multiply(qL);}
   }
-  // The head turned to the ball (up to 60 deg from the facing; not for a ball behind him): real players keep it in view
-  // (head within 45 deg of it about 75% of the time running, against about 55% before)
+  // The head turned towards the ball (three quarters of the way, up to 46 deg; not for a ball behind him): real players
+  // keep it in view (head within 45 deg of it about 75% of the time running, against 50-75% before; turning all the way
+  // made it 85-95%)
   function look(A,yaw,dt){
     const b=S.ballPos;let t=0;
     if(b){const ang=Math.atan2(Math.sin(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw),Math.cos(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw));
-      t=Math.abs(ang)<1.9?clampN(ang,-1.05,1.05):0;}
+      t=Math.abs(ang)<1.9?clampN(ang*0.75,-0.8,0.8):0;}
     A.lk=(A.lk||0)+(t-(A.lk||0))*(dt>0?1-Math.exp(-dt*6):1);
     if(Math.abs(A.lk)>1e-3){qL.setFromAxisAngle(yAxis,A.lk*0.4);A.bone.Neck.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,A.lk*0.6);A.bone.Head.quaternion.multiply(qL);}
   }
@@ -669,7 +672,7 @@ window.P3D=(()=>{
   }
 
   return {
-    get status(){return {mode:S.mode,ready:S.ready,error:S.error,attached:[...S.actors.keys()].map(p=>p.short||p.name),frames:S.frames,msPerFrame:S.frames?+(S.ms/S.frames).toFixed(3):0,msPerAttach:S.attached?+(S.attachMs/S.attached).toFixed(1):0,attachCount:S.attached,detachCount:S.detached,verts:S.tpl&&S.tpl.verts,clips:S.clips?Object.keys(S.clips):null,clipError:S.clipError||null};},
+    get status(){return {clipLean:S.clipLean,mode:S.mode,ready:S.ready,error:S.error,attached:[...S.actors.keys()].map(p=>p.short||p.name),frames:S.frames,msPerFrame:S.frames?+(S.ms/S.frames).toFixed(3):0,msPerAttach:S.attached?+(S.attachMs/S.attached).toFixed(1):0,attachCount:S.attached,detachCount:S.detached,verts:S.tpl&&S.tpl.verts,clips:S.clips?Object.keys(S.clips):null,clipError:S.clipError||null};},
     async init(opt){S.mode=(opt&&opt.mode)||'one';if(opt&&opt.base)S.base=opt.base;
       try{S.tpl=await load(S.base+'models/mh_player.glb');}catch(err){S.error=String(err&&err.message||err);S.ready=false;console.warn('P3D: 3D players off,',S.error);return this.status;}
       // the clips are optional: without them standing and running use the transfer like every other state
