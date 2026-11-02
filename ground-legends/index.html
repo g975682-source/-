@@ -2030,11 +2030,10 @@ function moveTo(p,tgt,urg){
   if(d<2.5)s=Math.min(s,d*1.7+0.3);
   p.wantVel.set(dx/d*s,0,dz/d*s);return d;
 }
-// Distance a dribbler covers per stride (two steps) at speed s: real players' gait cycle by speed (SkillCorner body pose
-// from match video, engine3d/MOVEMENT_ANALYSIS.md section 7; the 3D models' gait uses the same table, player3d.js CYC).
-// The ball is touched once a stride (touchPh), so the drawn feet can meet it without changing their natural cadence.
-const STRIDES=[[0,0.8],[0.75,1.0],[1.25,1.38],[1.75,1.56],[2.25,1.72],[2.75,1.95],[3.25,2.24],[3.75,2.52],[4.25,2.77],[4.75,2.98],
-  [5.25,3.17],[5.75,3.33],[6.25,3.42],[6.75,3.58],[7.25,3.77],[7.75,3.83],[8.25,3.94],[10,4.1]];
+// Distance a dribbler covers per stride (two steps) at speed s: the 3D models' gait cycle on the ball (engine3d/
+// player3d.js: real players' cycle by speed, CYC, as far as the clips allow, and on the ball the clips' own stride:
+// shorter, quicker steps), so that the touches and the drawn feet stay in step. The ball is touched once a stride.
+const STRIDES=[[0,1.076],[0.75,1.076],[1.25,1.133],[1.9,1.133],[2.3,2.156],[3.25,2.24],[3.6,2.269],[4.0,2.705],[10,2.705]];
 function strideAt(s){if(s<=0)return STRIDES[0][1];for(let i=1;i<STRIDES.length;i++)if(s<=STRIDES[i][0]){const [a0,b0]=STRIDES[i-1],[a1,b1]=STRIDES[i];return b0+(b1-b0)*(s-a0)/(a1-a0);}return STRIDES[STRIDES.length-1][1];}
 function steer(p,dir,sprint){const s=p.maxSpd()*(sprint?1:0.68);p.wantVel.set(dir.x*s,0,dir.z*s);}
 function computeTraj(){
@@ -2878,15 +2877,23 @@ function planSave(gk,shooter,opts){
   gk.save={pt:new V3(P.x,P.y,opts.pen?tz:P.z),t:0,tHit:P.t,success,catchIt:success&&spd<21&&P.y<2.0&&Math.random()<0.55};
   gk.noTouch=success?0:1.4;
   const ddz=(opts.pen?tz:P.z)-gk.pos.z;
-  if(Math.abs(ddz)>0.85||P.y>1.9){
-    gk.state='dive';gk.stateT=0;
-    const tt=Math.max(P.t,0.28);let vz=clamp(ddz/tt,-6.8,6.8);if(!success)vz*=rnd(0.55,0.8);
-    gk.diveV.set(0,0,vz);gk.diveH=P.y;
-    const lx=new V3(Math.cos(gk.face),0,-Math.sin(gk.face));gk.diveSide=Math.sign(lx.z*vz)||1;
-  }
+  // The dive is timed to the ball, as keepers do: he steps across (gkThink moves him towards the save point) and goes
+  // down so that the top of the dive (0.38 s in) comes as the ball arrives; before, he went at the shot and was lying on
+  // the ground when a long shot got there. The save itself is decided above, as before.
+  gk.diveAt=Math.abs(ddz)>0.85||P.y>1.9?Math.max(0,P.t-0.4):null;
+  if(gk.diveAt===0)gkDive(gk);
+}
+function gkDive(gk){
+  const s=gk.save;gk.diveAt=null;if(!s||gk.state!=='normal')return;
+  const rem=Math.max(0.2,s.tHit-s.t),ddz=s.pt.z-gk.pos.z,reach=Math.max(0.2,Math.min(rem,0.6)-Math.min(rem,0.6)**2/1.8);
+  gk.state='dive';gk.stateT=0;
+  let vz=clamp(ddz/reach,-6.8,6.8);if(!s.success)vz*=rnd(0.55,0.8);
+  gk.diveV.set(0,0,vz);gk.diveH=s.pt.y;
+  const lx=new V3(Math.cos(gk.face),0,-Math.sin(gk.face));gk.diveSide=Math.sign(lx.z*vz)||1;
 }
 function gkSaves(dt){
   for(const T of teams){const g=T.gk,s=g.save;if(!s)continue;s.t+=dt;
+    if(g.diveAt!=null&&s.t>=g.diveAt)gkDive(g);
     if(s.success&&s.t>=s.tHit-0.02&&!ball.owner){
       if(d2(ball.pos,g.pos)<3.4){
         if(s.catchIt){gkCatch(g);}
@@ -3377,7 +3384,7 @@ function officialsUpdate(dt){
 }
 
 /* ================= set pieces ================= */
-function resetTransient(p){p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
+function resetTransient(p){p.diveAt=null;p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
 function pushAway(T,pos,R){for(const p of T.players){const dx=p.pos.x-pos.x,dz=p.pos.z-pos.z,d=Math.hypot(dx,dz);if(d<R-0.05){if(d>0.01){p.pos.x=pos.x+dx/d*R;p.pos.z=pos.z+dz/d*R;}else{p.pos.x=pos.x+R;}}}}
 function startSetPiece(type,ti,pos,opts={}){
   state='setpiece';const T=teams[ti],O=teams[1-ti];

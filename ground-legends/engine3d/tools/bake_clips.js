@@ -41,11 +41,11 @@ const OUT=path.join(GL,'engine3d','anim','clips.json');fs.mkdirSync(path.dirname
       return L.makeClip(M,bv,{name,from:a,to:b2,loop:true,face});};
     const cyc={};
     lib.walk=await cycle('walk','143_32',1.0,4.0,1);   // walking, subject 143 (the same actor as the run)
-    // jog: one cycle of 35_22 (a steady run/jog, CMU subject 35); run: one cycle of 127_08 (a steady run, subject 127).
-    // Chosen for the steps a second and the step length for their speed that real footballers show (SkillCorner body pose
-    // from match video, MOVEMENT_ANALYSIS.md section 7); 16_35 (the jog before) took long slow steps, and 143_01 (the run
-    // before) was a start from standing, short quick steps.
-    lib.jog=await cycle('jog','35_22',0.02,1.38,0);
+    // jog: one cycle of 16_35 (a steady jog, CMU subject 16; 35_22, whose steps match real players better, slid and
+    // popped below 3 m/s and blending with the walk); run: one cycle of 127_08 (a steady run, subject 127), chosen for the
+    // steps a second and the step length for its speed that real footballers show (SkillCorner body pose from match
+    // video, MOVEMENT_ANALYSIS.md section 7); 143_01 (the run before) was a start from standing, short quick steps.
+    lib.jog=await cycle('jog','16_35',0.02,1.33,0);
     lib.run=await cycle('run','127_08',0.02,1.15,0);
     // side: one cycle of 143_40 (walking sideways, the walk's own actor), faced by the pelvis so the body keeps facing +z
     lib.side=await cycle('side','143_40',1.0,4.0,1,'pelvis');

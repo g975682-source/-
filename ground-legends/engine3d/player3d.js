@@ -196,6 +196,10 @@ window.P3D=(()=>{
         by.LeftUpLeg.getWorldPosition(v);by.RightUpLeg.getWorldPosition(u);v.add(u).multiplyScalar(0.5);by.Neck.getWorldPosition(n);
         sum+=Math.atan2(n.z-v.z,n.y-v.y)*180/Math.PI;}
       out[k]=sum/12;a.stop();mx.uncacheAction(c.clip);}
+    // where the kicking toe is at the clip's foot strike (root frame): the ball is drawn there for the strike
+    S.kickSpot={};
+    for(const [k,toe] of [['kick','RightToeBase'],['kickL','LeftToeBase']]){const c=S.clips[k];if(!c||!c.contact)continue;const a=mx.clipAction(c.clip);a.play();a.setEffectiveWeight(1);
+      a.time=c.contact.contact;mx.update(0);root.updateMatrixWorld(true);by[toe].getWorldPosition(v);S.kickSpot[k]=v.clone();a.stop();mx.uncacheAction(c.clip);}
     mx.uncacheRoot(root);for(const [o,q,p] of bones){o.quaternion.copy(q);o.position.copy(p);}root.updateMatrixWorld(true);
     return out;
   }
@@ -337,9 +341,12 @@ window.P3D=(()=>{
     for(const [k] of GAITS)w[k]*=1-ws;w.side=ws*mv*(A.sd>0?1:0);w.sideR=ws*mv*(A.sd>0?0:1);
     for(const [k] of GAITS)if(w[k]>0)nat+=w[k]*c[k].speed*c[k].dur;
     // stretched past about 1.25 (jog, run) the hip swing no longer carries the standing foot as far as the ground goes
-    // and the foot lock lets go (the foot pops): the cycle is held to that, a little shorter than real. The walk clip
-    // (short steps) pops at any stretch, so it keeps its own stride (2.5 steps a second at 1.4 m/s; real players 2.0)
-    const fw=mv*(1-ws),Lc=fw>1e-3?nat/fw:1,kmax=fw>1e-3?((w.walk||0)*1.0+((w.jog||0)+(w.run||0))*1.25)/fw:1,L=clampN(interp(CYC,sg),Lc*0.85,Lc*kmax);
+    // and the foot lock lets go (the foot pops): the cycle is held to that, a little shorter than real. Dribbling, the
+    // clips keep their own stride (players take shorter, quicker steps on the ball; the game's touches, index.html
+    // STRIDES, come once a cycle of that). Shortened by more than 5% the feet slide (the jog and
+    // run clips are faster than the slow end of their bands), so below that the gait keeps the clips' own stride. The
+    // walk clip (short steps) pops at any stretch, so it keeps its own stride (2.5 steps a second at 1.4 m/s; real 2.0)
+    const fw=mv*(1-ws),Lc=fw>1e-3?nat/fw:1,kmax=fw>1e-3?((w.walk||0)*1.0+((w.jog||0)+(w.run||0))*(1.25-0.25*Math.min(1,A.st.dribble*1.5)))/fw:1,L=clampN(interp(CYC,sg),Lc*0.95,Lc*Math.max(0.95,kmax));
     // one gait phase for the forward gaits: cycles a second as real players at this speed (speed / CYC, as held above);
     // the side clip keeps its own pace (its steps cover the ground at its own speed)
     A.ph=((A.ph+(back?-1:1)*dt*s/L)%1+1)%1;
@@ -620,6 +627,39 @@ window.P3D=(()=>{
       if(L.w>1e-3&&L.off.lengthSq()>1e-8){const t=foot.getWorldPosition(new TH.Vector3()).addScaledVector(L.off,L.w);twoBone(up,leg,foot,t);}}
   }
 
+  // The ball as the players handle it: the drawn ball (the game's ball mesh; the game's own ball, its physics, online
+  // messages and replay records are not touched) is put where the foot or the hands meet it, as football games do.
+  //  - dribbling: at each touch (the game's p.touchPh at 0, which the gait is locked to) the ball sits just in front of
+  //    the touching (right) toe, then it rolls out to where the game has it and comes back for the next touch;
+  //  - a kick: from 0.3 s before the clip's foot strike the ball waits where the toe will strike it (S.kickSpot), so the
+  //    foot meets it and it leaves from the foot; the game starts the ball off at that moment;
+  //  - a header: the ball at the forehead at the top of the jump;
+  //  - a keeper holding the ball: between his hands; diving, his hands reach for it (IK).
+  // Only for a player with the 3D model, the ball within 1.6 m of where it is put.
+  const vK1=new TH.Vector3(),vK2=new TH.Vector3();
+  function ballContact(bp,dt){
+    let best=null,bd=2.5;for(const A of S.actors.values()){const d=Math.hypot(A.holder.position.x-bp.x,A.holder.position.z-bp.z);if(d<bd){bd=d;best=A;}}
+    const A=best;if(!A){S.bw=0;return;}
+    A.holder.updateMatrixWorld(true);const yaw=A.holder.rotation.y,fx=Math.sin(yaw),fz=Math.cos(yaw),p=A.p;let w=0;
+    if(p.holding&&p.isGK){A.bone.LeftHand.getWorldPosition(vK1);A.bone.RightHand.getWorldPosition(vK2);vK1.add(vK2).multiplyScalar(0.5);vK1.x+=fx*0.08;vK1.z+=fz*0.08;w=1;}
+    else if((A.kw||0)>0.05&&S.kickSpot){const k=A.kside<0?'kickL':'kick',sp=S.kickSpot[k],c=S.clips[k];
+      if(sp&&c&&c.contact){const ct=c.contact.contact,kt=A.kt||0;w=smooth(ct-0.3,ct-0.05,kt)*(1-smooth(ct,ct+0.05,kt))*Math.min(1,A.kw*1.5);
+        vK1.copy(sp);A.root.localToWorld(vK1);vK1.x+=fx*0.1;vK1.z+=fz*0.1;vK1.y=0.11;}}
+    else if(p.oAnim==='header'&&p.oT>0.08&&p.oT<0.45){   // a header: the ball meets the forehead at the top of the jump
+      w=Math.exp(-Math.pow((p.oT-0.25)/0.08,2));A.bone.Head.getWorldPosition(vK1);vK1.x+=fx*0.15;vK1.z+=fz*0.15;vK1.y+=0.04;}
+    else if(A.st.dribble>0.3&&p.touchPh!=null){const u=((p.touchPh/(2*Math.PI))%1+1)%1,c=0.5+0.5*Math.cos(2*Math.PI*u);w=Math.pow(c,4)*Math.min(1,(A.st.dribble-0.3)/0.4);
+      A.bone.RightToeBase.getWorldPosition(vK1);vK1.x+=fx*0.13;vK1.z+=fz*0.13;vK1.y=0.11;}
+    if(w>1e-3&&Math.hypot(vK1.x-bp.x,vK1.z-bp.z)<1.6&&Math.abs(vK1.y-bp.y)<1.2){bp.x+=(vK1.x-bp.x)*w;bp.z+=(vK1.z-bp.z)*w;bp.y+=(vK1.y-bp.y)*w;}
+    S.bw=w;
+    // a diving keeper reaches for the ball: both hands drawn to its sides (two-bone IK on each arm) as it comes within
+    // 1.6 m of them, fully from 0.6 m
+    for(const G of S.actors.values()){const q=G.p;if(!q.isGK||q.state!=='dive')continue;G.holder.updateMatrixWorld(true);
+      const B=G.bone;B.LeftHand.getWorldPosition(vK1);B.RightHand.getWorldPosition(vK2);const mx=(vK1.x+vK2.x)/2,my=(vK1.y+vK2.y)/2,mz=(vK1.z+vK2.z)/2;
+      const d=Math.hypot(bp.x-mx,bp.y-my,bp.z-mz),wk=1-smooth(0.6,1.6,d);if(wk<1e-3)continue;
+      const yw=G.holder.rotation.y,lx=Math.cos(yw)*0.12,lz=-Math.sin(yw)*0.12;
+      for(const [sd,sg] of [['Left',1],['Right',-1]]){const h=B[sd+'Hand'].getWorldPosition(new TH.Vector3()),t=new TH.Vector3(bp.x+sg*lx,bp.y,bp.z+sg*lz);
+        twoBone(B[sd+'Arm'],B[sd+'ForeArm'],B[sd+'Hand'],h.lerp(t,wk));}}
+  }
   // which players get the model
   function targets(players,teams,controlled){
     if(S.mode==='all')return players.slice();
@@ -649,6 +689,7 @@ window.P3D=(()=>{
       for(const p of want)if(p.rig&&!S.actors.has(p)){if(performance.now()-t0>ATTACH_MS)break;const ta=performance.now();attach(p,scene,teams);S.attachMs+=performance.now()-ta;S.attached++;}
       const t1=performance.now(),dt=S.fixedDt!=null?S.fixedDt:S.last?Math.min(0.1,(t1-S.last)/1000):0;S.last=t1;
       for(const A of S.actors.values())drive(A,dt);
+      if(ballPos)ballContact(ballPos,dt);
       S.ms+=performance.now()-t1;S.frames++;},
     // for checks: where a player's copy stands against the game rig, and its lowest boot vertex (skinned, world y)
     measure(p){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);
@@ -657,7 +698,7 @@ window.P3D=(()=>{
       const hiddenOk=A.hidden.every(([o])=>o.layers.mask===1<<HIDDEN_LAYER);
       return {holder:A.holder.position.toArray(),rig:A.rig.root.position.toArray(),face:[A.holder.rotation.y,A.rig.root.rotation.y],scale:A.holder.scale.x,
         lowBoot:lo,hiddenMeshes:A.hidden.length,hiddenOk,rigRootVisible:A.rig.root.visible,inScene:!!A.holder.parent,
-        transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd,look:A.look};},
+        ballHold:+(S.bw||0).toFixed(2),transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd,look:A.look};},
     // for checks: world positions of any of the copy's bones (short names)
     bones(p,list){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const o={};for(const b of list)if(A.bone[b])o[b]=A.bone[b].getWorldPosition(new TH.Vector3()).toArray();return o;},
     // for checks: world positions of the copy's toes and feet (bones), and which of the two toes is lower
