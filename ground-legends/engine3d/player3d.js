@@ -527,13 +527,13 @@ window.P3D=(()=>{
     const tw=interp(TWOSC,s)*fw*Math.cos(2*Math.PI*A.ph)*(1-(A.kw||0));
     if(Math.abs(tw)>1e-3){qL.setFromAxisAngle(yAxis,tw*0.5);A.bone.Spine1.quaternion.multiply(qL);A.bone.Spine2.quaternion.multiply(qL);}
   }
-  // The head turned towards the ball (three quarters of the way, up to 46 deg; not for a ball behind him): real players
-  // keep it in view (head within 45 deg of it about 75% of the time running, against 50-75% before; turning all the way
-  // made it 85-95%)
+  // The head turned towards the ball (half the way, up to 34 deg; not for a ball behind him): real players keep it in
+  // view (head within 45 deg of it about 75% of the time running, against 50-75% before; turning three quarters of the
+  // way made it 90%)
   function look(A,yaw,dt){
     const b=S.ballPos;let t=0;
     if(b){const ang=Math.atan2(Math.sin(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw),Math.cos(Math.atan2(b.x-A.holder.position.x,b.z-A.holder.position.z)-yaw));
-      t=Math.abs(ang)<1.9?clampN(ang*0.75,-0.8,0.8):0;}
+      t=Math.abs(ang)<1.9?clampN(ang*0.5,-0.6,0.6):0;}
     A.lk=(A.lk||0)+(t-(A.lk||0))*(dt>0?1-Math.exp(-dt*6):1);
     if(Math.abs(A.lk)>1e-3){qL.setFromAxisAngle(yAxis,A.lk*0.4);A.bone.Neck.quaternion.multiply(qL);qL.setFromAxisAngle(yAxis,A.lk*0.6);A.bone.Head.quaternion.multiply(qL);}
   }

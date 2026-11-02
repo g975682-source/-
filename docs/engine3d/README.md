@@ -25,7 +25,8 @@ engine3d/
   anim/clips.json        모션 캡처 클립 8개 (CMU, 이 모델에 리타게팅), tools/bake_clips.js가 만듦
   tools/                 개발용 (웹사이트 사본에는 안 들어감): bake_clips.js, measure_loco.js, render_loco.js,
                          measure_match_motion.js, render_look.js, export_match_track.js, track_an.py,
-                         pose_an.py, fetch_skillcorner.sh (실제 경기 데이터 비교, MOVEMENT_ANALYSIS.md 6절)
+                         pose_an.py, fetch_skillcorner.sh (실제 경기 데이터 비교, MOVEMENT_ANALYSIS.md 6절),
+                         export_match_pose.js, pose_full.py (실제 선수 몸 자세 비교, 7절)
   vendor/GLTFLoader.js   three.js r128 examples (MIT)
   vendor/SkeletonUtils.js three.js r128 examples (MIT)
   LICENSES.md            자산별 라이선스
@@ -68,7 +69,8 @@ engine3d/
   | idle | 143_03 0.05–0.80 s | 0.75 s 반복 | 0 |
   | walk | 143_32 걷기 한 주기 (왼발 착지 사이, 자동 검출) | 0.78 s 반복 | 1.45 m/s |
   | jog | 16_35 조깅 한 주기 | 0.80 s 반복 | 2.84 m/s |
-  | run | 143_01 | 0.72 s 반복 | 7.0 m/s |
+  | run | 127_08 달리기 한 주기 (전에는 143_01: 정지에서 출발하는 짧고 빠른 걸음) | 0.63 s 반복 | 4.27 m/s |
+  | side | 143_40 옆걸음 한 주기 (골반 기준 방향, 오른쪽은 좌우 반전) | 0.53 s 반복 | 1.64 m/s |
   | start, decel, kick, recover | 143_03, 143_02, 143_24 | | 아직 안 씀 (3단계) |
 
 - 게임 상태가 서 있기(0)나 달리기(1)이면 클립, 그 밖이면 자세 옮기기. 둘 사이는 0.12초 동안 섞습니다.
@@ -127,6 +129,23 @@ engine3d/
   그동안은 게임 기본 모델로 보입니다.
 
 `tools/render_look.js`: 앞·뒤 모습, `HEAD=1` 얼굴 가까이, `BUILD=1` 체형 양 끝, `HOMETEAM`/`AWAY`로 팀 선택.
+
+## 동작 방식 (5단계: 실제 선수 몸 자세, 공과의 접촉)
+
+`MOVEMENT_ANALYSIS.md` 7절. SkillCorner의 중계 영상 3D 몸 자세(2경기 전체)와 같은 코드(`tools/pose_full.py`)로 게임의
+3D 선수(`tools/export_match_pose.js`)를 재서 맞췄습니다.
+
+- 걸음 박자: 실제 선수의 속도별 걸음 주기(`CYC`)로. 클립 보폭과 다른 만큼 엉덩이 흔들기를 키우거나 줄이되(조깅·달리기
+  0.95–1.25배), 그 이상은 발이 미끄러지거나 튀어서 그 범위 안에서만. 걷기는 클립 보폭 그대로. 공을 가지고는 클립 보폭
+  그대로(짧고 빠른 걸음). 게임의 드리블 터치 주기(`index.html` STRIDES)도 같은 값.
+- 옆걸음: 이동 방향이 몸과 60–130°, 2 m/s 아래면 옆걸음 클립(엉덩이는 몸 방향).
+- 상체: 클립마다 앞 기울기를 미리 재 두고 속도별 실제값(걷기 3°, 조깅 7–9°, 달리기 10–12°)으로 보정, 달릴 때 걸음에
+  맞춰 어깨 반대 회전, 회전할 때 안쪽 기울기 두 배, 머리를 공 쪽으로(절반만큼, 최대 34°). 팔꿈치·팔 흔들기 표 재조정.
+- 공과의 접촉(그리는 공만 옮김, 게임의 공·물리·온라인·리플레이 기록은 그대로): 드리블 터치 때 공이 오른발 끝 앞에
+  왔다가 밀려 나감, 킥은 발이 닿는 자리에 공이 기다렸다가 발에서 출발, 헤딩은 점프 꼭대기에서 이마, 키퍼가 잡으면 두 손
+  사이, 다이빙하면 두 손을 공으로(IK).
+- 키퍼 다이빙 시점(`index.html` gkDive): 다이빙 꼭대기(0.38 s)가 공 도착과 겹치게 늦춰 시작. 막을지는 전과 같이 슛 순간
+  정해짐.
 
 ## 확인
 
