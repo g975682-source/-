@@ -471,7 +471,10 @@ window.P3D=(()=>{
     // from what is drawn (the rigs' places and facings, the drawn ball), so that replays and an online guest's view show
     // the same; in the live game the game's own flags count too (the jockey key, the shield key)
     const g=window.__game,live=!!g&&g.state!=='replay'&&!(g.net&&g.net.role==='guest'),p=A.p,ps=S.players||[],me=A.rig.root.position,bp=S.ballPos;
-    let owner=null;if(bp&&bp.y<0.6){let bd=1.0;for(const q of ps){if(q.sentOff||!q.rig)continue;const r=q.rig.root.position,d=Math.hypot(r.x-bp.x,r.z-bp.z);if(d<bd){bd=d;owner=q;}}}
+    // the ball carrier: the game's own in the live game (a dribbler pushes the ball up to 2 m ahead), else the nearest to
+    // the drawn ball within 2.5 m
+    let owner=null;if(live&&g.ball&&g.ball.owner)owner=g.ball.owner;
+    else if(bp&&bp.y<0.6){let bd=2.5;for(const q of ps){if(q.sentOff||!q.rig)continue;const r=q.rig.root.position,d=Math.hypot(r.x-bp.x,r.z-bp.z);if(d<bd){bd=d;owner=q;}}}
     let opp=null,od=1e9;for(const q of ps){if(q.team===p.team||q.sentOff||!q.rig)continue;const r=q.rig.root.position,d=Math.hypot(r.x-me.x,r.z-me.z);if(d<od){od=d;opp=q;}}
     const wrap=x=>Math.atan2(Math.sin(x),Math.cos(x)),face=A.rig.root.rotation.y;
     let toOwner=1e9,facing=false;if(owner&&owner.team!==p.team){const r=owner.rig.root.position;toOwner=Math.hypot(r.x-me.x,r.z-me.z);facing=Math.abs(wrap(Math.atan2(r.x-me.x,r.z-me.z)-face))<1.05;}
@@ -711,7 +714,7 @@ window.P3D=(()=>{
         vK1.copy(sp);A.root.localToWorld(vK1);vK1.x+=fx*0.1;vK1.z+=fz*0.1;vK1.y=0.11;}}
     else if(p.oAnim==='header'&&p.oT>0.08&&p.oT<0.45){   // a header: the ball meets the forehead at the top of the jump
       w=Math.exp(-Math.pow((p.oT-0.25)/0.08,2));A.bone.Head.getWorldPosition(vK1);vK1.x+=fx*0.15;vK1.z+=fz*0.15;vK1.y+=0.04;}
-    else if(A.st.dribble>0.3&&p.touchPh!=null){const u=((p.touchPh/(2*Math.PI))%1+1)%1,c=0.5+0.5*Math.cos(2*Math.PI*u);w=Math.pow(c,4)*Math.min(1,(A.st.dribble-0.3)/0.4);
+    else if(A.st.dribble>0.3&&(p.tchU!=null||p.touchPh!=null)){const u=p.tchU!=null?p.tchU:((p.touchPh/(2*Math.PI))%1+1)%1,c=0.5+0.5*Math.cos(2*Math.PI*u);w=Math.pow(c,6)*Math.min(1,(A.st.dribble-0.3)/0.4);   // the game's touches (tchU), else every stride
       A.bone.RightToeBase.getWorldPosition(vK1);vK1.x+=fx*0.13;vK1.z+=fz*0.13;vK1.y=0.11;}
     if(w>1e-3&&Math.hypot(vK1.x-bp.x,vK1.z-bp.z)<1.6&&Math.abs(vK1.y-bp.y)<1.2){bp.x+=(vK1.x-bp.x)*w;bp.z+=(vK1.z-bp.z)*w;bp.y+=(vK1.y-bp.y)*w;}
     S.bw=w;
