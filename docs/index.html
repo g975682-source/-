@@ -2043,7 +2043,7 @@ function moveTo(p,tgt,urg){
 // Distance a dribbler covers per stride (two steps) at speed s: the 3D models' gait cycle on the ball (engine3d/
 // player3d.js: real players' cycle by speed, CYC, as far as the clips allow, and on the ball the clips' own stride:
 // shorter, quicker steps), so that the touches and the drawn feet stay in step. The ball is touched once a stride.
-const STRIDES=[[0,1.076],[0.75,1.076],[1.25,1.133],[1.9,1.133],[2.3,2.156],[3.25,2.24],[3.6,2.269],[4.0,2.705],[10,2.705]];
+const STRIDES=[[0,1.247],[0.9,1.247],[1.1,1.313],[1.9,1.313],[2.3,2.156],[3.25,2.24],[3.6,2.269],[4.0,2.705],[10,2.705]];
 function strideAt(s){if(s<=0)return STRIDES[0][1];for(let i=1;i<STRIDES.length;i++)if(s<=STRIDES[i][0]){const [a0,b0]=STRIDES[i-1],[a1,b1]=STRIDES[i];return b0+(b1-b0)*(s-a0)/(a1-a0);}return STRIDES[STRIDES.length-1][1];}
 function steer(p,dir,sprint){const s=p.maxSpd()*(sprint?1:0.68);p.wantVel.set(dir.x*s,0,dir.z*s);}
 function computeTraj(){

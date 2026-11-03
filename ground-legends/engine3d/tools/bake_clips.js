@@ -40,7 +40,9 @@ const OUT=path.join(GL,'engine3d','anim','clips.json');fs.mkdirSync(path.dirname
       const a=from+mins[pick]/60,b2=from+mins[pick+1]/60;cyc[name]=[a,b2];
       return L.makeClip(M,bv,{name,from:a,to:b2,loop:true,face});};
     const cyc={};
-    lib.walk=await cycle('walk','143_32',1.0,4.0,1);   // walking, subject 143 (the same actor as the run)
+    // walk: one cycle of 35_01 (CMU subject 35): steps 0.78 of the leg long at about 1.8 a second, as real footballers
+    // walk (MOVEMENT_ANALYSIS.md section 8); 143_32 (before) took short quick steps (0.63, 2.5 a second)
+    lib.walk=await cycle('walk','35_01',0.2,2.95,0);
     // jog: one cycle of 16_35 (a steady jog, CMU subject 16; 35_22, whose steps match real players better, slid and
     // popped below 3 m/s and blending with the walk); run: one cycle of 127_08 (a steady run, subject 127), chosen for the
     // steps a second and the step length for its speed that real footballers show (SkillCorner body pose from match

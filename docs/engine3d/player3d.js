@@ -319,7 +319,7 @@ window.P3D=(()=>{
   // ground speed. Leaves the pose on the bones.
   const smooth=(a,b,x)=>{const u=Math.min(1,Math.max(0,(x-a)/(b-a)));return u*u*(3-2*u);};
   const clampN=(v,a,b)=>Math.min(b,Math.max(a,v));
-  // gaits by speed (m/s, the clips' own: walk 1.45, jog 3.46, run 4.27): [name, fade in from, to, fade out from, to]
+  // gaits by speed (m/s, the clips' own: walk 1.21, jog 2.84, run 4.27): [name, fade in from, to, fade out from, to]
   // Bands are narrow: while two gaits blend the standing foot slides (tools/measure_loco.js), so each gait covers a wide
   // range on its own, played faster or slower and with its stride scaled (below).
   const GAITS=[['walk',0.25,0.9,1.9,2.3],['jog',1.9,2.3,3.6,4.0],['run',3.6,4.0,1e9,1e9]];
@@ -346,7 +346,7 @@ window.P3D=(()=>{
     // STRIDES, come once a cycle of that). Shortened by more than 5% the feet slide (the jog and
     // run clips are faster than the slow end of their bands), so below that the gait keeps the clips' own stride. The
     // walk clip (short steps) pops at any stretch, so it keeps its own stride (2.5 steps a second at 1.4 m/s; real 2.0)
-    const fw=mv*(1-ws),Lc=fw>1e-3?nat/fw:1,kmax=fw>1e-3?((w.walk||0)*1.0+((w.jog||0)+(w.run||0))*(1.25-0.25*Math.min(1,A.st.dribble*1.5)))/fw:1,L=clampN(interp(CYC,sg),Lc*0.95,Lc*Math.max(0.95,kmax));
+    const fw=mv*(1-ws),Lc=fw>1e-3?nat/fw:1,kmax=fw>1e-3?((w.walk||0)*1.0+((w.jog||0)*1.25+(w.run||0)*1.18)+((w.jog||0)+(w.run||0))*(1-((w.jog||0)*1.25+(w.run||0)*1.18)/Math.max(1e-3,(w.jog||0)+(w.run||0)))*Math.min(1,A.st.dribble*1.5))/fw:1,L=clampN(interp(CYC,sg),Lc*0.95,Lc*Math.max(0.95,kmax));
     // one gait phase for the forward gaits: cycles a second as real players at this speed (speed / CYC, as held above);
     // the side clip keeps its own pace (its steps cover the ground at its own speed)
     A.ph=((A.ph+(back?-1:1)*dt*s/L)%1+1)%1;
@@ -384,8 +384,37 @@ window.P3D=(()=>{
     const r=A.rig,c=S.clips&&S.clips.kick;if(!c||!c.contact)return;const inKick=r.va===2;
     if(inKick&&!A.kOn){A.kOn=true;A.k0=r.vt;A.kc=r.vt<0.05?0.15:r.vt;A.kside=r.vside<0?-1:1;}
     if(!inKick)A.kOn=false;
-    if(A.kOn)A.kt=c.contact.contact+(r.vt-A.kc);else if(A.kw>0)A.kt=(A.kt||0)+dt;
+    // before the strike the clip runs 1.35 times as fast, so that a shot's 0.25 s wind-up shows the clip from its plant
+    // step (0.24 s in) rather than only the swing; after it, at its own pace
+    if(A.kOn){const d=r.vt-A.kc;A.kt=c.contact.contact+(d<0?d*1.35:d);}else if(A.kw>0)A.kt=(A.kt||0)+dt;
     const tgt=A.kOn?1:0;A.kw=tgt>A.kw?Math.min(1,A.kw+(dt>0?dt/0.06:1)):Math.max(0,A.kw-(dt>0?dt/0.2:1));
+  }
+  // The kicking leg as real players swing it (SkillCorner body pose, 59 shots and 1,644 passes, MOVEMENT_ANALYSIS.md
+  // 8-9): the knee folded to about 110 deg 0.12 s before the strike and 95 at it, the thigh no higher than about 16 deg
+  // at the strike and 40-48 deg in the follow-through. The captured kick lifted the leg to 70-80 deg (into the air) and
+  // kept the knee straight in the back-swing; this holds it to those curves (t: seconds from the strike).
+  const KICKHIP=[[-0.4,-5],[-0.12,-4],[-0.04,4],[0,16],[0.08,40],[0.2,48],[0.45,30]];
+  const KICKKNEE=[[-0.4,125],[-0.2,126],[-0.12,110],[-0.04,95],[0,98]];
+  const vk1=new TH.Vector3(),vk2=new TH.Vector3(),vk3=new TH.Vector3();
+  function kickShape(A){
+    const kw=A.kw||0,c=S.clips&&S.clips.kick;if(kw<0.05||!c||!c.contact)return;const t=(A.kt||0)-c.contact.contact,sd=A.kside<0?'Left':'Right',B=A.bone;
+    A.holder.updateMatrixWorld(true);B[sd+'UpLeg'].getWorldPosition(vk1);B[sd+'Leg'].getWorldPosition(vk2);B[sd+'Foot'].getWorldPosition(vk3);
+    const yw=A.holder.rotation.y,fx=Math.sin(yw),fz=Math.cos(yw),tx=vk2.x-vk1.x,ty=vk2.y-vk1.y,tz=vk2.z-vk1.z;
+    const flex=Math.atan2(tx*fx+tz*fz,-ty)*180/Math.PI,lim=interp(KICKHIP,t)+8;
+    // around the strike (-0.03..+0.03 s) the capture is left as it is: the toe meets the ball where the drawn ball waits
+    // (S.kickSpot, measured on the capture); the back-swing knee before it, the follow-through after it
+    const wf=smooth(0.03,0.08,t);
+    if(flex>lim&&wf>0){qL.setFromAxisAngle(xAxis,Math.min(0.9,(flex-lim)*1.5*Math.PI/180)*kw*wf);B[sd+'UpLeg'].quaternion.multiply(qL);}   // 1.5: the bone's own axis carries about 2/3 of it
+    // the standing leg takes the weight after the strike: knee bent to about 115 deg, the hips down by what it loses
+    // (the capture straightened it to 160-175); and the trunk a little less forward in the wind-up (8-10 deg, not 13-16)
+    const pl=sd==='Left'?'Right':'Left',cp=0.42*kw*smooth(0,0.08,t)*(1-smooth(0.35,0.6,t));
+    if(cp>1e-3){qL.setFromAxisAngle(xAxis,-0.8*cp);B[pl+'UpLeg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,1.6*cp);B[pl+'Leg'].quaternion.multiply(qL);
+      qL.setFromAxisAngle(xAxis,-0.8*cp);B[pl+'Foot'].quaternion.multiply(qL);B.Hips.position.y-=0.92*(1-Math.cos(0.8*cp));}
+    const lb=0.09*kw*(1-smooth(-0.06,0,t));if(lb>1e-3){qL.setFromAxisAngle(xAxis,-lb);B.Spine.quaternion.multiply(qL);}
+    const wb=1-smooth(-0.08,-0.03,t);
+    if(wb>0){const u1=vk1.sub(vk2),u2=vk3.sub(vk2),kn=u1.angleTo(u2)*180/Math.PI,tk=interp(KICKKNEE,t)+5;
+      if(kn>tk){qL.setFromAxisAngle(xAxis,(kn-tk)*Math.PI/180*kw*wb);B[sd+'Leg'].quaternion.multiply(qL);}
+      else if(kn<tk-15){qL.setFromAxisAngle(xAxis,-(tk-15-kn)*Math.PI/180*kw*wb);B[sd+'Leg'].quaternion.multiply(qL);}}   // nor folded much past it
   }
   // Arms while standing, walking and running: drawn here from the gait phase instead of the clips (the captured arms and
   // wrists land on this model folded across the chest). Values from gait studies: walking keeps the elbow nearly straight
@@ -403,8 +432,8 @@ window.P3D=(()=>{
               [2.3,   0.30,  0.42,  1.38,  0.30,      0.38, 0.03],
               [2.8,   0.30,  0.50,  1.48,  0.30,      0.40, 0.03],
               [4.75,  0.50,  0.65,  1.30,  0.35,      0.42, 0.03],
-              [7.0,   0.85,  0.62,  1.15,  0.40,      0.44, 0.03],
-              [8.5,   0.95,  0.60,  1.15,  0.40,      0.45, 0.03]];
+              [7.0,   0.85,  0.62,  1.20,  0.40,      0.44, 0.03],
+              [8.5,   0.95,  0.60,  1.32,  0.40,      0.45, 0.03]];
   // (section 8: the upper arm hangs 16-25 deg out to the side and swings about 10-18 deg behind the body on average;
   // the mean and out columns above were moved from 4-7 deg out and forward of the body)
   function armParams(s){let i=0;while(i<ARMK.length-2&&s>ARMK[i+1][0])i++;const a=ARMK[i],b=ARMK[i+1],u=clampN((s-a[0])/(b[0]-a[0]),0,1);return a.map((v,k)=>v+(b[k]-v)*u);}
@@ -422,7 +451,8 @@ window.P3D=(()=>{
       if(W.dribble>1e-3){z+=sx*0.15*W.dribble;e-=0.35*W.dribble;}   // on the ball: arms out and straighter for balance (elbow 115-126 deg)
       // kicking: the arm across from the kicking leg swings out and forward for balance, the other back and in
       const wk=A.kw||0;if(wk>1e-3){const across=(A.kside<0)===(sx<0);   // the right arm when the left foot kicks
-        if(across){x+=(-0.35-x)*wk;z+=(sx*0.95-z)*wk;e+=(0.45-e)*wk;}else{x+=(0.25-x)*wk;z+=(sx*0.25-z)*wk;e+=(0.7-e)*wk;}}
+        const ck=S.clips.kick&&S.clips.kick.contact?S.clips.kick.contact.contact:0.575,pk=Math.exp(-Math.pow(((A.kt||0)-ck+0.1)/0.16,2));   // out most 0.1 s before the strike
+        if(across){x+=(-0.35-x)*wk;z+=(sx*(0.3+0.45*pk)-z)*wk;e+=(0.6-e)*wk;}else{x+=(0.25-x)*wk;z+=(sx*0.25-z)*wk;e+=(0.7-e)*wk;}}
       if(wj>1e-3){x+=(-0.25-x)*wj*0.6;z+=(sx*0.5-z)*wj;e+=(0.75-e)*wj;}
       if(ws>1e-3){if(near){x+=(-0.15-x)*ws;z+=(sx*1.0-z)*ws;e+=(0.35-e)*ws;}else{z+=(sx*0.35-z)*ws;e+=(0.9-e)*ws;}}
       if(wc>1e-3&&near){z+=(sx*0.05-z)*wc;e+=(1.2-e)*wc;}
@@ -530,10 +560,10 @@ window.P3D=(()=>{
     if(Math.abs(tw)>1e-3){qL.setFromAxisAngle(yAxis,tw*0.5);A.bone.Spine1.quaternion.multiply(qL);A.bone.Spine2.quaternion.multiply(qL);}
   }
   // Legs (section 8): standing feet about 0.29 m apart (keepers 0.42) and walking 0.21, the thighs turned out to the
-  // side; jogging and running the feet point a little out (the run clips' toes pointed 4-9 deg in)
-  const LEGS={stand:0.065,standGK:0.13,walk:0.05,toeOut:0.08};
+  // side; walking, jogging and running the feet point a little out (6, 4, 3 deg; the clips' toes pointed 0 to 9 deg in)
+  const LEGS={stand:0.065,standGK:0.13,walk:0.05,toeOut:0.08,toeOutWalk:0.1};
   function legs(A){
-    const w=A.w,ab=(w.idle||0)*(A.p.isGK?LEGS.standGK:LEGS.stand)+(w.walk||0)*LEGS.walk,to=((w.jog||0)+(w.run||0))*LEGS.toeOut;
+    const w=A.w,ab=(w.idle||0)*(A.p.isGK?LEGS.standGK:LEGS.stand)+(w.walk||0)*LEGS.walk,to=((w.jog||0)+(w.run||0))*LEGS.toeOut+(w.walk||0)*LEGS.toeOutWalk;
     for(const [sd,sg] of [['Left',1],['Right',-1]]){
       if(ab>1e-3){qL.setFromAxisAngle(zAxis,sg*ab);A.bone[sd+'UpLeg'].quaternion.premultiply(qL);qL.setFromAxisAngle(zAxis,-sg*ab);A.bone[sd+'Foot'].quaternion.multiply(qL);}
       if(to>1e-3){const ax=vAx.copy(A.bone[sd+'Foot'].position).normalize();qL.setFromAxisAngle(ax,-sg*to);A.bone[sd+'Foot'].quaternion.premultiply(qL);}}
@@ -602,7 +632,7 @@ window.P3D=(()=>{
     const leanT=loco?clampN(-rate*s*0.07,-0.35,0.35):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
     kick(A,dt);
     if(A.wp<1){locomotion(A,s,dt,A.back);gestureTick(A,s,dt);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
-      trunk(A,s);legs(A);
+      trunk(A,s);legs(A);kickShape(A);
       if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
         // the clip's hips sway (its in-place leftover) turns with the hips, or the feet would slide along the old line
