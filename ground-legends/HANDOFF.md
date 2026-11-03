@@ -1,0 +1,94 @@
+# Ground Legends 인계 메모 (2026-11-03)
+
+다른 세션이 이어서 작업할 때 먼저 읽을 것. 자세한 내용은 아래에 적힌 문서들에 있음.
+
+## 0. 사용자 규칙 (꼭 지킬 것)
+
+- **답은 한글로.**
+- **커밋·배포는 계속 하되, 배포 전에 항상 백업**(아래 4절 절차).
+- 최우선 과제: 새 3D 선수 엔진(`engine3d/`)을 FC Online처럼 자연스럽게. 옛 절차 생성 모델은 대체용으로 유지.
+- 물리·조작·AI·온라인 동기화·리플레이는 함부로 바꾸지 말 것(바꿀 땐 측정·테스트로 근거).
+- 라이선스 불분명한 자산은 넣지 말 것. 사용자가 올린 FC Online 화면 자료(선수 사진, 엠블럼, 유니폼, 팩 이미지)는
+  공개 사이트·저장소에 넣으면 안 됨(참고용으로 새로 디자인만 가능). 실제 선수 자료 `prototypes/real-players/players.json`은 gitignore.
+- 기존 테스트·기준 파일을 임의로 바꾸지 말 것.
+- 사용자 C 드라이브(Windows)는 클라우드 세션에서 연결 불가.
+- 영상은 직접 볼 수 없음: 실제 경기 데이터(아래 2절)로 분석해 왔음. 이 사실을 솔직하게 말할 것.
+
+## 1. 위치
+
+- 저장소 `g975682-source/-`, 브랜치 `claude/confident-cori-gi5b2h`(작업·배포 모두 여기).
+- 게임: `ground-legends/index.html`(three.js r128 한 파일). 웹사이트 사본 `docs/index.html`과 `docs/engine3d/`는
+  `python3 ground-legends/build_site.py`로 만듦(직접 고치지 말 것).
+- claude.ai 아티팩트: https://claude.ai/artifact/K6QVNGTmDc1AhX8sLNHKsR (현재 버전 49, 사이드바에 고정됨).
+  "그라운드 레전드 열어줘" → Artifact `open`. 아티팩트 파일: 페이지 `index.html` + `engine3d/player3d.js`,
+  `engine3d/anim/clips.json`, `engine3d/models/mh_player.glb.json`(glb의 base64), `engine3d/vendor/*`.
+- 3D 엔진 `ground-legends/engine3d/`: `player3d.js`(window.P3D), `models/mh_player.glb`(MakeHuman CC0, 52뼈),
+  `anim/clips.json`(CMU 클립), `anim/real_body.json`(실제 선수 몸 수치), `README.md`, `LICENSES.md`,
+  `MOVEMENT_ANALYSIS.md`(분석 전부: 1–8절), `tools/`(개발용, 사이트 사본에는 안 들어감).
+
+## 2. 실제 데이터 (분석에만, 배포 안 함)
+
+- SkillCorner 오픈 데이터(MIT, 출처 표기): 위치 추적 20경기(10 Hz), 동적 이벤트, 3D 몸 자세 2경기(관절 29개, 25 fps,
+  Hugging Face). 받기: `engine3d/tools/fetch_skillcorner.sh <폴더>`(약 1.8 GB) + 몸 자세는
+  `https://huggingface.co/datasets/SkillCorner/opendata-bodypose/resolve/main/raw/<1925299|1996435>.jsonl.zip`(각 약 620 MB,
+  `curl -L -C - --retry 5`). 사용자가 허용한 도메인: huggingface.co, us.aws.cdn.hf.co, cdn-lfs.hf.co, cdn-lfs-us-1.hf.co,
+  figshare.com, ndownloader.figshare.com, zenodo.org, polyhaven.com, ambientcg.com.
+- CMU 모션 캡처: GitHub 미러 `https://raw.githubusercontent.com/Shriinivas/cmubvh/main/Sequence-XXX-YYY/<subj>/Data/<take>.zip`
+  (피험자별 README에 동작 설명). 쓰는 BVH는 `prototypes/glb-viewer/player-animation/assets/cmu/`.
+- 스크래치패드의 데이터·중간 결과는 세션이 끝나면 사라짐 → 필요하면 다시 받기.
+
+## 3. 지금까지 한 일 (커밋 순)
+
+1. 3D 엔진 단계 1–4: GLB 모델, 유니폼 색, 서기·걷기·조깅·달리기 클립, 방향 인식 이동, 경합 자세(견제·볼 지키기·어깨),
+   브레이크/출발, 킥 클립 타이밍, 발 고정 IK, 드리블 위상, 키퍼/헤딩/태클 보정, 리플레이·온라인 자세.
+2. 선수 외형: 등번호·이름(스키닝 데칼), 유니폼 무늬(셰이더: 줄무늬·가로줄·띠), 체형(W/M), 머리 3종·번, 수염, 키퍼 긴소매·장갑.
+3. AI·이동을 실제 추적 데이터에 맞춤(`MOVEMENT_ANALYSIS.md` 6절): `locoStep`(가속·감속·회전 제한, 사용자 조작 선수는 예전 반응),
+   `moveTo` 속도표, `trackSpot`(대형·마크 부드럽게), `aiPress`(구역별 거리, 태클 감소 → 퇴장 24→4), `formTarget` 계수,
+   슛 선택, 동료가 다른 동료 패스 흘리기, 7명 미만 킥오프 오류 수정.
+4. 3D 동작을 실제 몸 자세에 맞춤(7절): 달리기 클립 CMU 127_08, 옆걸음 143_40(조깅은 16_35 유지), 걸음 박자 실제 주기(`CYC`)
+   + 보폭 0.95–1.25배, 상체 기울기 보정(`TLEAN`, ×1.35, 목으로 시선 수평), 어깨 반대 회전, 회전 기울기, 머리 공 쪽.
+   게임 `STRIDES`(드리블 터치 주기)는 엔진 주기와 같게.
+5. 공과 선수 접촉(그리는 공만, `ballContact`): 드리블 터치·킥·헤딩·키퍼 손. 키퍼 다이빙 시점 `gkDive`(꼭대기 = 공 도착).
+6. 신체 부위별 상세 분석(8절, `anim/real_body.json`, `tools/pose_detail.py`)과 적용(8-11절): 서기 발 폭 0.29 m,
+   팔 벌림·뒤로 흔들기(`ARMK`), 손목 10°, 발끝 바깥(`legs()`), 견제 웅크림 0.52, 공 가진 선수 팔, 옆걸음 70–120°,
+   머리(키퍼·침투), 손동작 레이어(`gestureTick`/`gesture`: 팔 들기·벌리기·가리키기).
+
+## 4. 배포 절차 (매번)
+
+1. 백업: 아티팩트 페이지 읽기(Artifact `read`, path `index.html`) → 아래 스크립트(스크래치패드에 없으면 다시 만들기):
+   ```bash
+   # backup.sh <label> <아티팩트 index.html 저장 경로>   (저장소 루트에서)
+   L="$1"; ART="$2"; B="docs/backup/$L"; mkdir -p "$B" tmp_head
+   git archive HEAD docs/index.html docs/engine3d | tar -x -C tmp_head && cp -r tmp_head/docs/index.html tmp_head/docs/engine3d "$B/" && rm -rf tmp_head
+   git tag -l "$L" | grep -q . || git tag "$L" HEAD
+   cp "$ART" "ground-legends/backup/artifact-K6QVNGTmDc1AhX8sLNHKsR-$L.html"
+   ```
+   라벨 예: `pre-<내용>-<날짜>`. 태그도 push.
+2. `python3 ground-legends/build_site.py`
+3. 테스트(아래 5절), 사이트 사본도 `P3D_SITE=docs node ground-legends/tests/p3d_smoke.js`
+4. 커밋(끝에 Co-Authored-By/Claude-Session 줄) → `git push -u origin claude/confident-cori-gi5b2h`
+5. 아티팩트 publish: url 위 주소, file_path `ground-legends/index.html`, files에 바뀐 엔진 파일
+   (`engine3d/player3d.js`, `engine3d/anim/clips.json` 등). 발행된 파일을 이 세션에서 안 읽었으면 먼저 `read`(path).
+
+## 5. 테스트·측정
+
+- 테스트: `node ground-legends/tests/p3d_smoke.js`(무거운 백그라운드 작업 중엔 "arrows moved" 항목이 시간 때문에 실패할 수
+  있음 → 한가할 때 다시), `tests/anim_baseline.js`(A|kick, C|kick 차이는 예전부터 알려진 것, RESULT PASS면 됨),
+  `tests/account_save.js`, `tests/legacy/`의 t21(실행마다 8–12/12로 흔들림), t24, t30, t31(가끔 UI 타임아웃), t51, t80, t83,
+  t115(자체 판정). legacy는 `cd ground-legends/tests/legacy && node tXX.js`, 다른 버전과 비교는 `GAME=<파일>`.
+- 측정 도구(`engine3d/tools/`): `measure_loco.js`(발 미끄러짐), `render_loco.js`(SCENE=loco|kick|dribble|moves|contest|brake),
+  `render_look.js`(외형), `export_match_track.js`+`track_an.py`(AI 이동 vs 실제), `export_match_pose.js`+`pose_full.py`
+  (3D 관절 vs 실제), `pose_detail.py`(부위별·손동작·킥).
+
+## 6. 현재 수치와 남은 과제
+
+- 실제와 거의 맞음: 달리기 걸음 수·보폭, 상체 기울기, 팔꿈치·무릎, 팔 벌림·흔들기 위치, 서기 발 폭, 발끝 방향.
+- 남은 것:
+  - 슛 동작: 킥 클립(CMU 143_24)의 도움닫기가 게임 슛 상태가 짧아 안 보임. 킥 클립을 8-9절 시간표(무릎 최소 95–103°,
+    팔로스루 허벅지 40–48°, 반대팔 26 cm)로 보정 필요.
+  - 걷기 클립(143_32) 보폭이 짧아 걸음이 빠름(2.5/초, 실제 2.0). 늘리면 발이 튐 → 긴 보폭 걷기 클립 필요.
+  - 7 m/s 드리블 가끔 발 튐(상위 10% 1.3 m/s). 2.1 m/s 전환 구간 미끄러짐 약간.
+  - 전력질주 팔꿈치 113°(실제 105°).
+  - 경기 흐름이 실제보다 너무 빠름: AI 경기 45분에 슛 약 105, 골 약 22, 패스 성공 약 60%(실제 90분 슛 25, 골 3.3, 패스 80%).
+    고치려면 게임 밸런스 결정 필요(사용자에게 물어볼 것).
+  - 옆걸음 비율, 손동작은 화면 확인 안 됨.
