@@ -68,6 +68,11 @@
    (리그·대회 모두, apply 전에), 골은 `goalScored`의 `matchGoals`. 옛 저장은 `clubTot()`이 이번 시즌 순위표·대회 결과·리그 통계로 채움
    (그 전 선수 기록은 없음).
 
+10. 전체 시즌 통계(`club.ssAll`, 시즌 끝 `allStats(ss)`로 더함, 리그 순위에 "전체 시즌" 버튼, 이번 시즌 포함)와
+    상황별 동작(`MOVEMENT_ANALYSIS.md` 8-14): 키퍼 다이빙 5종(`p.diveK` 2–6)·서서 잡기 3종, 슛 정면 발리·바이시클·시저스·
+    슬라이딩 마무리(`shotMotion`, `OVIS`). 기존 상태의 side 값 2 이상으로 그림(새 상태 없음 → 기준 파일 그대로).
+    화면 확인 `engine3d/tools/render_actions.js`. 백업 `pre-career-records-2026-11-04`(아티팩트 53 = 이 둘 배포 전).
+
 ## 4. 배포 절차 (매번)
 
 1. 백업: 아티팩트 페이지 읽기(Artifact `read`, path `index.html`) → 아래 스크립트(스크래치패드에 없으면 다시 만들기):

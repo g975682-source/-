@@ -1864,6 +1864,10 @@ function poseValues(r,aid,t,phase,spd,side,out){
     [lT,lK]=leg(phase);[rT,rK]=leg(phase+Math.PI);
     lA=s*0.7*a*g.arm;rA=-s*0.7*a*g.arm;lE=rE=-0.4-0.95*a;
     hipY=0.95-0.05*a-0.035*a*g.bounce*Math.max(0,-Math.cos(2*phase));toX=0.04+0.15*a+g.lean*a;toY=-s*0.12*a;};
+  // the situational variants (side code |side|>=2, sign = foot or dive side) are written for the right foot or a dive to
+  // the keeper's left; mir() turns them round
+  const mir=()=>{[lT,rT]=[rT,lT];[lK,rK]=[rK,lK];[lA,rA]=[rA,lA];[lE,rE]=[rE,lE];const a=lAz;lAz=-rAz;rAz=-a;const b=lTz;lTz=-rTz;rTz=-b;tZ=-tZ;toY=-toY;};
+  const eo=q=>1-(1-q)*(1-q),SK=Math.abs(side)|0,SS=side<0?-1:1;
   switch(aid){
     case A.idle:toX=0.03+Math.sin(t*2)*0.015;break;
     case A.run:runPose(1);break;
@@ -1872,11 +1876,38 @@ function poseValues(r,aid,t,phase,spd,side,out){
       lT=-0.15;lK=0.3;lAz=0.7;rAz=-0.4;lA=-0.35;rA=0.45;toX=-0.06;hipY=0.94;   // hips as low as the bent plant leg lets its sole touch
       if(side<0){[lT,rT]=[rT,lT];[lK,rK]=[rK,lK];[lA,rA]=[rA,lA];const z=lAz;lAz=-rAz;rAz=-z;}break;}   // left foot
     case A.tackle:{const k=clamp(t/0.3,0,1),e=Math.sin(k*Math.PI);lT=-1.0*e;lK=0.2;rK=0.6*e;toX=0.25*e;hipY=0.95-0.12*e;lAz=0.5;rAz=-0.5;break;}
-    case A.slide:{const q=clamp(t/0.15,0,1);hipY=lerp(0.9,0.28,q);tX=-1.2*q;lT=-0.25*q;lK=0.05;rT=0.35*q;rK=1.25*q;lA=0.6;rA=-0.2;lAz=0.9;rAz=-1.0;toX=0.45*q;break;}
-    case A.dive:{const q=clamp(t/0.26,0,1),low=clamp((1.1-phase)/0.9,0,1);
+    case A.slide:if(SK>=2){
+      // slide finish: the ball has run too far ahead, so he goes down and stretches the kicking foot on to it
+      const e=eo(clamp(t/0.12,0,1)),poke=Math.sin(Math.PI*clamp((t-0.08)/0.3,0,1));
+      hipY=lerp(0.92,0.3,e);tX=-0.95*e;rT=-(0.45+0.35*poke)*e;rK=0.06;lT=0.3*e;lK=1.3*e;lA=0.5*e;lAz=0.85*e;rA=-0.2*e;rAz=-0.6*e;lE=rE=-0.3;toX=0.4*e;
+      if(SS<0)mir();break;}
+      {const q=clamp(t/0.15,0,1);hipY=lerp(0.9,0.28,q);tX=-1.2*q;lT=-0.25*q;lK=0.05;rT=0.35*q;rK=1.25*q;lA=0.6;rA=-0.2;lAz=0.9;rAz=-1.0;toX=0.45*q;break;}
+    case A.dive:if(SK>=2){
+      // the save the ball calls for (phase: the height it reaches him at). 2 low: down along the ground; 3 middle: a
+      // flat flying dive, hands together; 4 high: springs up to the top corner, the near knee driving, body less tilted;
+      // 5 reach: a lunge with the near leg and the arm stretched out at the ball's height; 6 up: straight up, both arms
+      // over the head (tipped over the bar). Then down on the side as the flight ends (the fall state takes over).
+      const land=clamp((t-0.4)/0.35,0,1),down=land*land*(3-2*land);
+      if(SK===2){const e=eo(clamp(t/0.22,0,1));hipY=lerp(0.95,0.3,e);tZ=-1.52*e;lA=-2.75*e;rA=-3.05*e;lAz=0.15;rAz=-0.05;lE=rE=-0.12;lT=-0.2*e;lK=0.25*e;rT=0.15*e;rK=0.55*e;toX=-0.05;}
+      else if(SK===3){const e=eo(clamp(t/0.28,0,1));hipY=lerp(0.95,0.34,down);tZ=-(1.45+0.07*down)*e;lA=rA=-2.95*e;lAz=0.22;rAz=-0.22;lE=rE=-0.15;lT=-0.1*e;rT=0.12*e;lK=0.2*e;rK=0.4*e;toX=-0.12*e;}
+      else if(SK===4){const e=eo(clamp(t/0.3,0,1));hipY=lerp(0.95,0.36,down);tZ=-(0.95+0.5*down)*e;toX=-0.2*e*(1-down);lA=-3.05*e;lAz=0.35*e;rA=-2.75*e;rAz=0.1*e;lE=-0.05;rE=-0.35;
+        lT=-1.0*e*(1-down*0.8);lK=1.3*e*(1-down*0.7);rT=0.25*e;rK=0.15;}
+      else if(SK===5){const e=eo(clamp(t/0.2,0,1)),hy=clamp((phase-0.5)/1.5,0,1),back=clamp((t-0.55)/0.35,0,1);const f=e*(1-back*0.6);
+        hipY=lerp(0.95,0.76,f);tZ=-0.6*f;lTz=0.55*f;lT=-0.35*f;lK=0.75*f;rTz=-0.15*f;rK=0.1;lAz=lerp(0.1,lerp(0.9,2.35,hy),f);lA=-0.35*f;lE=-0.08;rA=-1.2*f;rAz=0.2*f;rE=-0.7;toY=0.25*f;toX=0.05;}
+      else{const e=eo(clamp(t/0.3,0,1)),u=clamp(t/0.6,0,1),tuck=Math.sin(Math.PI*u);lA=rA=-3.0*e;lAz=0.12;rAz=-0.12;lE=rE=-0.05;lT=rT=-0.35*tuck;lK=rK=0.35+0.45*tuck;toX=-0.12*e;}
+      if(SS<0)mir();break;}
+    {const q=clamp(t/0.26,0,1),low=clamp((1.1-phase)/0.9,0,1);
       hipY=lerp(0.95,lerp(0.95,0.45,low),q);tZ=-side*1.35*q;lA=rA=-2.9*q;lE=rE=-0.2;lAz=0.25;rAz=-0.25;lT=-0.25*q;rT=0.25*q;lK=rK=0.45*q;toX=-0.1;break;}
     case A.fall:{const q=clamp(t/0.28,0,1);hipY=lerp(0.9,0.2,q);tX=-1.45*q;lT=-0.3*q;rT=-0.6*q;lK=0.3;rK=0.6*q;lAz=1.2*q;rAz=-1.1*q;lA=-0.3;rA=0.2;break;}
-    case A.gkready:hipY=0.83;lT=rT=-0.42;lK=rK=0.78;toX=0.34;lA=rA=-0.65;lAz=0.45;rAz=-0.45;lE=rE=-0.7;lTz=0.12;rTz=-0.12;break;
+    case A.gkready:if(SK>=2){
+      // a save standing up (t from when he moves for it): 2 scoop: down on one knee behind the ball, hands under it;
+      // 3 chest: crouched, arms gathering it in; 4 high: up on the toes, both hands up in front of the face
+      const e=eo(clamp(t/0.2,0,1));
+      if(SK===2){hipY=lerp(0.83,0.5,e);lT=-0.95*e;lK=lerp(0.78,1.95,e);rT=-1.2*e;rK=lerp(0.78,1.35,e);toX=0.34+0.45*e;lA=rA=-0.55*e;lAz=0.16;rAz=-0.16;lE=rE=-0.35;}
+      else if(SK===3){hipY=lerp(0.83,0.86,e);lT=rT=-0.3;lK=rK=0.55;toX=0.34-0.1*e;lA=rA=-1.15*e;lE=rE=-1.45*e;lAz=0.28;rAz=-0.28;}
+      else{hipY=0.95;lT=rT=-0.05;lK=rK=0.18;toX=-0.08*e;lA=rA=-2.55*e;lE=rE=-0.35;lAz=0.15;rAz=-0.15;}
+      break;}
+      hipY=0.83;lT=rT=-0.42;lK=rK=0.78;toX=0.34;lA=rA=-0.65;lAz=0.45;rAz=-0.45;lE=rE=-0.7;lTz=0.12;rTz=-0.12;break;
     case A.gkhold:lA=rA=-1.05;lE=rE=-1.1;lAz=0.12;rAz=-0.12;toX=0.08;break;
     case A.throw:{const q=clamp(t/0.3,0,1);lA=rA=lerp(-2.95,-1.3,q);lE=rE=lerp(-1.3,-0.2,q);lAz=0.18;rAz=-0.18;toX=lerp(-0.25,0.3,q);break;}
     case A.celeb:runPose(1);lAz=1.5;rAz=-1.5;lA=rA=0;lE=rE=-0.05;tZ=Math.sin(t*3)*0.22;break;
@@ -1896,7 +1927,19 @@ function poseValues(r,aid,t,phase,spd,side,out){
     case A.refCard:{const q=clamp(t/0.25,0,1);rA=-3.05*q;rE=-0.05;rAz=-0.12;lA=0.08;toX=-0.05*q;break;}
     case A.refPoint:{const q=clamp(t/0.25,0,1);rA=-1.55*q;rE=0;rAz=-0.3*q;break;}
     case A.flag:{const q=clamp(t/0.2,0,1);rA=-3.0*q;rE=0;rAz=-0.1;break;}
-    case A.volley:{const q=clamp(t/0.18,0,1),e=t<0.4?q:clamp(1-(t-0.4)/0.25,0,1);hipY=0.95+0.06*e;tX=-0.55*e;tZ=0.4*e*(side||1);rT=-1.9*e;rK=0.15;lT=0.5*e;lK=0.9*e;lAz=1.2*e;rAz=-0.85*e;toX=-0.2*e;break;}
+    case A.volley:if(SK>=2){
+      // 2 front volley: knee over the ball, struck on the laces with a little hop; 3 bicycle (overhead) kick: back to
+      // goal he throws himself up and over, the other leg first, the kicking leg snapping through over his head; 4
+      // scissor (airborne side volley): side-on, he leans away and swings the kicking leg across at the ball's height
+      if(SK===2){const w=clamp(t/0.08,0,1),k=clamp((t-0.07)/0.09,0,1),rec=clamp((t-0.32)/0.18,0,1),e=1-rec;
+        rT=(0.7*w*(1-k)-1.75*eo(k))*e;rK=(1.4*w*(1-k)+0.12*k)*e+0.08;lT=-0.15*e;lK=0.35*e;toX=0.04+0.16*e;lAz=0.1+0.8*e;rAz=-0.1-0.6*e;lA=-0.3*e;rA=0.35*e;hipY=0.94;}
+      else if(SK===3){const up=eo(clamp(t/0.28,0,1)),land=clamp((t-0.4)/0.25,0,1),r1=clamp(t/0.18,0,1),r2=clamp((t-0.14)/0.14,0,1);
+        tX=-(1.95*up-0.5*land);lT=-1.6*r1*(1-0.6*r2);lK=1.0*r1;rT=0.3*(1-r2)-2.35*eo(r2)*(1-land*0.5);rK=0.9*(1-r2)+0.08;
+        lAz=1.25*up;rAz=-1.25*up;lA=rA=0.35*up;lE=rE=-0.3;toX=0.25*up;hipY=0.95;}
+      else{const up=eo(clamp(t/0.2,0,1)),k=clamp((t-0.12)/0.14,0,1),land=clamp((t-0.38)/0.22,0,1);
+        tZ=-1.15*up*(1-land*0.3);rT=-1.5*eo(k);rTz=-1.0*up;rK=0.6*(1-k)+0.08;lT=-0.6*up;lK=1.3*up;lAz=1.0*up;lA=0.2*up;rAz=-1.6*up;rA=-0.3*up;lE=rE=-0.3;toX=-0.05;hipY=0.95;}
+      if(SS<0)mir();break;}
+      {const q=clamp(t/0.18,0,1),e=t<0.4?q:clamp(1-(t-0.4)/0.25,0,1);hipY=0.95+0.06*e;tX=-0.55*e;tZ=0.4*e*(side||1);rT=-1.9*e;rK=0.15;lT=0.5*e;lK=0.9*e;lAz=1.2*e;rAz=-0.85*e;toX=-0.2*e;break;}
     case A.advantage:{const q=clamp(t/0.25,0,1);lA=rA=-1.45*q;lE=rE=0;lAz=0.35;rAz=-0.35;break;}
     case A.jump:{const q=clamp(t/0.62,0,1),e=Math.sin(q*Math.PI);lK=rK=0.2+0.6*(1-e);lT=rT=-0.12;lA=rA=-0.3;lE=rE=-1.4;lAz=-0.05;rAz=0.05;toX=0.08;break;}
     case A.stagger:{   // knocked off balance in a body duel: rocks back and to one side (side), a step back, arms out
@@ -2429,7 +2472,7 @@ function gkSmother(g,c){
   const T=teams[g.team],gkr=g.st.gk+(T.human?0:(T.ai.gk||0));
   const pr=clamp(0.62+(gkr-c.st.dri)*0.012-(c.sk?0.25:0)-(c.protect>0?0.15:0),0.2,0.88);
   const dx=ball.pos.x-g.pos.x,dz=ball.pos.z-g.pos.z,dl=Math.hypot(dx,dz)||1,sp=clamp(dl/0.25,2,5.5);
-  g.state='dive';g.stateT=0;g.diveV.set(dx/dl*sp,0,dz/dl*sp);g.diveH=0.25;
+  g.state='dive';g.stateT=0;g.diveV.set(dx/dl*sp,0,dz/dl*sp);g.diveH=0.25;g.diveK=2;   // down at his feet: the low dive
   const lx=new V3(Math.cos(g.face),0,-Math.sin(g.face));g.diveSide=Math.sign(lx.x*dx+lx.z*dz)||1;
   if(Math.random()<pr){
     smotherCount.won++;c.stun=Math.max(c.stun,0.5);c.noTouch=0.5;
@@ -2663,6 +2706,18 @@ function flightTo(bp,v,spin,gx){
     const ox=pos.x-bp.x,oz=pos.z-bp.z;bend=Math.max(bend,Math.abs(ox*h0.z-oz*h0.x));if((pos.x-gx)*dx>=0)break;}
   return {z:pos.z,y:pos.y,t,bend};
 }
+// How the shot is struck, from where the ball is (drawing only: the shot itself is worked out as before). In the air:
+// back to goal an acrobatic finisher goes for a bicycle kick (ball 1.0 m up or more), side-on a scissor kick (0.8 m),
+// facing the goal anyone volleys it on the laces. Within 14 m of goal, running, a low ball met first time a metre or
+// more away (a cross or a through ball he stretches for) or pushed 2.2 m ahead is slid on to. Otherwise the usual kick (or the side volley it already had).
+const SHOT_DUR={fvolley:0.5,bicycle:0.7,scissor:0.62,slideshot:0.55};
+function shotMotion(p,bp,gx,tz){
+  const db=Math.hypot(bp.x-p.pos.x,bp.z-p.pos.z),f=fwd(p),hx=gx-p.pos.x,hz=tz-p.pos.z,hl=Math.hypot(hx,hz)||1;
+  const ang=Math.acos(clamp((f.x*hx+f.z*hz)/hl,-1,1))*180/Math.PI,acro=p.trait==='acrobatic';
+  if(bp.y>0.45){if(acro&&bp.y>1.0&&ang>105)return 'bicycle';if(acro&&bp.y>0.8&&ang>45)return 'scissor';if(ang<=55&&bp.y<1.3)return 'fvolley';return null;}
+  if(bp.y<0.35&&Math.hypot(p.vel.x,p.vel.z)>4&&Math.abs(gx-p.pos.x)<14&&((gtime-p.gainT<0.25&&db>1.0)||db>2.2))return 'slideshot';
+  return null;
+}
 function doShoot(p,power,aim,isHeader,isAI,opts={}){
   const T=teams[p.team],gx=T.dir*HL,bp=ball.pos.clone();
   let tz,ty;
@@ -2727,6 +2782,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(isHeader){p.oAnim='header';}
   if(pw)p.oT=0.14;   // the wind-up was already shown
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
+  if(!isHeader&&!opts.pen&&!pw){const m=shotMotion(p,bp,gx,tz);if(m){p.oAnim=m;p.oT=0;p.oDur=SHOT_DUR[m];p.oSide=p.kickNext||1;}}
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
   planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend,turn}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
@@ -2945,6 +3001,8 @@ function planSave(gk,shooter,opts){
   // down so that the top of the dive (0.38 s in) comes as the ball arrives; before, he went at the shot and was lying on
   // the ground when a long shot got there. The save itself is decided above, as before.
   gk.diveAt=Math.abs(ddz)>0.85||P.y>1.9?Math.max(0,P.t-0.4):null;
+  // standing up to it: he moves for it 0.25 s before it arrives, as it calls for (low: scoop, middle: chest, high: hands)
+  gk.stAt=gk.diveAt==null?Math.max(0,P.t-0.25):null;gk.stKind=P.y<0.5?'gkscoop':P.y<1.3?'gkchest':'gkhigh';
   if(gk.diveAt===0)gkDive(gk);
 }
 function gkDive(gk){
@@ -2953,11 +3011,14 @@ function gkDive(gk){
   gk.state='dive';gk.stateT=0;
   let vz=clamp(ddz/reach,-6.8,6.8);if(!s.success)vz*=rnd(0.55,0.8);
   gk.diveV.set(0,0,vz);gk.diveH=s.pt.y;
+  // which dive (drawing and the height he gets off the ground): up, a lunge, low, middle or high
+  const ay=s.pt.y,az=Math.abs(ddz);gk.diveK=ay>1.9&&az<0.85?6:az<1.45&&ay>0.55&&ay<2.0?5:ay<0.6?2:ay<1.5?3:4;
   const lx=new V3(Math.cos(gk.face),0,-Math.sin(gk.face));gk.diveSide=Math.sign(lx.z*vz)||1;
 }
 function gkSaves(dt){
   for(const T of teams){const g=T.gk,s=g.save;if(!s)continue;s.t+=dt;
     if(g.diveAt!=null&&s.t>=g.diveAt)gkDive(g);
+    if(g.stAt!=null&&s.t>=g.stAt){g.stAt=null;if(g.state==='normal'&&!g.holding){g.oAnim=g.stKind;g.oT=0;g.oDur=0.7;g.oSide=1;}}
     if(s.success&&s.t>=s.tHit-0.02&&!ball.owner){
       if(d2(ball.pos,g.pos)<3.4){
         if(s.catchIt){gkCatch(g);}
@@ -3313,7 +3374,9 @@ function updatePlayer(p,dt){
   else if(p.state==='dive'){
     p.stateT+=dt;const t=p.stateT;
     if(t<0.6){p.vel.copy(p.diveV).multiplyScalar(1-t/0.9);}else p.vel.multiplyScalar(Math.exp(-8*dt));
-    p.y=clamp(p.diveH-1.05,0,1.3)*Math.sin(Math.PI*clamp(t/0.75,0,1));
+    const K=p.diveK||0,h=p.diveH;
+    p.y=K===2||K===5?0:K===3?(0.22+0.25*clamp((h-0.6)/0.9,0,1))*Math.sin(Math.PI*clamp(t/0.75,0,1)):K===4?clamp(h-0.95,0.3,1.3)*Math.sin(Math.PI*clamp(t/0.75,0,1))
+      :K===6?clamp(h-1.75,0.2,0.65)*Math.sin(Math.PI*clamp(t/0.6,0,1)):clamp(p.diveH-1.05,0,1.3)*Math.sin(Math.PI*clamp(t/0.75,0,1));
     if(t>0.95){p.state='fall';p.stateT=0.3;p.fallDur=0.75;p.y=0;}
   }else if(p.sk){skillTick(p,dt);
   }else{
@@ -3324,7 +3387,7 @@ function updatePlayer(p,dt){
       const maxA=(want.length()>cur?(cutting?0:(10+p.st.pac*0.05)*((p.cutRecT||0)>gtime?0.3:1)):17)*dt*K;
       if(dv.length()>maxA)dv.setLength(maxA);p.vel.add(dv);p.vel.y=0;}
     else locoStep(p,want,dt,K);
-    p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:0;
+    p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:p.oAnim==='bicycle'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.85:p.oAnim==='scissor'?Math.sin(clamp(p.oT/0.55,0,1)*Math.PI)*0.55:p.oAnim==='fvolley'?Math.sin(clamp(p.oT/0.4,0,1)*Math.PI)*0.1:0;
   }
   p.pos.x+=p.vel.x*dt;p.pos.z+=p.vel.z*dt;
   const sp=Math.hypot(p.vel.x,p.vel.z);
@@ -3345,7 +3408,7 @@ function updatePlayer(p,dt){
   // Dribbling touches (ballUpdate): one every stride cycle walking and jogging, every 2 running (4.5 m/s), every 3
   // sprinting (6.5 m/s); tchU runs 0..1 between touches and a new touch falls on a stride cycle, so it meets the foot
   if(ball.owner===p){p.tchU=(p.tchU||0)+dTp/TAU/(p.tchN||1);if(p.tchU>=1){p.tchU-=1;p.tchN=sp<4.5?1:sp<6.5?2:3;}}
-  if(p.oAnim){p.oT+=dt;if(p.oT>p.oDur)p.oAnim=null;}
+  if(p.oAnim){p.oT+=dt;if(p.oT>p.oDur){if((p.oAnim==='bicycle'||p.oAnim==='scissor'||p.oAnim==='slideshot')&&p.state==='normal'){p.state='fall';p.stateT=0.28;p.fallDur=p.oAnim==='slideshot'?0.6:0.85;p.vel.multiplyScalar(0.35);p.y=0;}p.oAnim=null;}}
   p.pos.x=clamp(p.pos.x,-HL-4,HL+4);p.pos.z=clamp(p.pos.z,-HW-4,HW+4);
   if(p.holding&&p.isGK){const dir=teams[p.team].dir,xn=p.pos.x*dir,lim=-(HL-BOX_D)-0.5;   // hands only inside his own box
     if(xn>lim){p.pos.x=lim*dir;p.vel.x=0;}if(xn<-HL+0.4){p.pos.x=(-HL+0.4)*dir;p.vel.x=0;}
@@ -3457,7 +3520,7 @@ function officialsUpdate(dt){
 }
 
 /* ================= set pieces ================= */
-function resetTransient(p){p.diveAt=null;p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
+function resetTransient(p){p.diveAt=null;p.stAt=null;p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
 function pushAway(T,pos,R){for(const p of T.players){const dx=p.pos.x-pos.x,dz=p.pos.z-pos.z,d=Math.hypot(dx,dz);if(d<R-0.05){if(d>0.01){p.pos.x=pos.x+dx/d*R;p.pos.z=pos.z+dz/d*R;}else{p.pos.x=pos.x+R;}}}}
 function startSetPiece(type,ti,pos,opts={}){
   state='setpiece';const T=teams[ti],O=teams[1-ti];
@@ -4202,13 +4265,18 @@ function tick(dt){
 }
 
 /* ================= visuals ================= */
+// situational motions drawn as an existing state with a side code (|code|>=2; the sign is the kicking foot or the side):
+// shots (front volley, bicycle, scissor, slide finish) and a keeper's standing saves. Replays and online carry them as
+// any state, and the old codes (side 0 or ±1) draw exactly as before.
+const OVIS={fvolley:[A.volley,2],bicycle:[A.volley,3],scissor:[A.volley,4],slideshot:[A.slide,2],gkscoop:[A.gkready,2],gkchest:[A.gkready,3],gkhigh:[A.gkready,4]};
 function syncAnimState(p){
   let a,t=0,ph=p.phase,side=0;
   if(p.state==='slide'){a=A.slide;t=p.stateT;}
   else if(p.state==='tackle'){a=A.stackle;t=p.stateT;}
-  else if(p.state==='dive'){a=A.dive;t=p.stateT;ph=p.diveH;side=p.diveSide;}
+  else if(p.state==='dive'){a=A.dive;t=p.stateT;ph=p.diveH;side=p.diveSide*(p.diveK||1);}
   else if(p.state==='fall'){a=A.fall;t=p.stateT;}
   else if(p.poseHold==='throw'){a=A.throw;t=0;}
+  else if(p.oAnim&&OVIS[p.oAnim]){const v=OVIS[p.oAnim];a=v[0];t=p.oT;side=v[1]*(p.oSide<0?-1:1);}
   else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;else if(p.oAnim==='kick'&&p.kickSide<0)side=-1;else if(p.oAnim==='stagger')side=p.stagSide||1;}
   else if(p.holding){a=A.gkhold;}
   else if(p.spd>0.35)a=p.celebrating?A.celeb:A.run,t=gtime;
@@ -4903,6 +4971,16 @@ function awardVal(k,r){
 }
 function rankMap(){const m={};standings().forEach((t,i)=>{m[t.id]=i+1;});return m;}
 // at the end of a season: the winners, and prize lines for the club's own
+// every league season added up (a player's numbers summed over the seasons he was in the league; sn: seasons). A save
+// that finished a season before this began starts from that season.
+const SS_SUM=['g','a','y','r','ap','kp','cs','gc','sv','rs'];
+function addRows(R,rows){for(const [k,r] of Object.entries(rows)){const o=R[k]||(R[k]={t:r.t,sn:0,...Object.fromEntries(SS_SUM.map(f=>[f,0]))});
+  for(const f of SS_SUM)o[f]+=r[f]||0;o.sn++;Object.assign(o,{t:r.t,n:r.n,s:r.s,l:r.l,sk:r.sk,hr:r.hr,hs:r.hs,bt:r.bt,nu:r.nu});}}
+function allStats(add){
+  if(!club.ssAll){club.ssAll={from:club.ssLast?club.ssLast.season:club.season,to:null,rows:{}};if(club.ssLast&&club.ssLast!==add){addRows(club.ssAll.rows,club.ssLast.rows);club.ssAll.to=club.ssLast.season;}}
+  if(add){addRows(club.ssAll.rows,add.rows);club.ssAll.to=add.season;}
+  return club.ssAll;
+}
 function seasonAwards(lines){
   const ss=seasonStats(),minAp=Math.ceil(club.league.fixtures.length/2),rk=rankMap(),out={};
   for(const k in AWARDS){const w=awardList(ss,k,minAp,rk)[0];if(!w)continue;
@@ -4910,7 +4988,7 @@ function seasonAwards(lines){
     if(w.t==='me'){lines.push([AWARDS[k].name+' · '+w.n,AWARDS[k].prize]);const cp=byId(+w.key.slice(1));
       if(cp){cp.aw=cp.aw||{};cp.aw[k]=(cp.aw[k]||0)+1;cp.mo=Math.round(clamp(moodOf(cp)+12,5,100));}}}
   club.awards=[Object.assign({season:club.season},out)].concat(club.awards||[]).slice(0,20);
-  club.ssLast=ss;club.ss=null;
+  allStats(ss);club.ssLast=ss;club.ss=null;
   return out;
 }
 const clubUI={stat:'g',when:'cur',view:'league',scope:'all',csort:'g',gl:'all'};
@@ -4932,20 +5010,25 @@ function clubStatsHtml(){
   return sw+leagueStatsHtml();
 }
 function leagueStatsHtml(){
-  const last=clubUI.when==='last'&&club.ssLast,ss=last?club.ssLast:(club.ss&&club.ss.season===club.season?club.ss:{season:club.season,rows:{}});
+  const cur=club.ss&&club.ss.season===club.season?club.ss:{season:club.season,rows:{}},W=clubUI.when,last=W==='last'&&club.ssLast,all=W==='all';
+  let ss=last?club.ssLast:cur;
+  if(all){const A=allStats();
+    // the finished seasons plus this one so far
+    const RR={};for(const [k,r] of Object.entries(A.rows))RR[k]=Object.assign({},r);for(const [k,r] of Object.entries(cur.rows)){const o=RR[k]||(RR[k]={t:r.t,sn:0,...Object.fromEntries(SS_SUM.map(f=>[f,0]))});for(const f of SS_SUM)o[f]+=r[f]||0;if(r.ap)o.sn++;Object.assign(o,{n:r.n,s:r.s,l:r.l,sk:r.sk,hr:r.hr,hs:r.hs,bt:r.bt,nu:r.nu});}
+    ss={season:(A.from||club.season)+'–'+club.season,rows:RR,all:true};}
   const K=clubUI.stat;
   const rows=Object.values(ss.rows).filter(r=>r[K]>0).sort((x,y)=>y[K]-x[K]||(K==='g'?y.a-x.a:K==='a'?y.g-x.g:K==='sv'?y.cs-x.cs:K==='cs'?(x.gc/(x.kp||1))-(y.gc/(y.kp||1)):0)||x.ap-y.ap||(x.n<y.n?-1:1)).slice(0,20);
   let rk=0,prev=null;
   const list=rows.map((r,i)=>{if(r[K]!==prev){rk=i+1;prev=r[K];}const T=rowTeam(r.t);
-    return `<div class="sr ${r.t==='me'?'me':''}"><b class="sr-rk ${rk<=3?'top':''}">${rk}</b>${rowFace(r,'sr-face')}<div class="sr-who"><b>${esc(r.n)}</b><span>${r.l} · ${r.ap}경기<i> · ${T.code}</i></span></div><div class="sr-club">${rowCrest(r.t)}<span>${esc(T.name)}</span></div><b class="sr-n">${r[K]}</b></div>`;}).join('')
+    return `<div class="sr ${r.t==='me'?'me':''}"><b class="sr-rk ${rk<=3?'top':''}">${rk}</b>${rowFace(r,'sr-face')}<div class="sr-who"><b>${esc(r.n)}</b><span>${r.l} · ${r.ap}경기${ss.all&&r.sn>1?' · '+r.sn+'시즌':''}<i> · ${T.code}</i></span></div><div class="sr-club">${rowCrest(r.t)}<span>${esc(T.name)}</span></div><b class="sr-n">${r[K]}</b></div>`;}).join('')
     ||`<p class="foot" style="margin:0;padding:14px 6px">아직 기록이 없습니다. 리그 경기를 치르면 시즌 ${ss.season}의 기록이 쌓입니다.</p>`;
-  const when=`<div class="seg"><button class="chip ${last?'':'on'}" data-swhen="cur">이번 시즌 ${club.season}</button>${club.ssLast?`<button class="chip ${last?'on':''}" data-swhen="last">지난 시즌 ${club.ssLast.season}</button>`:''}</div>`;
-  const board=`<div class="panel"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3 style="margin:0">통계 순위 · 리그 시즌 ${ss.season}</h3>${when}</div>
+  const when=`<div class="seg"><button class="chip ${last||all?'':'on'}" data-swhen="cur">이번 시즌 ${club.season}</button>${club.ssLast?`<button class="chip ${last?'on':''}" data-swhen="last">지난 시즌 ${club.ssLast.season}</button>`:''}<button class="chip ${all?'on':''}" data-swhen="all">전체 시즌</button></div>`;
+  const board=`<div class="panel"><div class="row" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3 style="margin:0">통계 순위 · ${ss.all?'전체 시즌 ':'리그 시즌 '}${ss.season}</h3>${when}</div>
     <nav class="tabs">${STAT_TABS.map(([k,n])=>`<button class="tab ${k===K?'on':''}" data-stat="${k}">${n}</button>`).join('')}</nav>
     <div class="srank"><div class="sr-head"><span>순위</span><span></span><span>선수</span><span class="sr-club">클럽</span><span style="text-align:right">${STAT_TABS.find(x=>x[0]===K)[1]}</span></div>${list}</div>
     <p class="foot" style="margin:0">리그 경기만 셉니다. 우리 구단 경기는 실제 경기 기록, 다른 구단끼리의 경기는 점수에 맞춰 포지션별로 득점·도움·카드가 나뉩니다.</p></div>`;
   // the award race this season, and past winners
-  const played=club.league.week,minAp=Math.ceil(played/2),rk2=rankMap(),cur=club.ss&&club.ss.season===club.season?club.ss:{rows:{}};
+  const played=club.league.week,minAp=Math.ceil(played/2),rk2=rankMap();
   const cards=Object.keys(AWARDS).map(k=>{const top=played?awardList(cur,k,minAp,rk2).slice(0,3):[];
     return `<div class="award"><div class="cuphead">${awardEmb(k)}<div><h3 style="margin:0">${AWARDS[k].name}</h3><p class="foot" style="margin:2px 0 0">${k==='gb'?'시즌 최다 득점':k==='ya'?'최고의 골키퍼 · 무실점 경기, 경기당 실점':'시즌 최고의 선수 · 평점, 득점, 도움, 팀 순위'} · 우리 선수 수상 시 ${fmtBP(AWARDS[k].prize)} BP</p></div></div>
       ${top.length?top.map((r,i)=>`<div class="aw-row ${r.t==='me'?'me':''}"><b>${i+1}</b>${rowFace(r,'sr-face')}<div class="sr-who"><b>${esc(r.n)}</b><span>${rowTeam(r.t).code} · ${awardVal(k,r)}</span></div></div>`).join(''):'<p class="foot" style="margin:0">아직 후보가 없습니다.</p>'}</div>`;}).join('');

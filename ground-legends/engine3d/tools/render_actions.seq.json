@@ -1,0 +1,13 @@
+[
+{"name":"a_dlow","a":"dive","side":2,"ph":0.3,"dur":0.5,"at":[0.12,0.3],"y":"0"},
+{"name":"b_dmid","a":"dive","side":3,"ph":1.0,"dur":0.5,"at":[0.15,0.35],"y":"0.36*Math.sin(Math.PI*Math.min(1,t/0.75))"},
+{"name":"c_dhigh","a":"dive","side":4,"ph":2.1,"dur":0.5,"at":[0.15,0.35],"y":"1.1*Math.sin(Math.PI*Math.min(1,t/0.75))"},
+{"name":"d_dreach","a":"dive","side":5,"ph":1.4,"dur":0.4,"at":[0.25],"y":"0"},
+{"name":"e_dup","a":"dive","side":6,"ph":2.3,"dur":0.4,"at":[0.3],"y":"0.5*Math.sin(Math.PI*Math.min(1,t/0.6))"},
+{"name":"f_scoop","a":"gkready","side":2,"dur":0.3,"at":[0.25]},
+{"name":"g_chest","a":"gkready","side":3,"dur":0.3,"at":[0.25]},
+{"name":"h_ghigh","a":"gkready","side":4,"dur":0.3,"at":[0.25]},
+{"name":"i_fvol","a":"volley","side":2,"dur":0.3,"at":[0.1,0.2],"views":["side"]},
+{"name":"j_bike","a":"volley","side":3,"dur":0.45,"at":[0.14,0.26,0.4],"views":["side"],"y":"0.85*Math.sin(Math.PI*Math.min(1,t/0.6))"},
+{"name":"k_sciss","a":"volley","side":4,"dur":0.35,"at":[0.14,0.24],"y":"0.55*Math.sin(Math.PI*Math.min(1,t/0.55))"},
+{"name":"l_slide","a":"slide","side":2,"dur":0.3,"at":[0.2],"views":["side"]}]

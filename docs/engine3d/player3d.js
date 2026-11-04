@@ -524,7 +524,7 @@ window.P3D=(()=>{
   // Scaled by how much the transfer is showing (A.wp).
   function gamePoseFix(A){
     const r=A.rig,va=r.va,t=r.vt||0,w=A.wp,bone=A.bone;if(!(w>0))return;
-    if(va===6){const c=0.19*w;
+    if(va===6&&Math.abs(r.vside||0)<2){const c=0.19*w;   // (side codes 2-4: a save standing up, posed in full by the game)
       for(const sd of ['Left','Right']){qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'UpLeg'].quaternion.multiply(qL);
         qL.setFromAxisAngle(xAxis,1.6*c);bone[sd+'Leg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'Foot'].quaternion.multiply(qL);}
       bone.Hips.position.y-=0.92*(1-Math.cos(0.8*c));qL.setFromAxisAngle(xAxis,0.1*w);bone.Spine.quaternion.multiply(qL);}
