@@ -323,6 +323,22 @@ body.touch #tutBox p{font-size:13px;line-height:1.5}
 .aw-sum>div{display:flex;align-items:center;gap:8px;font-size:13px}
 .aw-sum>div.me{color:var(--gold)}
 .aw-sum i{font-style:normal;color:var(--mute);margin-left:6px}
+.vsw{margin-bottom:12px}
+.ctiles{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.ctiles>div{background:#0a1530;padding:10px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ctiles span{font-size:11px;color:var(--mute)}.ctiles b{font-family:var(--f-num);font-size:26px;line-height:1.1}.ctiles i{font-style:normal;font-size:11px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crt td,.crt th,.nw td,.nw th{white-space:nowrap}
+.crt td:nth-child(2){min-width:150px}
+.crt-p{display:flex;align-items:center;gap:8px}.crt-p .sr-face{width:32px;height:32px}
+.crt .mute{color:var(--mute);font-size:11px}
+.thb{appearance:none;background:none;border:0;padding:0;color:var(--mute);font:inherit;cursor:pointer}.thb.on{color:var(--gold);font-weight:700}
+.glog{display:flex;flex-direction:column}
+.glog>div{display:grid;grid-template-columns:44px 44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 6px;border-top:1px solid rgba(34,64,111,.6)}
+.glog>div.ga{opacity:.8}.glog>div.ga .gm{color:var(--alert)}
+.gm{font-family:var(--f-num);font-size:18px;color:var(--turf)}
+.gsc{font-family:var(--f-num);font-size:15px;color:var(--mute)}
+.gwh{font-size:12px;color:var(--mute);text-align:right}
+@media (max-width:720px){.ctiles{grid-template-columns:repeat(3,minmax(0,1fr))}.glog>div{grid-template-columns:36px 36px minmax(0,1fr)}.gwh{grid-column:3;text-align:left}}
 @media (max-width:720px){.awards{grid-template-columns:1fr}.sr-head,.sr{grid-template-columns:28px 40px minmax(0,1fr) 40px;gap:8px}.sr-club{display:none}.sr-who i{display:inline}.sr-face{width:38px;height:38px}}
 .tro{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;background:#0a1530;text-align:center}
 .tro b{font-family:var(--f-num);font-size:22px;line-height:1}
@@ -565,7 +581,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
     <nav class="tabs" id="clubTabs">
       <button class="tab" data-tab="home">구단 홈</button>
       <button class="tab" data-tab="cups">대회</button>
-      <button class="tab" data-tab="stats">통계 · 시상</button>
+      <button class="tab" data-tab="stats">통계 · 기록</button>
       <button class="tab" data-tab="squad">스쿼드 · 특성</button>
       <button class="tab" data-tab="market">이적시장</button>
       <button class="tab" data-tab="packs">선수팩</button>
@@ -1960,7 +1976,7 @@ let mode='menu';            // menu | match
 let state='idle';           // play | setpiece | dead | goal | replay | halftime | fulltime
 let paused=false,human=false,teams=[],players=[],controlled=null,possTeam=0,SP=null;
 let clock=0,half=1,matchMinutes=5,diffKey='pro',score=[0,0],stats=null,clockRate=18,stoppage=[2,3];
-let goalLog=[],intended=null,offCheck=null,lastPass=null,assistRec=null,lastOwner=null,lastOwnerT=0;
+let goalLog=[],matchGoals=[],intended=null,offCheck=null,lastPass=null,assistRec=null,lastOwner=null,lastOwnerT=0;
 let deadT=0,deadFn=null,goalT=0,goalInfo=null,halfT=0,gtime=0,switchCD=0,buffer=null,slideConsumed=false;
 let camMode=0,firstKick=0,matchCfg=null;
 const ball={pos:new V3(0,BR,0),prev:new V3(),vel:new V3(),owner:null,lastTouch:null,quat:new THREE.Quaternion(),sp:{s:0,top:0,g:0},lastKind:'',restartBy:null,noGoal:false,fkShot:false,gkRelease:null,grace:0};
@@ -2023,7 +2039,7 @@ function setupMatch(cfg){
   makeOfficials();ACTORS=players.concat(officials);foulSeq=null;advantage=null;pendingCards=[];
   human=!!cfg.human;matchMinutes=cfg.minutes;clockRate=90/matchMinutes;diffKey=cfg.diff;
   score=[0,0];clock=0;half=1;stoppage=[1+Math.floor(Math.random()*3),2+Math.floor(Math.random()*4)];
-  stats={poss:[0,0],shots:[0,0],on:[0,0],passes:[0,0],passOk:[0,0],fouls:[0,0],corners:[0,0],offsides:[0,0],saves:[0,0],tackles:[0,0],yellows:[0,0],reds:[0,0]};
+  stats={poss:[0,0],shots:[0,0],on:[0,0],passes:[0,0],passOk:[0,0],fouls:[0,0],corners:[0,0],offsides:[0,0],saves:[0,0],tackles:[0,0],yellows:[0,0],reds:[0,0]};matchGoals=[];
   ME=cfg.online?cfg.online.me:0;resetCtrls();if(cfg.online&&cfg.online.role==='host')CTRL[1-ME].remote=true;
   controlled=null;intended=null;offCheck=null;lastPass=null;assistRec=null;recCount=0;recHead=0;
   firstKick=cfg.firstKick!=null?cfg.firstKick:(Math.random()<0.5?0:1);
@@ -3713,6 +3729,7 @@ function goalScored(ti){
   if(!own&&assistRec&&assistRec.to===scorer&&gtime-assistRec.t<12)assist=assistRec.by;
   if(scorer&&!own){scorer.g++;if(stats.on[ti]<stats.shots[ti]&&ball.shotBy===scorer){}}
   if(assist)assist.a++;
+  matchGoals.push({t:ti,sc:scorer,as:assist,own,min:Math.floor(clock/60)+1,h:half});
   goalLog.push({kind:assist?assistRec.kind:null,run:assist?assistRec.run:null});if(goalLog.length>200)goalLog.shift();
   if(ball.shotBy!==scorer||!ball.shotBy){stats.shots[ti]+=own?0:1;stats.on[ti]+=own?0:1;if(scorer&&!own){scorer.sh++;scorer.so++;}}
   goalInfo={team:ti,scorer,own,assist,side:s,flag:new V3(s*(HL-2),0,(Math.sign(scorer?scorer.pos.z:1)||1)*(HW-2))};
@@ -4818,7 +4835,7 @@ function applyClubResult(forfeit){
   if(L.week>=L.fixtures.length){
     const rank=standings().findIndex(t=>t.id==='me')+1,prize=LEAGUE_PRIZE[rank-1];
     lines.push(['시즌 '+club.season+' 최종 '+rank+'위 상금',prize]);season={rank,prize,season:club.season};if(rank===1)trophies().league++;
-    season.awards=seasonAwards(lines);
+    seasonLog(rank);season.awards=seasonAwards(lines);
     club.lastSeason=season;club.season++;newSeason();
   }
   const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);
@@ -4896,8 +4913,8 @@ function seasonAwards(lines){
   club.ssLast=ss;club.ss=null;
   return out;
 }
-const clubUI={stat:'g',when:'cur'};
-const STAT_TABS=[['g','골'],['a','어시스트'],['y','옐로우 카드'],['r','레드 카드']];
+const clubUI={stat:'g',when:'cur',view:'league',scope:'all',csort:'g',gl:'all'};
+const STAT_TABS=[['g','골'],['a','어시스트'],['sv','선방'],['cs','무실점'],['y','옐로우 카드'],['r','레드 카드']];
 function rowTeam(t){return t==='me'?{name:club.name,code:club.code,kit:club.kit}:{name:TEAMS[t].name,code:TEAMS[t].code,kit:TEAMS[t].home};}
 function rowFace(r,cls){return faceTag({name:r.n,short:r.s,label:r.l,skin:r.sk,hair:r.hr,hs:r.hs,boot:r.bt,num:r.nu},rowTeam(r.t).kit,false,cls);}
 function rowCrest(t){const T=rowTeam(t);return `<span class="crest" style="--c1:${T.kit.shirt};--c2:${T.kit.trim}">${T.code}</span>`;}
@@ -4909,9 +4926,15 @@ function awardEmb(k,size){
   return `<svg class="cupemb" viewBox="0 0 48 48" width="${s}" height="${s}" aria-hidden="true">${g}</svg>`;
 }
 function clubStatsHtml(){
+  const V=clubUI.view||'league',sw=`<div class="seg vsw">${[['league','리그 순위 · 시상'],['career','구단 통산 기록'],['log','골 · 선방 기록']].map(([k,n])=>`<button class="chip ${V===k?'on':''}" data-sview="${k}">${n}</button>`).join('')}</div>`;
+  if(V==='career')return sw+careerHtml();
+  if(V==='log')return sw+logHtml();
+  return sw+leagueStatsHtml();
+}
+function leagueStatsHtml(){
   const last=clubUI.when==='last'&&club.ssLast,ss=last?club.ssLast:(club.ss&&club.ss.season===club.season?club.ss:{season:club.season,rows:{}});
   const K=clubUI.stat;
-  const rows=Object.values(ss.rows).filter(r=>r[K]>0).sort((x,y)=>y[K]-x[K]||(K==='g'?y.a-x.a:K==='a'?y.g-x.g:0)||x.ap-y.ap||(x.n<y.n?-1:1)).slice(0,20);
+  const rows=Object.values(ss.rows).filter(r=>r[K]>0).sort((x,y)=>y[K]-x[K]||(K==='g'?y.a-x.a:K==='a'?y.g-x.g:K==='sv'?y.cs-x.cs:K==='cs'?(x.gc/(x.kp||1))-(y.gc/(y.kp||1)):0)||x.ap-y.ap||(x.n<y.n?-1:1)).slice(0,20);
   let rk=0,prev=null;
   const list=rows.map((r,i)=>{if(r[K]!==prev){rk=i+1;prev=r[K];}const T=rowTeam(r.t);
     return `<div class="sr ${r.t==='me'?'me':''}"><b class="sr-rk ${rk<=3?'top':''}">${rk}</b>${rowFace(r,'sr-face')}<div class="sr-who"><b>${esc(r.n)}</b><span>${r.l} · ${r.ap}경기<i> · ${T.code}</i></span></div><div class="sr-club">${rowCrest(r.t)}<span>${esc(T.name)}</span></div><b class="sr-n">${r[K]}</b></div>`;}).join('')
@@ -4931,6 +4954,92 @@ function clubStatsHtml(){
     <div class="awards">${cards}</div>
     <p class="foot" style="margin:0">시즌이 끝나면 1위가 수상합니다. 야신상·발롱도르는 팀 경기의 절반 이상 뛴 선수만 후보가 됩니다.</p>
     ${hist?`<h3 style="margin:8px 0 0">역대 수상자</h3><div style="overflow-x:auto"><table class="lt aw-hist"><tr><th>시즌</th><th>득점왕</th><th>야신상</th><th>발롱도르</th></tr>${hist}</table></div>`:''}</div>`;
+}
+/* ================= club records: career totals, goal log, match log ================= */
+// Everything the club plays (league and cups) adds to: the club's totals (club.tot: all / lg / cup), each player's career
+// (club.career[id], kept after he leaves), the goals scored and let in (club.glog, newest first) and the matches with the
+// keeper's saves (club.mlog). Records begin when this was added: a save from before it is seeded from what it already
+// held (this season's league table and cup results, and the league statistics since they began).
+const CR0=()=>({ap:0,g:0,a:0,sh:0,so:0,sv:0,kp:0,cs:0,gc:0,y:0,r:0,rs:0});
+const TT0=()=>({p:0,w:0,d:0,l:0,gf:0,ga:0,sv:0,cs:0});
+function addRes(o,my,op,sv){o.p++;if(my>op)o.w++;else if(my<op)o.l++;else o.d++;o.gf+=my;o.ga+=op;o.sv+=sv;if(op===0)o.cs++;}
+function clubTot(){
+  if(club.tot)return club.tot;
+  const T=club.tot={all:TT0(),lg:TT0(),cup:TT0(),since:club.season};club.career={};club.glog=[];club.mlog=[];club.seasons=club.seasons||[];
+  const me=club.league&&club.league.teams[0];
+  if(me&&me.p)for(const o of [T.all,T.lg]){o.p+=me.p;o.w+=me.w;o.d+=me.d;o.l+=me.l;o.gf+=me.gf;o.ga+=me.ga;}
+  for(const k in club.cups||{}){const st=club.cups[k];if(st&&st.season===club.season)for(const h of st.log||[])for(const o of [T.all,T.cup])addRes(o,h.my,h.op,0);}
+  for(const ss of [club.ssLast,club.ss])if(ss)for(const [key,r] of Object.entries(ss.rows)){if(r.t!=='me')continue;
+    const id=+key.slice(1),c=careerRow(id,null,r);
+    for(const o of [c.all,c.lg]){for(const f of ['ap','g','a','y','r','kp','cs','gc','sv','rs'])o[f]+=r[f]||0;}
+    if(ss===club.ss)for(const o of [T.all,T.lg]){o.sv+=r.sv||0;o.cs+=r.cs||0;}}
+  if(club.lastSeason&&!club.seasons.length)club.seasons.push({s:club.lastSeason.season,rank:club.lastSeason.rank});
+  return T;
+}
+function careerRow(id,cp,r){
+  const C=club.career||(club.career={}),c=C[id]||(C[id]={all:CR0(),lg:CR0(),cup:CR0()});
+  if(cp)Object.assign(c,{n:cp.name,s:cp.short,l:cp.label,sk:cp.skin,hr:cp.hair,hs:cp.hs,bt:cp.boot,nu:cp.num||0});
+  else if(r&&!c.n)Object.assign(c,{n:r.n,s:r.s,l:r.l,sk:r.sk,hr:r.hr,hs:r.hs,bt:r.bt,nu:r.nu});
+  return c;
+}
+// one finished club match (before the league or cup moves on)
+function clubRecord(forfeit){
+  const T=clubTot(),cup=matchCfg.club.cup||null,my=forfeit?0:score[0],op=forfeit?3:score[1],sv=forfeit?0:stats.saves[0],sc=cup?'cup':'lg';
+  let oc,where;
+  if(cup){const st=cupState(cup),o=cupOpp(st);oc=o.code;where=CUPS[cup].name+' '+(st.stage==='group'?'조별 '+(st.round+1)+'차전':KO_NAME[st.stage]);}
+  else{const t=club.league.teams[matchCfg.club.fx.opp];oc=TEAMS[t.id].code;where='리그 '+(club.league.week+1)+'R'+(matchCfg.club.fx.home?' 홈':' 원정');}
+  addRes(T.all,my,op,sv);addRes(T[sc],my,op,sv);
+  const gk=forfeit?null:players.find(p=>p.team===0&&p.isGK);
+  club.mlog.unshift({s:club.season,w:where,o:oc,my,op,ff:forfeit?1:0,sh:forfeit?0:stats.shots[1],on:forfeit?0:stats.on[1],sv,gk:gk?gk.short:'',pk:matchCfg.club.pens?[matchCfg.club.pens.my,matchCfg.club.pens.op]:null});club.mlog=club.mlog.slice(0,80);
+  if(forfeit)return;
+  for(const p of players){if(p.team!==0)continue;const cp=p.pd&&p.pd.id!=null?byId(p.pd.id):null;if(!cp)continue;
+    const c=careerRow(cp.id,cp),ga=op;
+    for(const o of [c.all,c[sc]]){o.ap++;o.g+=p.g;o.a+=p.a;o.sh+=p.sh;o.so+=p.so;o.y+=p.yellow;if(p.sentOff)o.r++;o.rs+=rating(p);
+      if(p.isGK){o.kp++;o.sv+=p.sv;o.gc+=ga;if(ga===0)o.cs++;}}}
+  let a=0,b=0;const G=[];
+  for(const e of matchGoals){if(e.t===0)a++;else b++;
+    const s=e.sc,as=e.as,mineS=s&&s.team===0;
+    G.push({s:club.season,w:where,o:oc,m:e.h===1&&e.min>45?'45+'+(e.min-45):e.h!==1&&e.min>90?'90+'+(e.min-90):String(e.min),f:e.t===0?1:0,sc:a+':'+b,n:s?s.short:'',id:mineS&&s.pd&&s.pd.id!=null?s.pd.id:null,an:as?as.short:'',own:e.own?1:0});}
+  club.glog=G.reverse().concat(club.glog).slice(0,200);
+}
+// at the end of a league season (before the next one starts)
+function seasonLog(rank){
+  clubTot();const me=standings().find(t=>t.id==='me'),ss=seasonStats();
+  const mine=Object.values(ss.rows).filter(r=>r.t==='me'),top=mine.slice().sort((x,y)=>y.g-x.g||y.a-x.a)[0];
+  club.seasons.unshift({s:club.season,rank,p:me.p,w:me.w,d:me.d,l:me.l,gf:me.gf,ga:me.ga,sv:mine.reduce((t,r)=>t+r.sv,0),top:top&&top.g?top.n+' '+top.g+'골':''});
+  club.seasons=club.seasons.slice(0,30);
+}
+const CSORT=[['ap','경기'],['g','골'],['a','도움'],['sh','슈팅'],['sv','선방'],['cs','무실점'],['gc','실점'],['y','경고'],['r','퇴장'],['rt','평점']];
+function careerHtml(){
+  const T=clubTot(),S=clubUI.scope||'all',t=T[S],K=clubUI.csort||'g',now=new Set(club.players.map(p=>p.id));
+  const scope=`<div class="seg">${[['all','전체'],['lg','리그'],['cup','대회']].map(([k,n])=>`<button class="chip ${S===k?'on':''}" data-cscope="${k}">${n}</button>`).join('')}</div>`;
+  const tiles=[['경기',t.p,`${t.w}승 ${t.d}무 ${t.l}패`],['득점',t.gf,t.p?'경기당 '+(t.gf/t.p).toFixed(2):''],['실점',t.ga,t.p?'경기당 '+(t.ga/t.p).toFixed(2):''],['선방',t.sv,t.sv+t.ga?'선방률 '+Math.round(t.sv/(t.sv+t.ga)*100)+'%':''],['무실점',t.cs,'경기'],['승률',t.p?Math.round(t.w/t.p*100)+'%':'-','']];
+  const rows=Object.entries(club.career||{}).map(([id,c])=>Object.assign({id:+id,c,o:c[S]})).filter(x=>x.o.ap>0);
+  const val=(x,k)=>k==='rt'?x.o.rs/x.o.ap:x.o[k];
+  rows.sort((x,y)=>val(y,K)-val(x,K)||y.o.g-x.o.g||y.o.ap-x.o.ap);
+  const face=c=>faceTag({name:c.n,short:c.s,label:c.l,skin:c.sk,hair:c.hr,hs:c.hs,boot:c.bt,num:c.nu},club.kit,false,'sr-face');
+  const table=rows.length?`<div style="overflow-x:auto"><table class="lt crt"><tr><th>#</th><th>선수</th>${CSORT.map(([k,n])=>`<th><button class="thb ${K===k?'on':''}" data-csort="${k}">${n}</button></th>`).join('')}</tr>${rows.map((x,i)=>{const o=x.o;return `<tr><td>${i+1}</td><td><div class="crt-p">${face(x.c)}<div class="sr-who"><b>${esc(x.c.n)}</b><span>${x.c.l}${now.has(x.id)?'':' · 떠난 선수'}</span></div></div></td><td>${o.ap}</td><td>${o.g}</td><td>${o.a}</td><td>${o.sh}<span class="mute"> (${o.so})</span></td><td>${o.kp?o.sv:'-'}</td><td>${o.kp?o.cs:'-'}</td><td>${o.kp?o.gc:'-'}</td><td>${o.y}</td><td>${o.r}</td><td>${(o.rs/o.ap).toFixed(2)}</td></tr>`;}).join('')}</table></div>`:'<p class="foot" style="margin:0">아직 선수 기록이 없습니다. 경기를 치르면 쌓입니다.</p>';
+  const gks=rows.filter(x=>x.o.kp>0).sort((x,y)=>y.o.sv-x.o.sv);
+  const gkHtml=gks.length?`<div class="awards">${gks.map(x=>{const o=x.o,rate=o.sv+o.gc?Math.round(o.sv/(o.sv+o.gc)*100):0;return `<div class="award"><div class="aw-row">${face(x.c)}<div class="sr-who"><b>${esc(x.c.n)}</b><span>골키퍼 ${o.kp}경기${now.has(x.id)?'':' · 떠난 선수'}</span></div></div>
+    <div class="kv"><span>선방</span><b>${o.sv}</b><span>실점</span><b>${o.gc}</b><span>선방률</span><b>${rate}%</b><span>무실점 경기</span><b>${o.cs}</b><span>경기당 선방</span><b>${(o.sv/o.kp).toFixed(2)}</b></div></div>`;}).join('')}</div>`:'<p class="foot" style="margin:0">아직 골키퍼 기록이 없습니다.</p>';
+  const me=club.league.teams[0];
+  const seas=[{s:club.season,cur:1,rank:standings().findIndex(x=>x.id==='me')+1,p:me.p,w:me.w,d:me.d,l:me.l,gf:me.gf,ga:me.ga}].concat(club.seasons||[]);
+  const seasHtml=`<div style="overflow-x:auto"><table class="lt aw-hist"><tr><th>시즌</th><th>순위</th><th>경기</th><th>승</th><th>무</th><th>패</th><th>득점</th><th>실점</th><th>선방</th><th>팀 최다 득점</th></tr>${seas.map(x=>`<tr><td>${x.s}${x.cur?' (진행 중)':''}</td><td>${x.rank?x.rank+'위':'-'}</td>${['p','w','d','l','gf','ga','sv'].map(k=>`<td>${x[k]!=null?x[k]:'-'}</td>`).join('')}<td>${x.top?esc(x.top):'-'}</td></tr>`).join('')}</table></div>`;
+  return `<div class="panel"><div class="row" style="justify-content:space-between;gap:8px"><h3 style="margin:0">구단 통산 기록 · 시즌 ${T.since}부터</h3>${scope}</div>
+    <div class="ctiles">${tiles.map(([k,v,s])=>`<div><span>${k}</span><b>${v}</b><i>${s}</i></div>`).join('')}</div>
+    <p class="foot" style="margin:0">기록은 이 기능이 생긴 시즌 ${T.since}부터입니다. 그 전 경기는 팀 결과(리그 순위표·대회 결과)만 남아 있어 선방과 선수 기록에는 빠져 있습니다.</p></div>
+  <div class="panel" style="margin-top:16px"><h3 style="margin:0">선수 통산 기록 (${S==='all'?'리그+대회':S==='lg'?'리그':'대회'})</h3>${table}<p class="foot" style="margin:0">제목을 누르면 그 항목 순으로 정렬됩니다. 슈팅 괄호 안은 유효 슈팅. 팔거나 방출한 선수의 기록도 남습니다.</p></div>
+  <div class="panel" style="margin-top:16px"><h3 style="margin:0">골키퍼 · 막은 기록</h3>${gkHtml}</div>
+  <div class="panel" style="margin-top:16px"><h3 style="margin:0">시즌별 리그 기록</h3>${seasHtml}</div>`;
+}
+function logHtml(){
+  clubTot();const F=clubUI.gl||'all',G=(club.glog||[]).filter(g=>F==='all'||(F==='for'?g.f:!g.f));
+  const seg=`<div class="seg">${[['all','전체'],['for','득점'],['ag','실점']].map(([k,n])=>`<button class="chip ${F===k?'on':''}" data-gl="${k}">${n}</button>`).join('')}</div>`;
+  const goals=G.length?`<div class="glog">${G.slice(0,120).map(g=>`<div class="${g.f?'gf':'ga'}"><b class="gm">${g.m}'</b><span class="gsc">${g.sc}</span><div class="sr-who"><b>${g.f?'⚽ ':''}${esc(g.n||'-')}${g.own?' (자책골)':''}</b><span>${g.f?'득점':'실점 · '+g.o}${g.an?' · 도움 '+esc(g.an):''}</span></div><span class="gwh">S${g.s} ${esc(g.w)} vs ${g.o}</span></div>`).join('')}</div>`:'<p class="foot" style="margin:0">아직 기록된 골이 없습니다.</p>';
+  const M=club.mlog||[];
+  const ml=M.length?`<div style="overflow-x:auto"><table class="lt aw-hist nw"><tr><th>경기</th><th>상대</th><th>결과</th><th>상대 슈팅</th><th>유효</th><th>선방</th><th>골키퍼</th></tr>${M.map(m=>`<tr><td>S${m.s} ${esc(m.w)}</td><td>${m.o}</td><td class="${m.my>m.op?'pos':m.my<m.op?'neg':''}">${m.my} : ${m.op}${m.pk?' (승부차기 '+m.pk[0]+':'+m.pk[1]+')':''}${m.ff?' 기권':''}</td><td>${m.sh}</td><td>${m.on}</td><td><b>${m.sv}</b></td><td>${esc(m.gk||'-')}</td></tr>`).join('')}</table></div>`:'<p class="foot" style="margin:0">아직 기록된 경기가 없습니다.</p>';
+  return `<div class="panel"><div class="row" style="justify-content:space-between;gap:8px"><h3 style="margin:0">골 기록 · 최근 ${Math.min(G.length,120)}골</h3>${seg}</div>${goals}</div>
+    <div class="panel" style="margin-top:16px"><h3 style="margin:0">경기별 슈팅과 선방 · 최근 ${M.length}경기</h3>${ml}</div>`;
 }
 /* ================= tutorial ================= */
 // A practice match where each step sets up a small situation, tells the player what to press, and moves on
@@ -5246,7 +5355,7 @@ function applyCupResult(forfeit){
   const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);saveClub();
   return {lines,total,season:null,note,debt};
 }
-function clubResult(forfeit){clubMorale(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
+function clubResult(forfeit){clubMorale(forfeit);clubRecord(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
 function clubMorale(forfeit){
   const xi=new Set(club.lineup),my=forfeit?0:score[0],op=forfeit?3:score[1],res=my>op?5:my<op?-5:0,talk=(matchCfg&&matchCfg.talkMo)||0,rt={};
   if(!forfeit)for(const p of teams[0].players)if(p.pd&&p.pd.id!=null)rt[p.pd.id]=rating(p);
@@ -5517,8 +5626,9 @@ $('#clubBody').addEventListener('change',e=>{if(e.target.id==='enhProtect'){enhP
 $('#clubTabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;clubTab=b.dataset.tab;resetArm=false;renderClub();});
 $('#btnClubBack').onclick=()=>{showScreen('#title');};
 $('#clubBody').addEventListener('click',e=>{
-  const el=e.target.closest('[data-act],[data-slot],[data-pid],[data-form],[data-buy],[data-pack],[data-cdiff],[data-cmin],[data-epid],[data-unmat],[data-cupenter],[data-cupplay],[data-tac],[data-stat],[data-swhen]');if(!el)return;
+  const el=e.target.closest('[data-act],[data-slot],[data-pid],[data-form],[data-buy],[data-pack],[data-cdiff],[data-cmin],[data-epid],[data-unmat],[data-cupenter],[data-cupplay],[data-tac],[data-stat],[data-swhen],[data-sview],[data-cscope],[data-csort],[data-gl]');if(!el)return;
   const d=el.dataset;
+  if(d.sview||d.cscope||d.csort||d.gl){if(d.sview)clubUI.view=d.sview;if(d.cscope)clubUI.scope=d.cscope;if(d.csort)clubUI.csort=d.csort;if(d.gl)clubUI.gl=d.gl;renderClub();return;}
   if(d.stat){clubUI.stat=d.stat;renderClub();return;}
   if(d.swhen){clubUI.when=d.swhen;renderClub();return;}
   if(d.tac){club.tac=tacClean({...club.tac,[d.tac]:+d.tv});saveClub();renderClub();return;}
