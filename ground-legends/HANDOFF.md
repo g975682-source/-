@@ -1,4 +1,4 @@
-# Ground Legends 인계 메모 (2026-11-03)
+# Ground Legends 인계 메모 (2026-11-04)
 
 다른 세션이 이어서 작업할 때 먼저 읽을 것. 자세한 내용은 아래에 적힌 문서들에 있음.
 
@@ -19,7 +19,7 @@
 - 저장소 `g975682-source/-`, 브랜치 `claude/confident-cori-gi5b2h`(작업·배포 모두 여기).
 - 게임: `ground-legends/index.html`(three.js r128 한 파일). 웹사이트 사본 `docs/index.html`과 `docs/engine3d/`는
   `python3 ground-legends/build_site.py`로 만듦(직접 고치지 말 것).
-- claude.ai 아티팩트: https://claude.ai/artifact/K6QVNGTmDc1AhX8sLNHKsR (현재 버전 49, 사이드바에 고정됨).
+- claude.ai 아티팩트: https://claude.ai/artifact/K6QVNGTmDc1AhX8sLNHKsR (현재 버전 53, 사이드바에 고정됨).
   "그라운드 레전드 열어줘" → Artifact `open`. 아티팩트 파일: 페이지 `index.html` + `engine3d/player3d.js`,
   `engine3d/anim/clips.json`, `engine3d/models/mh_player.glb.json`(glb의 base64), `engine3d/vendor/*`.
 - 3D 엔진 `ground-legends/engine3d/`: `player3d.js`(window.P3D), `models/mh_player.glb`(MakeHuman CC0, 52뼈),
@@ -52,6 +52,15 @@
 6. 신체 부위별 상세 분석(8절, `anim/real_body.json`, `tools/pose_detail.py`)과 적용(8-11절): 서기 발 폭 0.29 m,
    팔 벌림·뒤로 흔들기(`ARMK`), 손목 10°, 발끝 바깥(`legs()`), 견제 웅크림 0.52, 공 가진 선수 팔, 옆걸음 70–120°,
    머리(키퍼·침투), 손동작 레이어(`gestureTick`/`gesture`: 팔 들기·벌리기·가리키기).
+
+7. 구단 모드: 대출·파산(`settleFinance`, `debtCrisis`, 경기당 이자 20%, 한도 300,000 BP), 백업 `pre-club-debt-2026-11-04`.
+8. 통계·시상(2026-11-04, 백업 `pre-stats-awards-2026-11-04`): 구단 탭 "통계 · 시상". 리그 경기만 셈.
+   `club.ss`(이번 시즌 선수별 기록: 골 g, 도움 a, 경고 y, 퇴장 r, 출전 ap, 키퍼 출전 kp, 무실점 cs, 실점 gc, 선방 sv, 평점 합 rs),
+   `club.ssLast`(지난 시즌), `club.awards`(역대 수상자). 리그 상대 팀 선수는 `lgRoster(id)`(4-3-3 고정 명단, 경기 때와 같은 이름).
+   우리 경기는 실제 경기 기록(`ssMyMatch`), 다른 팀끼리 경기는 점수에 맞춰 포지션별로 배분(`ssSim`). 시즌 끝(`seasonAwards`):
+   득점왕(골→도움), 야신상(무실점→경기당 실점, 팀 경기 절반 이상), 발롱도르(평균 평점+골·도움+팀 순위). 우리 선수 수상 시
+   30,000/30,000/60,000 BP. 개발용 `__game.club`, `clubPlay()`, `clubMatch`, `clubGo()`, `clubView(tab,{stat,when})`, `faces()`.
+   우리 경기는 짧아서(3–12분) 우리 키퍼의 무실점이 많이 나오는 편(알려진 치우침).
 
 ## 4. 배포 절차 (매번)
 
