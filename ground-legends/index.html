@@ -728,6 +728,14 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
   </div>
 </div>
 
+<div class="modal" id="clubDebt" hidden>
+  <div class="card" style="max-width:500px">
+    <h3 id="cdTitle">자금 부족</h3>
+    <div id="cdBody" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="row end"><button class="btn" id="cdLater">나중에 (선수 판매)</button><button class="btn" id="cdBankrupt">파산 신청</button><button class="btn primary" id="cdLoan">대출 받기</button></div>
+  </div>
+</div>
+
 <div class="modal" id="traitPick" hidden>
   <div class="card" style="max-width:640px">
     <h3>특성 선택</h3>
@@ -4771,9 +4779,9 @@ function applyClubResult(forfeit){
     lines.push(['시즌 '+club.season+' 최종 '+rank+'위 상금',prize]);season={rank,prize,season:club.season};if(rank===1)trophies().league++;
     club.lastSeason=season;club.season++;newSeason();
   }
-  const total=lines.reduce((a,l)=>a+l[1],0);club.money+=total;
+  const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);
   refreshMarket(true);saveClub();
-  return {lines,total,season,res};
+  return {lines,total,season,res,debt};
 }
 /* ================= tutorial ================= */
 // A practice match where each step sets up a small situation, tells the player what to press, and moves on
@@ -5086,8 +5094,8 @@ function applyCupResult(forfeit){
   lines.push(['스폰서 수입',6000]);
   lines.push(['선수 주급 ('+club.players.length+'명)',-club.players.reduce((a,p)=>a+wageOf(p),0)]);
   club.history.unshift({s:club.season,w:c.code,opp:opp.code,home:true,my,op,ff:!!forfeit,cup:k});club.history=club.history.slice(0,10);
-  const total=lines.reduce((a,l)=>a+l[1],0);club.money+=total;saveClub();
-  return {lines,total,season:null,note};
+  const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);saveClub();
+  return {lines,total,season:null,note,debt};
 }
 function clubResult(forfeit){clubMorale(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
 function clubMorale(forfeit){
@@ -5131,10 +5139,51 @@ function clubCupsHtml(){
     <div class="cups">${cards}</div>`;
 }
 
+/* ================= club finance: loans and bankruptcy ================= */
+// If wages and spending leave the club's BP below zero after a match, the club must take a loan for what it lacks or
+// file for bankruptcy before it can play again. A loan grows 20% a match (the interest is added to what is owed) and can
+// be paid back from the finance panel; owing more than DEBT_LIMIT, the club goes bankrupt. Bankruptcy winds the club
+// up: it starts again under the same name and kit with the founding squad and funds (trophies and records go).
+const DEBT_LIMIT=300000,DEBT_RATE=0.2;
+function settleFinance(total){
+  club.money+=total;const out={interest:0,debt:club.debt||0,short:0,forced:false};
+  if(club.debt>0){out.interest=Math.round(club.debt*DEBT_RATE);club.debt+=out.interest;out.debt=club.debt;}
+  if(club.money<0)out.short=-club.money;
+  if((club.debt||0)+out.short>DEBT_LIMIT){out.forced=true;club.bankruptDue=true;}
+  else if(out.short>0)club.crisis={short:out.short};
+  return out;
+}
+function debtCrisis(){
+  if(!club)return false;
+  if(club.bankruptDue){openDebt('forced');return true;}
+  if(club.money<0){club.crisis={short:-club.money};}else if(club.crisis){club.crisis=null;saveClub();}   // sold a player: covered
+  if(club.crisis){openDebt('choose');return true;}
+  return false;
+}
+function openDebt(kind){
+  const m=$('#clubDebt'),short=club.crisis?club.crisis.short:0,after=(club.debt||0)+short,can=kind!=='forced'&&after<=DEBT_LIMIT;
+  $('#cdTitle').textContent=kind==='forced'?'구단 파산':'자금 부족';
+  $('#cdBody').innerHTML=kind==='forced'?`<p style="margin:0;line-height:1.6">대출 잔액이 한도 <b>${fmtBP(DEBT_LIMIT)} BP</b>를 넘어 더 빌릴 수 없습니다. 구단을 정리하고 같은 이름으로 다시 창단합니다.</p>`
+    :`<p style="margin:0;line-height:1.6">선수 주급을 감당하지 못해 보유 BP가 <b class="neg">-${fmtBP(short)}</b>입니다. 경기를 계속하려면 정해야 합니다.</p>
+      <div class="kv"><span>대출 받기</span><b>${fmtBP(short)} BP</b><span>이자</span><b>경기당 20% (대출 잔액에 더해짐)</b><span>대출 후 잔액</span><b class="neg">${fmtBP(after)} BP</b><span>파산 한도</span><b>${fmtBP(DEBT_LIMIT)} BP</b></div>
+      <p class="foot">파산하면 구단을 정리하고 같은 이름·유니폼으로 창단 멤버 17명과 창단 자금 ${fmtBP(120000)} BP로 다시 시작합니다. 선수, 트로피, 기록은 사라집니다. 선수를 팔아 돈을 마련할 수도 있습니다(선수단 화면).</p>`;
+  $('#cdLoan').hidden=!can;$('#cdLater').hidden=kind==='forced';
+  m.hidden=false;
+}
+function takeLoan(){
+  const short=club.crisis?club.crisis.short:Math.max(0,-club.money);if((club.debt||0)+short>DEBT_LIMIT){openDebt('forced');return;}
+  club.debt=(club.debt||0)+short;club.money+=short;club.crisis=null;saveClub();$('#clubDebt').hidden=true;renderClub();ctoast(fmtBP(short)+' BP를 빌렸습니다 · 대출 잔액 '+fmtBP(club.debt)+' BP (경기당 이자 20%)');
+}
+function goBankrupt(){
+  const name=club.name,code=club.code,ki=Math.max(0,KIT_CHOICES.findIndex(k=>k.shirt===club.kit.shirt&&k.trim===club.kit.trim)),n=(club.bankruptcies||0)+1;
+  createClub(name,code,ki);club.bankruptcies=n;saveClub();$('#clubDebt').hidden=true;clubTab='home';renderClub();ctoast(name+' 파산 · 구단을 다시 창단했습니다 (파산 '+n+'회)');
+}
+$('#cdLoan').onclick=takeLoan;$('#cdBankrupt').onclick=goBankrupt;$('#cdLater').onclick=()=>{$('#clubDebt').hidden=true;};
 function rewardHtml(rw){
   if(!rw)return '';
   return `<div class="reward"><div class="kv">${rw.lines.map(([k,v])=>`<span>${k}</span><b class="${v<0?'neg':'pos'}">${v<0?'':'+'}${fmtBP(v)}</b>`).join('')}</div>
     <div class="kv tot"><span>이번 경기 수지</span><b class="${rw.total<0?'neg':'pos'}">${rw.total<0?'':'+'}${fmtBP(rw.total)} BP</b></div>
+    ${rw.debt&&rw.debt.interest?`<div class="kv"><span>대출 이자 (경기당 20%, 대출 잔액에 더해짐)</span><b class="neg">-${fmtBP(rw.debt.interest)}</b><span>대출 잔액</span><b class="neg">${fmtBP(rw.debt.debt)} BP</b></div>`:''}${rw.debt&&rw.debt.short?`<p style="margin:0;color:var(--neg,#ff6b6b);font-weight:700">보유 BP가 ${fmtBP(rw.debt.short)} 모자랍니다. 구단 화면에서 대출을 받거나 파산을 신청해야 합니다.</p>`:''}${rw.debt&&rw.debt.forced?`<p style="margin:0;color:var(--neg,#ff6b6b);font-weight:700">대출 잔액이 한도 ${fmtBP(DEBT_LIMIT)} BP를 넘었습니다. 구단이 파산합니다.</p>`:''}
     ${rw.season?`<p style="margin:0;color:var(--gold);font-weight:700">시즌 ${rw.season.season} 종료 · 최종 ${rw.season.rank}위. 새 시즌이 시작됩니다.</p>`:''}${rw.note?`<p style="margin:0;color:var(--gold);font-weight:700">${esc(rw.note)}</p>`:''}</div>`;
 }
 function ctoast(msg){const t=$('#clubToast');t.textContent=msg;t.hidden=false;clearTimeout(ctoast.t);ctoast.t=setTimeout(()=>{t.hidden=true;},2600);}
@@ -5151,7 +5200,7 @@ function goClub(tab,msg){
   if(mode==='match')startDemo();
   loadClub();
   if(!club){openClubNew();return;}
-  fixLineup();clubTab=tab||clubTab;showScreen('#club');renderClub();if(msg)ctoast(msg);
+  fixLineup();clubTab=tab||clubTab;showScreen('#club');renderClub();if(msg)ctoast(msg);debtCrisis();
 }
 function openClubNew(){
   let k=0;$('#cnKits').innerHTML=KIT_CHOICES.map((c,i)=>`<button class="sw ${i===0?'on':''}" data-kit="${i}" style="--c1:${c.shirt};--c2:${c.trim}" aria-label="유니폼 ${i+1}"></button>`).join('');
@@ -5196,7 +5245,8 @@ function clubHomeHtml(fx){
       <div class="row end"><button class="btn primary big" data-act="play">경기 시작</button></div>
     </div>
     <div class="panel"><h3>재정</h3>
-      <div class="kv"><span>보유 BP</span><b>${fmtBP(club.money)}</b><span>경기당 주급 합계</span><b class="neg">-${fmtBP(wages)}</b><span>승리 수당 / 무승부 / 패배</span><b>24,000 / 10,000 / 4,000</b><span>홈 경기 입장 수익 (${STADIUM[club.stadium].name})</span><b>${fmtBP(STADIUM[club.stadium].cap*0.6)}</b><span>스폰서 (매 경기)</span><b>6,000</b><span>이번 시즌 1위 상금</span><b>${fmtBP(LEAGUE_PRIZE[0])}</b></div>
+      <div class="kv"><span>보유 BP</span><b class="${club.money<0?'neg':''}">${fmtBP(club.money)}</b>${club.debt>0?`<span>대출 잔액 (경기당 이자 20%)</span><b class="neg">${fmtBP(club.debt)}</b>`:''}<span>경기당 주급 합계</span><b class="neg">-${fmtBP(wages)}</b><span>승리 수당 / 무승부 / 패배</span><b>24,000 / 10,000 / 4,000</b><span>홈 경기 입장 수익 (${STADIUM[club.stadium].name})</span><b>${fmtBP(STADIUM[club.stadium].cap*0.6)}</b><span>스폰서 (매 경기)</span><b>6,000</b><span>이번 시즌 1위 상금</span><b>${fmtBP(LEAGUE_PRIZE[0])}</b></div>
+      ${club.debt>0?`<div class="row end"><button class="btn" data-act="repay" ${club.money>0?'':'disabled'}>대출 상환 (${fmtBP(Math.min(Math.max(club.money,0),club.debt))} BP)</button></div><p class="foot">대출은 매 경기 20%씩 불어나고, ${fmtBP(DEBT_LIMIT)} BP를 넘으면 구단이 파산합니다.</p>`:''}
       ${club.lastSeason?`<p class="foot">지난 시즌 ${club.lastSeason.season}: 최종 <b>${club.lastSeason.rank}위</b> · 상금 ${fmtBP(club.lastSeason.prize)} BP</p>`:''}
       <h3>최근 경기</h3><div class="results">${hist}</div>
     </div>
@@ -5321,7 +5371,7 @@ $('#clubBody').addEventListener('click',e=>{
   const d=el.dataset;
   if(d.tac){club.tac=tacClean({...club.tac,[d.tac]:+d.tv});saveClub();renderClub();return;}
   if(d.cupenter){enterCup(d.cupenter);renderClub();ctoast(CUPS[d.cupenter].name+' 참가! 조 추첨이 끝났습니다.');return;}
-  if(d.cupplay){startCupMatch(d.cupplay);return;}
+  if(d.cupplay){if(debtCrisis())return;startCupMatch(d.cupplay);return;}
   if(d.cdiff){club.diff=d.cdiff;saveClub();renderClub();return;}
   if(d.cmin){club.minutes=+d.cmin;saveClub();renderClub();return;}
   if(d.form){club.form=d.form;selSlot=-1;swapPid=null;saveClub();renderClub();return;}
@@ -5343,7 +5393,8 @@ $('#clubBody').addEventListener('click',e=>{
   if(d.unmat!==undefined){enhMats=enhMats.filter(x=>x!==+d.unmat);renderClub();return;}
   if(d.pack){openPack(PACKS.find(p=>p.key===d.pack));return;}
   const a=d.act;
-  if(a==='play'){startClubMatch();return;}
+  if(a==='repay'){const pay=Math.min(Math.max(club.money,0),club.debt||0);if(pay<=0)return;club.money-=pay;club.debt-=pay;saveClub();renderClub();ctoast(club.debt>0?fmtBP(pay)+' BP 상환 · 남은 대출 '+fmtBP(club.debt)+' BP':'대출을 모두 갚았습니다!');return;}
+  if(a==='play'){if(debtCrisis())return;startClubMatch();return;}
   if(a==='enhgo'){runEnhance();return;}
   if(a==='enhclear'){enhTarget=null;enhMats=[];renderClub();return;}
   if(a==='toenh'&&selPid!=null){enhTarget=selPid;enhMats=[];clubTab='enhance';renderClub();return;}
