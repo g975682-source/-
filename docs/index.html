@@ -1895,8 +1895,8 @@ function callShort(p){
 // clapping, 7 hands cupped in front, as in a wall, 8 arms out wide, 9 the right arm straight up for offside): [lA, lAz, lE, head pitch, clap rate, rA, rAz, rE]
 // how often (shares from real matches, MOVEMENT_ANALYSIS.md 8-15): a shooter who missed holds his head or puts his
 // hands on his hips; a man penalised appeals with both arms up; after a goal the side that let it in
-const MISS_REACT=[0.45,0.2],FOUL_APPEAL=0.4,CONCEDE={out:[['head',0.3],['hips',0.3],['knees',0.12],['kneelhead',0.04],['sitdown',0.03]],gk:[['sitdown',0.3],['knees',0.25],['hips',0.25],['head',0.1]]};
-const RX={9:[-0.15,0.2,-0.3,0,0,-3.0,-0.12,-0.08],2:[-2.45,0.95,-2.25,0.12],3:[0.35,0.55,-1.65,0],4:[-2.55,0.55,-0.35,-0.18],5:[-0.35,0.3,-1.3,-0.1,0,-2.75,-0.15,-0.55],6:[-1.15,-0.12,-1.25,0.05,22],7:[-0.25,-0.32,-1.05,0.1],8:[0.05,1.45,-0.1,-0.1]};
+const MISS_REACT=[0.3,0.05],FOUL_APPEAL=0.65,CONCEDE={out:[['head',0.12],['hips',0.06],['knees',0.06],['kneelhead',0.02],['sitdown',0.02]],gk:[['sitdown',0.3],['knees',0.2],['hips',0.15],['head',0.1]]};
+const RX={9:[-0.15,0.2,-0.3,0,0,-2.3,-0.3,-0.4],2:[-1.4,0.68,-1.9,0.15],3:[0.2,0.45,-1.45,0],4:[-1.85,1.0,-0.9,-0.18],5:[-0.35,0.3,-1.3,-0.1,0,-2.75,-0.15,-0.55],6:[-1.15,-0.12,-1.25,0.05,22],7:[-0.25,-0.32,-1.05,0.1],8:[0.05,1.45,-0.1,-0.1]};
 function poseValues(r,aid,t,phase,spd,side,out){
   let hipY=0.95,tX=0,tZ=0,toX=0.04,toY=0,hdX=0;
   let lT=0,rT=0,lK=0.08,rK=0.08,lA=0,rA=0,lE=-0.25,rE=-0.25,lAz=0.1,rAz=-0.1,lTz=0.02,rTz=-0.02;
@@ -1975,9 +1975,9 @@ function poseValues(r,aid,t,phase,spd,side,out){
       else if(SK===3){const u=clamp(t/0.55,0,1),j=Math.sin(Math.PI*u);lT=rT=-0.45*j;lK=rK=0.25+0.85*j;rA=-2.9*e;rAz=-0.2;rE=-0.35;lA=-0.35;lAz=0.75*e;lE=-1.4*e;hdX=-0.25*e;toX=-0.08*e;}
       else if(SK===4){lA=rA=-2.85*e;lAz=0.28;rAz=-0.28;lE=rE=-0.12;hdX=-0.4*e;toX=-0.12*e;lK=rK=0.12;}
       else if(SK===5){runPose(0.4);lA=rA=-1.35*e;lAz=0.5;rAz=-0.5;lE=rE=-1.25*e;toX=0.12*e;}
-      else if(SK===6){hipY=lerp(0.95,0.84,e);tX=0.62*e;lT=rT=-0.85*e;lK=rK=0.5*e;toX=0.28*e;hdX=0.2*e;lA=rA=-0.42*e;lAz=0.16;rAz=-0.16;lE=rE=-0.18;}
-      else if(SK===7){hipY=lerp(0.95,0.17,e);lT=rT=-1.35*e;lK=rK=1.95*e;toX=0.32*e;hdX=0.35*e;lA=rA=-0.95*e;lAz=0.2;rAz=-0.2;lE=rE=-0.75*e;}
-      else{hipY=lerp(0.95,0.52,e);lT=rT=0.05*e;lK=rK=1.7*e;toX=0.85*e;hdX=0.3*e;lA=rA=-1.85*e;lAz=0.32;rAz=-0.32;lE=rE=-2.25*e;}
+      else if(SK===6){hipY=lerp(0.95,0.84,e);tX=0.8*e;lT=rT=-1.0*e;lK=rK=0.72*e;toX=0.35*e;hdX=0.15*e;lA=rA=-0.55*e;lAz=0.2;rAz=-0.2;lE=rE=-0.75*e;}
+      else if(SK===7){hipY=lerp(0.95,0.25,e);lT=rT=-1.38*e;lK=rK=1.45*e;toX=0.18*e;hdX=0.3*e;lA=rA=-0.7*e;lAz=0.5;rAz=-0.5;lE=rE=-1.0*e;}
+      else{hipY=lerp(0.95,0.52,e);lT=rT=-0.15*e;lK=rK=1.6*e;toX=0.45*e;hdX=0.45*e;lA=rA=-1.5*e;lAz=0.4;rAz=-0.4;lE=rE=-2.1*e;}
       break;}
       runPose(1);lAz=1.5;rAz=-1.5;lA=rA=0;lE=rE=-0.05;tZ=Math.sin(t*3)*0.22;break;
     case A.header:if(SK>=2){
@@ -3927,7 +3927,7 @@ function goalUpdate(dt){
     else if(p.team!==gi.team||gi.own&&p.team===1-gi.team){
       // the side that let it in (an own goal: the scorer's own side)
       if(!p.celK&&goalT>0.5+((p.slot*0.37)%0.8)){let r=Math.random(),k='none';const W=p.isGK?CONCEDE.gk:CONCEDE.out;for(const [c,w] of W){if(r<w){k=c;break;}r-=w;}
-        p.celK=k;if(k==='head')react(p,2,4);else if(k==='hips')react(p,3,4);else if(k!=='none'){p.oAnim=k;p.oT=0;p.oDur=4;}}
+        p.celK=k;if(k==='head')react(p,2,3);else if(k==='hips')react(p,3,3);else if(k!=='none'){p.oAnim=k;p.oT=0;p.oDur=4;}}
       if(p.oAnim&&OVIS[p.oAnim]){moveTo(p,p.pos,0);}else{formTarget(p,tmpA);moveTo(p,tmpA,0.12);}}
     else{formTarget(p,tmpA);moveTo(p,tmpA,0.15);}
   }

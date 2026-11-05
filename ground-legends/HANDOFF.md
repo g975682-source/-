@@ -1,4 +1,4 @@
-# Ground Legends 인계 메모 (2026-11-04)
+# Ground Legends 인계 메모 (2026-11-05)
 
 다른 세션이 이어서 작업할 때 먼저 읽을 것. 자세한 내용은 아래에 적힌 문서들에 있음.
 
@@ -72,6 +72,10 @@
     상황별 동작(`MOVEMENT_ANALYSIS.md` 8-14): 키퍼 다이빙 5종(`p.diveK` 2–6)·서서 잡기 3종, 슛 정면 발리·바이시클·시저스·
     슬라이딩 마무리(`shotMotion`, `OVIS`). 기존 상태의 side 값 2 이상으로 그림(새 상태 없음 → 기준 파일 그대로).
     화면 확인 `engine3d/tools/render_actions.js`. 백업 `pre-career-records-2026-11-04`(아티팩트 53 = 이 둘 배포 전).
+
+11. (2026-11-05) 리액션·세리머니·볼 컨트롤·넘어짐·블록·키퍼 펀칭/펀트(`RX`, `react()`, `OVIS`, `CELEB`, `CONCEDE`),
+    실제 자세 비율로 맞춤(`MOVEMENT_ANALYSIS.md` 8-15, `tools/situ_pose.py`). 개인기 발-공 접촉 IK(`legIK`, 각 계열 `touch`).
+    강화 게이지: 대상보다 OVR 3 낮은 재료까지 1칸(25%). 백업 `pre-motions2-2026-11-05`.
 
 ## 4. 배포 절차 (매번)
 
