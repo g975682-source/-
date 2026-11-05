@@ -1395,14 +1395,35 @@ const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,ce
 const bump=(u,a,b)=>{const q=(u-a)/(b-a);return q<=0||q>=1?0:Math.sin(q*Math.PI);};
 const ramp=(u,a,b)=>clamp((u-a)/(b-a),0,1);
 const ease=x=>x*x*(3-2*x);
+// The foot on the ball. A skill move's working foot (and for some moves the other one) is placed by two-bone IK where
+// the move really touches the ball: the sole on top (drag-back, roulette, roll, stop, step-on), beside it (outside then
+// inside for an elastico, glued to the outside in a spin, a heel chop), over it (step-overs circle the foot round the
+// front of the ball and land outside it), under it (the toe that flicks it up), round it (around the world). Each
+// family's touch(u,m) gives [leg 'W'|'S', weight, offset from the ball centre [forward, toward the move's side, up]] for
+// the ankle; the ankle sits 0.07 m above the sole and 0.04 m behind the middle of the boot.
+const SOLE=[-0.04,0,BR+0.075],SIDE=(sg)=>[-0.03,sg*(BR+0.055),0.075-BR],TOE=[-0.15,0,0.075-BR];
+function legIK(r,hipY,tX,tZ,right,x,y,z){
+  const B=r.body||{},TL=0.42*(B.L||1),SL=TL,hk=r.hipK||1;
+  let px=x,py=y-hipY*hk,pz=z,c=Math.cos(-tX),sn=Math.sin(-tX),y1=py*c-pz*sn,z1=py*sn+pz*c;py=y1;pz=z1;   // into the pelvis' frame
+  c=Math.cos(-tZ);sn=Math.sin(-tZ);const x1=px*c-py*sn;y1=px*sn+py*c;px=x1;py=y1;
+  px-=(right?-1:1)*0.093*(B.W||1);py+=0.03;                                                          // from the hip joint
+  let L=Math.hypot(px,py,pz);const Lm=TL+SL-0.004;if(L>Lm){const k=Lm/L;px*=k;py*=k;pz*=k;L=Lm;}
+  const K=Math.acos(clamp((L*L-TL*TL-SL*SL)/(2*TL*SL),-1,1)),Av=TL+SL*Math.cos(K),Bv=SL*Math.sin(K);
+  const Z=Math.asin(clamp(px/Av,-1,1)),T0=Math.atan2(pz,py)-Math.atan2(-Bv,-Av*Math.cos(Z)),T=Math.atan2(Math.sin(T0),Math.cos(T0));
+  return [T,Z,K];
+}
 const SKFAM={
   feint:{
+    touch:(u,m)=>m.touch?[['W',bump(u,0.06,0.6),SIDE(-1)]]:[],
     mv:(u,m)=>[2.8-1.2*bump(u,0,0.8),(m.big?2.6:1.7)*bump(u,0,m.n===2?0.5:0.62)-(m.n===2?2.2*bump(u,0.5,1):0)],
     yaw:(u,m)=>(m.big?0.45:0.28)*bump(u,0,0.7)-(m.n===2?0.4*bump(u,0.5,1):0),
     ball:(u,m)=>[0.44,m.touch?0.16*bump(u,0.1,0.6):0,BR],
     pose:(u,m,P)=>{const a=bump(u,0.02,m.n===2?0.5:0.66)*(m.big?1.35:1),b=m.n===2?bump(u,0.5,1):0;
-      P.tZ=0.3*a-0.3*b;P.toY=0.4*a-0.4*b;P.W.T=-0.35*a;P.W.Z=0.4*a;P.W.K=0.35+0.35*a;P.S.T=-0.3*b;P.S.Z=0.4*b;P.S.K=0.4+0.3*b;P.hipY=0.9-0.06*(a+b);}},
+      P.tZ=0.42*a-0.42*b;P.toY=0.45*a-0.45*b;P.toX=0.16+0.08*(a+b);P.W.T=-0.3*a;P.W.Z=0.62*a;P.W.K=0.35+0.45*a;P.S.T=-0.3*b;P.S.Z=0.62*b;P.S.K=0.4+0.4*b;P.S.K+=0.25*a;P.W.K+=0.25*b;P.hipY=0.9-0.09*(a+b);P.armOut=0.55+0.3*(a+b);}},
   stepover:{   // the foot circles over the ball and lands outside it while the hips sell that side
+    touch:(u,m)=>{const n=m.n||1,out=[];for(let i=0;i<n;i++){const q=ramp(u,0.04+i*0.62/n,0.04+(i+1)*0.62/n);if(q<=0||q>=1)continue;
+      const sg=i%2?-1:1,a=m.rev?1-q:q,c=Math.sin(Math.PI*q);   // inside, round the front and over the top, down outside (a reverse one the other way)
+      out.push([i%2?'S':'W',Math.pow(c,0.35),[0.03+0.09*c,sg*(-0.13+0.43*a),0.075-BR+0.27*c]]);}return out;},
     mv:(u,m)=>[2.2,(m.rev?-0.8:0.9)*bump(u,0,0.7)],
     yaw:(u,m)=>0.25*bump(u,0,0.75)*(m.rev?-1:1),
     ball:()=>[0.46,0,BR],
@@ -1410,31 +1431,37 @@ const SKFAM={
       for(let i=0;i<n;i++){const q=ramp(u,0.04+i*0.62/n,0.04+(i+1)*0.62/n);if(q<=0||q>=1)continue;const L=i%2?P.S:P.W,sg=i%2?-1:1,c=Math.sin(Math.PI*q);
         L.T=-0.6*c;L.Z=(m.rev?-0.45:0.75)*c;L.K=0.4+0.9*c;P.tZ=0.26*c*sg;P.toY=0.3*c*sg;}}},
   roulette:{   // sole drags the ball back, the body spins with its back to the defender, the other sole takes it on
+    touch:(u)=>[['W',bump(u,0.0,0.46),SOLE],['S',bump(u,0.42,0.9),SOLE]],
     mv:(u)=>[1.4*(1-u),3.2*bump(u,0,1)],
     yaw:(u,m)=>-(TAU-1.05)*ease(ramp(u,0.05,0.9)),
     ball:(u)=>[0.15+0.12*Math.cos(u*TAU),0.3,BR],
     pose:(u,m,P)=>{P.W.T=-0.5*bump(u,0,0.5);P.W.K=0.45;P.S.T=-0.5*bump(u,0.42,0.92);P.S.K=0.5;P.W.Z=0.2*bump(u,0,0.5);P.S.Z=0.2*bump(u,0.42,0.92);P.hipY=0.86;P.armOut=0.85;P.toX=0.18;}},
   dragback:{   // sole on top of the ball rolls it back under the body, then the turn
+    touch:(u,m)=>[['W',bump(u,0.02,0.6),SOLE]].concat(m.heel?[['W',bump(u,0.48,0.78),[0.1,0,0.075-BR]]]:[]),
     mv:(u,m)=>u<0.32?[2.2*(1-u/0.32),0]:[-(m.back??2.4)*bump(u,0.28,1.15),(m.lat||0)*ramp(u,0.4,1)],
     yaw:(u,m)=>(m.turn??Math.PI)*ease(ramp(u,0.42,1)),
     ball:(u,m)=>{const e=ease(ramp(u,0.12,0.6)),th=m.turn??Math.PI;return [0.5*(1-e)+0.45*Math.cos(th)*e,0.45*Math.sin(th)*e,BR];},
     pose:(u,m,P)=>{const a=ramp(u,0,0.15),e=ease(ramp(u,0.15,0.6)),o=1-ramp(u,0.7,1);P.W.T=(-0.75*a+0.85*e)*o;P.W.K=0.12+0.4*e*o;P.S.K=0.5;P.toX=0.02;P.hipY=0.89;P.armOut=0.7;
       if(m.heel){const h=bump(u,0.45,0.75);P.W.T+=0.6*h;P.W.K+=1.0*h;}}},
   heelflick:{  // back heel to the front foot, ball nudged ahead into a burst
+    touch:(u)=>[['W',bump(u,0.05,0.48),[0.12,0,0.075-BR]]],
     mv:(u)=>[2.8+4.5*ramp(u,0.35,1),0],
     ball:(u)=>[0.42-0.25*bump(u,0,0.4),0,BR],
     pose:(u,m,P)=>{const a=bump(u,0.05,0.5);P.W.T=0.7*a;P.W.K=0.2+1.2*a;P.S.K=0.45;P.toX=0.18;P.armOut=0.55;}},
   flickup:{    // toe under the ball: up for a volley (or caught again on the instep and cut away)
+    touch:(u,m)=>[['W',bump(u,0.02,0.3),TOE]].concat(m.cancel?[['W',bump(u,0.5,0.85),[-0.02,0,-BR-0.02]]]:[]),
     mv:(u,m)=>m.cancel?[1.6*(1-u),2.6*ramp(u,0.6,1)]:[1.8*(1-u),0],
     ball:(u,m)=>[0.42,0,BR+(m.cancel?0.75*bump(u,0.12,0.72):0)],
     pose:(u,m,P)=>{const a=bump(u,0.05,0.4);P.W.T=-0.65*a;P.W.K=0.35*a+0.15;P.S.K=0.45;P.toX=0.05;P.armOut=0.6;if(m.cancel){const b=bump(u,0.55,0.9);P.W.T-=0.4*b;P.W.K+=0.6*b;}}},
   rainbow:{    // ball rolled up the back of the standing leg and flicked over the head with the heel
+    touch:(u)=>[['W',bump(u,0.0,0.36)*0.9,[0.02,0,BR*0.4]]],
     mv:(u)=>[2.4+3.6*ramp(u,0.38,1),0],
     yaw:(u,m)=>m.ney?TAU*ease(ramp(u,0.3,0.8)):0,
     y:(u,m)=>m.ney?0.3*bump(u,0.28,0.72):0,
     ball:(u)=>{const e=ease(ramp(u,0.05,0.36));return [0.42-0.72*e,0,BR+0.28*e];},
     pose:(u,m,P)=>{const a=ramp(u,0.05,0.34),f=bump(u,0.3,0.62);P.W.T=0.35*a*(1-ramp(u,0.34,0.4))+0.95*f;P.W.K=0.3*a+1.35*f;P.S.T=-0.12;P.S.K=0.35;P.toX=0.1+0.22*f;P.armOut=0.7;if(m.ney){P.W.K+=0.4*f;P.S.K+=0.6*f;}}},
   ballroll:{   // sole rolls the ball across the body while the carrier glides sideways
+    touch:(u,m)=>{const o=Math.min(1,u*5)*(1-ramp(u,0.8,1));if(m.alt){const ww=Math.sin(u*TAU*2);return [['W',o*Math.max(0,ww),SOLE],['S',o*Math.max(0,-ww),SOLE]];}return [['W',o*(m.cut&&u>0.5?1-ramp(u,0.62,0.8)*0.5:1),SOLE]];},
     mv:(u,m)=>{const L=m.lat||3;if(m.cut)return u<0.5?[0.4,L*bump(u,0,0.6)]:[1.2,-L*1.2*ramp(u,0.5,0.8)];return [m.alt?0.8:0.5,L*bump(u,0,1.1)];},
     yaw:(u,m)=>m.cut?-0.5*ramp(u,0.5,0.85):0.12*bump(u,0,1),
     ball:(u,m)=>m.cut?[0.25,u<0.5?0.3:0.3-0.62*ease(ramp(u,0.5,0.75)),BR]:[0.2,0.3,BR],
@@ -1444,6 +1471,9 @@ const SKFAM={
       if(m.cut){const c=bump(u,0.5,0.85);P.W.Z-=0.6*c;P.tZ=-0.25*c;P.toY=-0.3*c;}
       P.S.K=0.55;P.hipY=0.86;P.tZ+=0.1*o;P.armOut=0.75;}},
   elastico:{   // outside of the foot pushes the ball out, the inside snaps it back across
+    touch:(u,m)=>{let z;   // the outside of the foot (on the ball's inner side) takes it out, the inside (round on its outer side) snaps it back
+      if(m.tri)z=u<0.22?-1:u<0.45?-1+2*ramp(u,0.2,0.3):1-2*ramp(u,0.43,0.53);else z=-1+2*ease(ramp(u,0.24,0.36));
+      return [['W',bump(u,0.0,m.tri?0.75:0.62),[0.02+0.1*(1-Math.abs(z)),z*(BR+0.055),0.075-BR]]];},
     mv:(u,m)=>m.tri?[1.6,u<0.25?1.2*bump(u,0,0.5):u<0.5?-1.4*bump(u,0.25,0.55):4.8*ramp(u,0.5,0.85)]:[m.waka?2.6:1.8,u<0.3?1.2*bump(u,0,0.6):-4.6*ramp(u,0.3,0.62)],
     yaw:(u,m)=>m.chop?-1.6*ease(ramp(u,0.4,0.9)):m.tri?0:-0.35*ramp(u,0.35,0.7),
     ball:(u,m)=>{let r;if(m.tri)r=u<0.22?0.32*ease(ramp(u,0.02,0.22)):u<0.45?0.32-0.66*ease(ramp(u,0.22,0.45)):-0.34+0.76*ease(ramp(u,0.45,0.66));
@@ -1452,33 +1482,41 @@ const SKFAM={
       else z=u<0.3?0.5*ease(ramp(u,0.04,0.3)):0.5-0.88*ease(ramp(u,0.3,0.55));z*=1-ramp(u,0.75,1);
       P.W.Z=z;P.W.T=-0.3;P.W.K=0.25;P.S.K=0.5;P.hipY=0.87;P.tZ=0.6*z;P.toY=0.6*z;P.armOut=0.75;}},
   fakeshot:{   // full back-swing, then the foot stops short and drags the ball away (heel chop / scoop / rabona fake)
+    touch:(u,m)=>[['W',bump(u,0.32,0.7),[0.02,(m.cross?-1:1)*(BR+0.055),0.075-BR]]],
     mv:(u)=>[2.6*(1-ramp(u,0,0.4)),0],
     yaw:(u,m,k)=>(k&&k.turnOv!=null?k.turnOv:m.turn||0)*ease(ramp(u,0.35,0.85)),
     ball:(u,m,k)=>{const y=SKFAM.fakeshot.yaw(u,m,k);return [0.46*Math.cos(y),0.46*Math.sin(y),BR];},
     pose:(u,m,P)=>{const w=ramp(u,0,0.3)*(1-ramp(u,0.3,0.55)),c=bump(u,0.3,0.8);P.W.T=0.9*w-0.2*c;P.W.K=1.25*w+0.3*c;P.W.Z=m.cross?-0.45*c:m.rabona?-0.5*bump(u,0,0.55):0;P.S.T=-0.15;P.S.K=0.35;P.toX=-0.05+0.15*c;P.armOut=0.65;P.tZ=-0.1*w;}},
   spin:{       // body turns over the ball, the ball stays glued to the outside of the foot
+    touch:(u)=>[['W',bump(u,0.0,0.95)*0.85,SIDE(-1)]],
     mv:(u,m)=>[1.6*(1-u),m.fake?-1.6*bump(u,0,0.5)+3.2*ramp(u,0.5,1):(m.lat||1.6)*bump(u,0,1)],
     yaw:(u,m)=>(m.turn||1.6)*ease(ramp(u,0.08,0.85)),
     ball:(u,m)=>{const y=(m.turn||1.6)*ease(ramp(u,0.08,0.85));return [0.36*Math.cos(y),0.36*Math.sin(y),BR];},
     pose:(u,m,P)=>{const w=Math.sin(u*Math.PI*3);P.W.T=-0.4*Math.max(0,w);P.S.T=-0.4*Math.max(0,-w);P.W.K=P.S.K=0.5;P.hipY=0.86;P.armOut=0.8;P.toX=0.16;}},
   stopturn:{   // sole stops the ball dead, then a quarter turn away
+    touch:(u)=>[['W',bump(u,0.0,0.52),SOLE]],
     mv:(u,m)=>u<0.4?[2.6*(1-u/0.4),0]:m.still?[0,0]:[0.5,3.6*ramp(u,0.5,1)],
     yaw:(u,m,k)=>(k&&k.turnOv!=null?k.turnOv:m.turn||1.57)*ease(ramp(u,0.4,0.85)),
     ball:(u,m,k)=>{const y=SKFAM.stopturn.yaw(u,m,k);return [0.42*Math.cos(y),0.42*Math.sin(y),BR];},
     pose:(u,m,P)=>{const a=bump(u,0.05,0.5);P.W.T=-0.55*a;P.W.K=0.12+0.2*a;P.S.K=0.55;P.hipY=0.88;P.toX=0.05;P.armOut=0.6;}},
   hop:{        // both feet jump with the ball trapped between them
+    touch:(u)=>[['W',bump(u,0.0,0.95),[0,BR+0.05,0.075-BR]],['S',bump(u,0.0,0.95),[0,-BR-0.05,0.075-BR]]],
     mv:()=>[3.4,0],y:(u)=>0.38*bump(u,0.12,0.8),ball:(u)=>[0.3,0,BR+0.3*bump(u,0.15,0.75)],
     pose:(u,m,P)=>{const a=bump(u,0.05,0.85);P.W.T=P.S.T=-0.45*a;P.W.K=P.S.K=0.3+1.1*a;P.armOut=0.55;P.toX=0.15;}},
   sombrero:{   // step on the ball and scoop it over the defender's head (Okocha) or flick it off the heel (Bolasie)
+    touch:(u)=>[['W',bump(u,0.1,0.36),SOLE],['W',bump(u,0.3,0.5),TOE]],
     mv:(u,m)=>[2.2+3.6*ramp(u,0.42,1),m.side2?-1.5*bump(u,0.3,1):0],ball:(u)=>[0.44,0,BR+0.1*bump(u,0.2,0.42)],
     pose:(u,m,P)=>{const a=bump(u,0.15,0.55);P.W.T=-0.65*a;P.W.K=0.4+0.4*a;P.W.Z=0.35*a;P.S.K=0.5;P.toX=0.05;P.armOut=0.8;}},
   juggle:{     // keepy-ups, alternating feet every bounce
+    touch:(u,m)=>{const t=u*m.dur,i=Math.floor(t/0.52),ph=(t%0.52)/0.52,a=Math.max(bump(ph,-0.25,0.25),bump(ph,0.75,1.25));return [[i%2?'S':'W',a,[-0.06,0,-BR-0.03]]];},
     mv:()=>[0,0],ball:(u,m)=>{const t=u*m.dur,ph=(t%0.52)/0.52;return [0.38,0,BR+0.72*Math.sin(Math.PI*ph)];},
     pose:(u,m,P)=>{const t=u*m.dur,i=Math.floor(t/0.52),ph=(t%0.52)/0.52,L=i%2?P.S:P.W,a=Math.max(bump(ph,-0.2,0.2),bump(ph,0.8,1.2));L.T=-0.55*a;L.K=0.3+0.25*a;P.toX=0.18;P.armOut=0.55;P.hipY=0.92;}},
   atw:{        // around the world: the foot circles the ball in the air
+    touch:(u)=>{const q=ramp(u,0.2,0.75),a=q*TAU;return [['W',bump(u,0.12,0.85),[0.2*Math.cos(a)-0.05,0.2*Math.sin(a),-0.05]]];},
     mv:()=>[0,0],ball:(u)=>[0.36,0,BR+0.95*Math.sin(Math.PI*u)],
     pose:(u,m,P)=>{const q=ramp(u,0.2,0.75),c=Math.sin(Math.PI*q),a=q*TAU;P.W.T=-0.5*c-0.25*Math.cos(a)*c;P.W.Z=0.55*Math.sin(a)*c;P.W.K=0.5+0.5*c;P.S.K=0.45;P.armOut=0.75;P.toX=0.2;}},
   inair:{      // elastico on a ball in the air
+    touch:(u)=>{const z=-1+2*ease(ramp(u,0.2,0.35));return [['W',bump(u,0.0,0.55),[0.02,z*(BR+0.055),0.075-BR-0.1]]];},
     mv:(u)=>[0.5,2.4*ramp(u,0.45,1)],yaw:(u)=>0.6*ease(ramp(u,0.4,0.9)),ball:(u)=>[0.38,0.25*ramp(u,0,0.35),BR+0.55],
     pose:(u,m,P)=>{const z=0.5*bump(u,0,0.5);P.W.Z=z;P.W.T=-0.6*bump(u,0,0.6);P.W.K=0.5;P.S.K=0.45;P.tZ=0.4*z;P.armOut=0.8;}},
 };
@@ -1948,7 +1986,14 @@ function poseValues(r,aid,t,phase,spd,side,out){
       const R=s>0?P.W:P.S,Lg=s>0?P.S:P.W,mx=(a,b)=>a+(b-a)*w;
       hipY=mx(hipY,P.hipY);tX=mx(tX,P.tX);tZ=mx(tZ,P.tZ*s);toX=mx(toX,P.toX);toY=mx(toY,-P.toY*s);
       rT=mx(rT,R.T);rK=mx(rK,R.K);rTz=mx(rTz,-R.Z);lT=mx(lT,Lg.T);lK=mx(lK,Lg.K);lTz=mx(lTz,Lg.Z);
-      lAz=mx(lAz,P.armOut+0.1);rAz=mx(rAz,-P.armOut-0.1);lA=mx(lA,-0.25);rA=mx(rA,-0.25);lE=mx(lE,-0.6);rE=mx(rE,-0.6);break;}
+      lAz=mx(lAz,P.armOut+0.1);rAz=mx(rAz,-P.armOut-0.1);lA=mx(lA,-0.25);rA=mx(rA,-0.25);lE=mx(lE,-0.6);rE=mx(rE,-0.6);
+      if(F&&F.touch&&!(m.rel&&u>m.rel.u+0.03)){
+        const k0={turnOv:null},b=F.ball(u,m,k0),yw=F.yaw?F.yaw(u,m,k0):0,py=F.y?F.y(u,m):0,cy=Math.cos(yw),sy=Math.sin(yw);
+        for(const [leg,cw,o] of F.touch(u,m)){const ww=cw*w;if(!(ww>0.002))continue;
+          const b0=b[0]+o[0],b1=b[1]+o[1],tz=b0*cy+b1*sy,tx=s*(b0*sy-b1*cy),right=(leg==='S')!==(s>0);
+          const [iT,iZ,iK]=legIK(r,hipY,tX,tZ,right,tx,b[2]+o[2]-py,tz);
+          if(right){rT+=(iT-rT)*ww;rTz+=(iZ-rTz)*ww;rK+=(iK-rK)*ww;}else{lT+=(iT-lT)*ww;lTz+=(iZ-lTz)*ww;lK+=(iK-lK)*ww;}}}
+      break;}
     case A.stackle:if(SK>=2){
       // blocking a shot: side-on, the near leg stretched across, arms tucked behind the back, head turned away
       const e=eo(clamp(t/0.14,0,1))*(1-clamp((t-0.38)/0.2,0,1));
@@ -5712,9 +5757,11 @@ function clubPacksHtml(){
 }
 let enhTarget=null,enhMats=[],enhProtect=false;
 function enhGauge(t,mats){
-  // each material fills the boost gauge by its value relative to the target; a material more than 10 OVR below the target adds nothing
-  const tv=value(eo(t));let g=0;
-  for(const m of mats){if(eo(m)-eo(t)<-10)continue;g+=25*value(eo(m))/tv;}
+  // each material fills the boost gauge by a quarter (one notch) when it is from the target's OVR down to 3 below it; a
+  // higher one by its value against the target's, a lower one by its value against a player 3 below the target (so
+  // it falls off from there); a material more than 10 OVR below the target adds nothing
+  const et=eo(t),tv=value(et),tv3=value(et-3);let g=0;
+  for(const m of mats){const em=eo(m);if(em-et<-10)continue;g+=25*(em>et?value(em)/tv:em>=et-3?1:value(em)/tv3);}
   return clamp(g,0,100);
 }
 function protectCost(t){return Math.max(1000,Math.round(value(eo(t))*0.25/100)*100);}
@@ -5748,7 +5795,7 @@ function clubEnhanceHtml(){
         <div class="row end"><span class="foot">${err||'재료 선수는 성공·실패와 관계없이 사라집니다.'}</span><button class="btn primary big" data-act="enhgo" ${err?'disabled':''}>강화</button></div>
       </div>
     </div>
-    <div class="panel"><h3>선수 목록 · OVR 낮은 순</h3><p class="foot" style="margin:0">재료는 대상과 OVR이 비슷하거나 높을수록 게이지를 많이 채웁니다. 대상보다 10 넘게 낮으면 게이지가 차지 않습니다.</p><div class="plist">${list}</div></div>
+    <div class="panel"><h3>선수 목록 · OVR 낮은 순</h3><p class="foot" style="margin:0">재료는 대상보다 OVR이 3 낮은 선수까지 1칸(25%)을 채우고, 더 높으면 더 많이, 그보다 낮으면 덜 채웁니다. 대상보다 10 넘게 낮으면 게이지가 차지 않습니다.</p><div class="plist">${list}</div></div>
   </div>`;
 }
 function runEnhance(){
