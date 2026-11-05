@@ -1843,6 +1843,12 @@ function callShort(p){
 // hip height as a fraction of the standing height (the rig scales it by hipK). applyPose does both, exactly
 // as before; a different body (an external model) can take the same values through its own mapping.
 // poseValues only reads r.g (gait) from the rig; out is filled and returned (pass your own object to keep it).
+// reactions (arms over the legs; 2 hands on head, 3 hands on hips, 4 both arms up appealing, 5 right fist pumped, 6
+// clapping, 7 hands cupped in front, as in a wall, 8 arms out wide, 9 the right arm straight up for offside): [lA, lAz, lE, head pitch, clap rate, rA, rAz, rE]
+// how often (shares from real matches, MOVEMENT_ANALYSIS.md 8-15): a shooter who missed holds his head or puts his
+// hands on his hips; a man penalised appeals with both arms up; after a goal the side that let it in
+const MISS_REACT=[0.45,0.2],FOUL_APPEAL=0.4,CONCEDE={out:[['head',0.3],['hips',0.3],['knees',0.12],['kneelhead',0.04],['sitdown',0.03]],gk:[['sitdown',0.3],['knees',0.25],['hips',0.25],['head',0.1]]};
+const RX={9:[-0.15,0.2,-0.3,0,0,-3.0,-0.12,-0.08],2:[-2.45,0.95,-2.25,0.12],3:[0.35,0.55,-1.65,0],4:[-2.55,0.55,-0.35,-0.18],5:[-0.35,0.3,-1.3,-0.1,0,-2.75,-0.15,-0.55],6:[-1.15,-0.12,-1.25,0.05,22],7:[-0.25,-0.32,-1.05,0.1],8:[0.05,1.45,-0.1,-0.1]};
 function poseValues(r,aid,t,phase,spd,side,out){
   let hipY=0.95,tX=0,tZ=0,toX=0.04,toY=0,hdX=0;
   let lT=0,rT=0,lK=0.08,rK=0.08,lA=0,rA=0,lE=-0.25,rE=-0.25,lAz=0.1,rAz=-0.1,lTz=0.02,rTz=-0.02;
@@ -1888,7 +1894,14 @@ function poseValues(r,aid,t,phase,spd,side,out){
       if(SS<0)mir();break;}
     {const q=clamp(t/0.26,0,1),low=clamp((1.1-phase)/0.9,0,1);
       hipY=lerp(0.95,lerp(0.95,0.45,low),q);tZ=-side*1.35*q;lA=rA=-2.9*q;lE=rE=-0.2;lAz=0.25;rAz=-0.25;lT=-0.25*q;rT=0.25*q;lK=rK=0.45*q;toX=-0.1;break;}
-    case A.fall:{const q=clamp(t/0.28,0,1);hipY=lerp(0.9,0.2,q);tX=-1.45*q;lT=-0.3*q;rT=-0.6*q;lK=0.3;rK=0.6*q;lAz=1.2*q;rAz=-1.1*q;lA=-0.3;rA=0.2;break;}
+    case A.fall:if(SK>=2){
+      // brought down: 2 forward on to the front (tripped from behind or caught running), hands out to break it;
+      // 3 on his side holding the shin, knees drawn up
+      const q=clamp(t/0.28,0,1);
+      if(SK===2){hipY=lerp(0.9,0.22,q);tX=1.42*q;lA=rA=-2.35*q;lAz=0.4;rAz=-0.4;lE=rE=-0.45;lT=rT=0.08;lK=0.35*q;rK=0.15;hdX=-0.55*q;}
+      else{hipY=lerp(0.9,0.24,q);tZ=-1.45*q;lT=rT=-1.0*q;lK=rK=1.45*q;lA=rA=-1.15*q;lE=rE=-1.05*q;lAz=0.12;rAz=-0.12;toX=0.35*q;hdX=0.3*q;}
+      if(SS<0)mir();break;}
+      {const q=clamp(t/0.28,0,1);hipY=lerp(0.9,0.2,q);tX=-1.45*q;lT=-0.3*q;rT=-0.6*q;lK=0.3;rK=0.6*q;lAz=1.2*q;rAz=-1.1*q;lA=-0.3;rA=0.2;break;}
     case A.gkready:if(SK>=2){
       // a save standing up (t from when he moves for it): 2 scoop: down on one knee behind the ball, hands under it;
       // 3 chest: crouched, arms gathering it in; 4 high: up on the toes, both hands up in front of the face
@@ -1898,10 +1911,34 @@ function poseValues(r,aid,t,phase,spd,side,out){
       else{hipY=0.95;lT=rT=-0.05;lK=rK=0.18;toX=-0.08*e;lA=rA=-2.55*e;lE=rE=-0.35;lAz=0.15;rAz=-0.15;}
       break;}
       hipY=0.83;lT=rT=-0.42;lK=rK=0.78;toX=0.34;lA=rA=-0.65;lAz=0.45;rAz=-0.45;lE=rE=-0.7;lTz=0.12;rTz=-0.12;break;
-    case A.gkhold:lA=rA=-1.05;lE=rE=-1.1;lAz=0.12;rAz=-0.12;toX=0.08;break;
+    case A.gkhold:if(SK>=2){
+      // the keeper punches a cross clear: up off one foot, both fists driven up and out
+      const u=clamp(t/0.5,0,1),j=Math.sin(Math.PI*u),p2=clamp((t-0.12)/0.12,0,1);
+      lA=rA=lerp(-1.4,-2.75,p2);lE=rE=lerp(-1.9,-0.1,p2);lAz=0.1;rAz=-0.1;lT=-1.0*j;lK=1.25*j;rK=0.15+0.3*j;toX=-0.1*j;hdX=-0.25*j;break;}
+      lA=rA=-1.05;lE=rE=-1.1;lAz=0.12;rAz=-0.12;toX=0.08;break;
     case A.throw:{const q=clamp(t/0.3,0,1);lA=rA=lerp(-2.95,-1.3,q);lE=rE=lerp(-1.3,-0.2,q);lAz=0.18;rAz=-0.18;toX=lerp(-0.25,0.3,q);break;}
-    case A.celeb:runPose(1);lAz=1.5;rAz=-1.5;lA=rA=0;lE=rE=-0.05;tZ=Math.sin(t*3)*0.22;break;
-    case A.header:{const q=clamp(t/0.5,0,1),e=Math.sin(q*Math.PI);lAz=0.8*e+0.1;rAz=-0.8*e-0.1;lA=rA=-0.6*e;lK=rK=0.9*e;lT=rT=-0.3*e;toX=q<0.5?-0.35*e:0.45*e;hdX=toX*0.6;break;}
+    case A.celeb:if(SK>=2){
+      // after a goal (t from the start). 2 knee slide: down on both knees, back arched, arms flung out; 3 jump and punch
+      // the air; 4 both arms up pointing to the sky; 5 the hug (arms round a team-mate); 6 hands on knees, head down;
+      // 7 sat on the grass, forearms on the knees; 8 on his knees, hands over the face. 6-8 also for the side that let
+      // it in, or a tired man at a stoppage
+      const e=eo(clamp(t/0.25,0,1));
+      if(SK===2){hipY=lerp(0.95,0.56,e);lT=rT=0.15*e;lK=rK=1.62*e;toX=-0.38*e;hdX=-0.3*e;lA=rA=-0.7*e;lAz=1.35*e+0.1;rAz=-1.35*e-0.1;lE=rE=-0.15;}
+      else if(SK===3){const u=clamp(t/0.55,0,1),j=Math.sin(Math.PI*u);lT=rT=-0.45*j;lK=rK=0.25+0.85*j;rA=-2.9*e;rAz=-0.2;rE=-0.35;lA=-0.35;lAz=0.75*e;lE=-1.4*e;hdX=-0.25*e;toX=-0.08*e;}
+      else if(SK===4){lA=rA=-2.85*e;lAz=0.28;rAz=-0.28;lE=rE=-0.12;hdX=-0.4*e;toX=-0.12*e;lK=rK=0.12;}
+      else if(SK===5){runPose(0.4);lA=rA=-1.35*e;lAz=0.5;rAz=-0.5;lE=rE=-1.25*e;toX=0.12*e;}
+      else if(SK===6){hipY=lerp(0.95,0.84,e);tX=0.62*e;lT=rT=-0.85*e;lK=rK=0.5*e;toX=0.28*e;hdX=0.2*e;lA=rA=-0.42*e;lAz=0.16;rAz=-0.16;lE=rE=-0.18;}
+      else if(SK===7){hipY=lerp(0.95,0.17,e);lT=rT=-1.35*e;lK=rK=1.95*e;toX=0.32*e;hdX=0.35*e;lA=rA=-0.95*e;lAz=0.2;rAz=-0.2;lE=rE=-0.75*e;}
+      else{hipY=lerp(0.95,0.52,e);lT=rT=0.05*e;lK=rK=1.7*e;toX=0.85*e;hdX=0.3*e;lA=rA=-1.85*e;lAz=0.32;rAz=-0.32;lE=rE=-2.25*e;}
+      break;}
+      runPose(1);lAz=1.5;rAz=-1.5;lA=rA=0;lE=rE=-0.05;tZ=Math.sin(t*3)*0.22;break;
+    case A.header:if(SK>=2){
+      // a ball taken down: 2 on the chest, leaning back, arms out; 3 on the thigh, the knee lifted to meet it
+      const u=clamp(t/0.45,0,1),e=Math.sin(Math.PI*u);
+      if(SK===2){toX=-0.34*e;hdX=0.25*e;lA=rA=0.25*e;lAz=0.75*e+0.1;rAz=-0.75*e-0.1;lE=rE=-0.35;lK=rK=0.08+0.28*e;lT=rT=-0.12*e;hipY=0.95-0.03*e;}
+      else{lT=-1.25*e;lK=0.08+1.35*e;rK=0.15*e;toX=-0.06*e;hdX=0.3*e;lAz=0.1+0.6*e;rAz=-0.1-0.55*e;lA=-0.2*e;rA=-0.25*e;lE=rE=-0.5;}
+      if(SS<0)mir();break;}
+      {const q=clamp(t/0.5,0,1),e=Math.sin(q*Math.PI);lAz=0.8*e+0.1;rAz=-0.8*e-0.1;lA=rA=-0.6*e;lK=rK=0.9*e;lT=rT=-0.3*e;toX=q<0.5?-0.35*e:0.45*e;hdX=toX*0.6;break;}
     case A.skill:{   // side carries the move: sign = move side, |side|-1 = SKILLS index
       const id=Math.abs(side|0)-1,m=SKILLS[id]||SKILLS[0],s=side<0?-1:1,u=clamp(t/m.dur,0,1),F=SKFAM[m.fam];
       runPose(1);
@@ -1912,7 +1949,12 @@ function poseValues(r,aid,t,phase,spd,side,out){
       hipY=mx(hipY,P.hipY);tX=mx(tX,P.tX);tZ=mx(tZ,P.tZ*s);toX=mx(toX,P.toX);toY=mx(toY,-P.toY*s);
       rT=mx(rT,R.T);rK=mx(rK,R.K);rTz=mx(rTz,-R.Z);lT=mx(lT,Lg.T);lK=mx(lK,Lg.K);lTz=mx(lTz,Lg.Z);
       lAz=mx(lAz,P.armOut+0.1);rAz=mx(rAz,-P.armOut-0.1);lA=mx(lA,-0.25);rA=mx(rA,-0.25);lE=mx(lE,-0.6);rE=mx(rE,-0.6);break;}
-    case A.stackle:{const q=clamp(t/0.15,0,1),e=t<0.34?q:clamp(1-(t-0.34)/0.2,0,1);
+    case A.stackle:if(SK>=2){
+      // blocking a shot: side-on, the near leg stretched across, arms tucked behind the back, head turned away
+      const e=eo(clamp(t/0.14,0,1))*(1-clamp((t-0.38)/0.2,0,1));
+      hipY=0.95-0.1*e;toY=0.55*e;lTz=0.75*e;lT=-0.35*e;lK=0.12;rK=0.45*e;lA=rA=0.55*e;lAz=0.08;rAz=-0.08;lE=rE=-1.35*e;toX=0.12*e;hdX=0.35*e;
+      if(SS<0)mir();break;}
+      {const q=clamp(t/0.15,0,1),e=t<0.34?q:clamp(1-(t-0.34)/0.2,0,1);
       hipY=0.95-0.22*e;toX=0.36*e;toY=0.3*e;rT=-1.2*e;rK=0.05;rTz=-0.5*e;lT=0.3*e;lK=1.0*e;lAz=0.95*e+0.1;rAz=-0.4*e-0.1;lA=-0.6*e;rA=0.7*e;lE=-0.7;break;}
     case A.refCard:{const q=clamp(t/0.25,0,1);rA=-3.05*q;rE=-0.05;rAz=-0.12;lA=0.08;toX=-0.05*q;break;}
     case A.refPoint:{const q=clamp(t/0.25,0,1);rA=-1.55*q;rE=0;rAz=-0.3*q;break;}
@@ -1926,6 +1968,9 @@ function poseValues(r,aid,t,phase,spd,side,out){
       else if(SK===3){const up=eo(clamp(t/0.28,0,1)),land=clamp((t-0.4)/0.25,0,1),r1=clamp(t/0.18,0,1),r2=clamp((t-0.14)/0.14,0,1);
         tX=-(1.95*up-0.5*land);lT=-1.6*r1*(1-0.6*r2);lK=1.0*r1;rT=0.3*(1-r2)-2.35*eo(r2)*(1-land*0.5);rK=0.9*(1-r2)+0.08;
         lAz=1.25*up;rAz=-1.25*up;lA=rA=0.35*up;lE=rE=-0.3;toX=0.25*up;hipY=0.95;}
+      else if(SK===5){   // a keeper's punt: the ball dropped from the hands, the kicking leg swung right through and up
+        const w=clamp(t/0.1,0,1),k=clamp((t-0.08)/0.12,0,1),rec=clamp((t-0.38)/0.2,0,1),e=1-rec;
+        rT=(0.75*w*(1-k)-2.15*eo(k))*e;rK=(1.3*w*(1-k)+0.06*k)*e+0.08;lK=0.2*e;toX=-0.22*eo(k)*e;lA=-1.35*e;lAz=0.35*e;lE=-0.2;rA=0.55*e;rAz=-0.65*e;rE=-0.4;hdX=0.15*e;}
       else{const up=eo(clamp(t/0.2,0,1)),k=clamp((t-0.12)/0.14,0,1),land=clamp((t-0.38)/0.22,0,1);
         tZ=-1.15*up*(1-land*0.3);rT=-1.5*eo(k);rTz=-1.0*up;rK=0.6*(1-k)+0.08;lT=-0.6*up;lK=1.3*up;lAz=1.0*up;lA=0.2*up;rAz=-1.6*up;rA=-0.3*up;lE=rE=-0.3;toX=-0.05;hipY=0.95;}
       if(SS<0)mir();break;}
@@ -1938,6 +1983,10 @@ function poseValues(r,aid,t,phase,spd,side,out){
       if(sd>0){lT=0.55*e;rT=-0.25*e;}else{rT=0.55*e;lT=-0.25*e;}lK=0.08+0.4*e;rK=0.08+0.45*e;
       lA=-0.85*e;rA=-0.45*e;lE=rE=-0.25-0.4*e;lAz=0.1+1.05*e;rAz=-0.1-1.05*e;break;}
   }
+  // reactions over standing or running (side code 2-8; RX: left arm pitch, out, elbow; the right arm mirrored): the legs
+  // keep moving, only the arms (and for some the head) change. The 3D model takes these arms from the rig.
+  if((aid===A.idle||aid===A.run)&&SK>=2&&RX[SK]){const R=RX[SK],k=R[4]||0,wob=k?Math.sin(t*k)*0.18:0;
+    lA=R[0];lAz=R[1];lE=R[2]+wob;rA=R[5]!=null?R[5]:R[0];rAz=R[6]!=null?R[6]:-R[1];rE=(R[7]!=null?R[7]:R[2])+wob;hdX+=R[3]||0;}
   out.hipN=hipY;out.pelvisX=tX;out.pelvisZ=tZ;out.spineX=toX;out.spineY=toY;out.headX=hdX-toX*0.4;
   out.thighLX=lT;out.thighLZ=lTz;out.thighRX=rT;out.thighRZ=rTz;out.kneeL=lK;out.kneeR=rK;
   out.armLX=lA;out.armLZ=lAz;out.armRX=rA;out.armRZ=rAz;out.elbowL=lE;out.elbowR=rE;
@@ -2603,7 +2652,7 @@ function kick(p,vel,type){
   ball.gkRelease=wasHolding?p:null;
   p.kickSide=p.kickNext??(footOf(p).f==='L'?-1:1);p.kickNext=null;p.footLock=null;
   if(type==='header'){p.oAnim='header';p.oDur=0.5;}
-  else{p.oAnim=(type==='throw'||(wasHolding&&vel.y<4&&type!=='shot'))?'throw':'kick';p.oT=0;p.oDur=0.45;}
+  else{p.oAnim=(type==='throw'||(wasHolding&&vel.y<4&&type!=='shot'))?'throw':wasHolding?'gkpunt':'kick';p.oT=0;p.oDur=wasHolding&&p.oAnim==='gkpunt'?0.6:0.45;p.oSide=1;}
   SND.kick(vel.length()/28);
   clearSaves();
   if(type!=='shot')intended=null;
@@ -2773,6 +2822,9 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   if(pw)p.oT=0.14;   // the wind-up was already shown
   if(acro&&!isHeader){p.oAnim=bp.y>0.6?'volley':'kick';p.oT=0;p.oDur=0.6;p.skillSide=Math.random()<0.5?1:-1;}
   if(!isHeader&&!opts.pen&&!pw){const m=shotMotion(p,bp,gx,tz);if(m){p.oAnim=m;p.oT=0;p.oDur=SHOT_DUR[m];p.oSide=p.kickNext||1;}}
+  if(!opts.pen){const hx=gx-bp.x,hz=tz-bp.z,hl=Math.hypot(hx,hz)||1;
+    for(const q of teams[1-p.team].players){if(q.isGK||q.state!=='normal'||q.oAnim||q.sk)continue;const rx=q.pos.x-bp.x,rz=q.pos.z-bp.z,al=(rx*hx+rz*hz)/hl,lat=(rx*hz-rz*hx)/hl;
+      if(al>0.8&&al<6&&Math.abs(lat)<1.8){q.oAnim='block';q.oT=0;q.oDur=0.6;q.oSide=lat>0?-1:1;}}}
   if(acro||laser)traitFlash(p);
   ball.shotBy=p;
   planSave(teams[1-p.team].gk,p,Object.assign({},opts,{bend,turn}));if(p.team===0)tutEv('shot',opts.pen?'pen':pw?'power':opts.fin?'fin':opts.chip?'chip':opts.low?'low':'normal');
@@ -2835,6 +2887,7 @@ function callOffside(p){
   stats.offsides[p.team]++;releaseBall();ball.vel.multiplyScalar(0.2);offCheck=null;
   const ar=p.pos.x>0?officials.ar1:officials.ar2;if(ar){ar.anim='flag';ar.animT=0;}
   SND.whistle(1);banner('오프사이드',p.short);say('부심의 깃발이 올라갑니다. 오프사이드! '+p.short);
+  for(const q of teams[1-p.team].players)if(!q.isGK&&d2(q.pos,p.pos)<25&&Math.random()<0.55)react(q,9,1.6);   // defenders' arms go up for it
   const pos=clampPitch(p.pos.clone(),1);
   setDead(1.6,()=>startSetPiece('freekick',1-p.team,pos,{indirect:true}));
 }
@@ -2892,6 +2945,7 @@ function callBackAdvantage(){
 }
 function stopForFoul(f){
   const {off,vic,card,pos,pen,behind,kind}=f,V=teams[vic.team];
+  if(Math.random()<FOUL_APPEAL)react(off,4,2.2);   // drawn once he is back on his feet
   releaseBall();ball.vel.set(0,0,0);intended=null;advantage=null;
   SND.whistle(1);
   say(off.short+'의 '+(behind?'뒤에서 들어간 ':'')+(kind==='slide'?'슬라이딩 ':'')+'태클, 주심이 휘슬을 붑니다.');
@@ -3074,7 +3128,7 @@ function touch(p){
       let near=false;for(const q of teams[lastPass.team].players)if(!q.isGK&&q!==lastPass.by&&Math.hypot(ball.pos.x-q.pos.x,ball.pos.z-q.pos.z)<2.2)near=true;
       const r=Math.random(),cl=0.45+(p.st.gk-70)*0.012+(near?0:0.35);
       if(r>cl){if(r>cl+0.22){p.noTouch=0.5;return;}   // misjudged it
-        touched(p);const T=teams[p.team];ball.vel.set(T.dir*rnd(6,11),rnd(3,6),rnd(-7,7));ball.lastTouch=p;ball.lastKind='deflect';p.noTouch=0.5;if(lastPass)lastPass.open=false;clearSaves();computeTraj();SND.kick(0.4);say(p.short+' 골키퍼가 펀칭으로 걷어냅니다.');return;}}
+        touched(p);p.oAnim='gkpunch';p.oT=0;p.oDur=0.55;const T=teams[p.team];ball.vel.set(T.dir*rnd(6,11),rnd(3,6),rnd(-7,7));ball.lastTouch=p;ball.lastKind='deflect';p.noTouch=0.5;if(lastPass)lastPass.open=false;clearSaves();computeTraj();SND.kick(0.4);say(p.short+' 골키퍼가 펀칭으로 걷어냅니다.');return;}}
     gkCatch(p);return;
   }
   if(p.trait==='acrobatic'&&!p.isGK&&!offs&&ball.pos.y>0.45&&ball.pos.y<2.0&&inOppBox(p.pos,p.team)){
@@ -3085,7 +3139,7 @@ function touch(p){
   if(gkBox&&back&&isHumanTeam(p.team)&&p.team===ME)say('백패스라 골키퍼가 손을 쓸 수 없습니다. 발로 처리하세요.');
   // a lofted pass to the user's player is chested down unless he has a first-time action keyed in
   if(isInt&&ball.pos.y>1.3&&ball.pos.y<2.4&&!offs&&isHumanTeam(p.team)&&p===CTRL[p.team].controlled){const K=CTRL[p.team];
-    if(!K.buffer&&!K.act.shoot&&!K.act.pass&&!K.act.through&&!K.act.lob){touched(p);offCheck=null;gainPossession(p);p.oAnim='header';p.oT=0.3;p.oDur=0.5;return;}}
+    if(!K.buffer&&!K.act.shoot&&!K.act.pass&&!K.act.through&&!K.act.lob){touched(p);offCheck=null;gainPossession(p);p.oAnim='chestctl';p.oT=0;p.oDur=0.45;p.oSide=1;return;}}
   if(ball.pos.y>(isInt?1.9:1.3)){if(offs){callOffside(p);return;}touched(p);offCheck=null;
     if(lastPass&&lastPass.open&&lastPass.team===p.team&&lastPass.by!==p)assistRec={by:lastPass.by,to:p,t:gtime,kind:lastPass.kind,run:p.runT>0?p.runKind:null};   // a headed goal from a cross is assisted too
     if(lastPass)lastPass.open=false;ball.lastTouch=p;header(p);return;}
@@ -3094,7 +3148,8 @@ function touch(p){
   if(!isInt&&sp>21&&Math.random()>p.st.dri/100&&!offs){
     touched(p);ball.vel.multiplyScalar(0.3);ball.vel.x+=rnd(-2,2);ball.vel.z+=rnd(-2,2);ball.lastTouch=p;ball.lastKind='deflect';p.noTouch=0.25;offCheck=null;if(lastPass)lastPass.open=false;clearSaves();computeTraj();return;
   }
-  gainPossession(p);p.gotBack=gotBack&&ball.owner===p;
+  const y0=ball.pos.y;gainPossession(p);p.gotBack=gotBack&&ball.owner===p;
+  if(ball.owner===p&&y0>0.55&&p.state==='normal'&&!p.oAnim&&!p.sk){p.oAnim=y0>1.05?'chestctl':'thighctl';p.oT=0;p.oDur=0.45;p.oSide=Math.random()<0.5?1:-1;}   // taken down on the chest or thigh
 }
 
 // what happens to the ball when a tackle gets it: won clean, poked away, or a ricochet that pops up loose
@@ -3135,13 +3190,13 @@ function slideUpdate(p,dt){
     const hopO=ball.owner&&ball.owner.sk&&ball.owner.sk.m.fam==='hop'&&ball.owner.y>0.08;   // the bunny hop jumps the slide
     if(db<0.95&&ball.pos.y<0.8&&!hopO&&!(ball.owner&&(ball.owner.holding||ball.owner===p))){
       p.slideHit=true;const o=ball.owner;
-      if(o&&o.team!==p.team){o.state='fall';o.stateT=0;o.fallDur=0.9;stats.tackles[p.team]++;p.tk++;say(p.short+'의 깔끔한 슬라이딩 태클!');}
+      if(o&&o.team!==p.team){o.state='fall';o.stateT=0;o.fallDur=0.9;o.fallK=2;stats.tackles[p.team]++;p.tk++;say(p.short+'의 깔끔한 슬라이딩 태클!');}
       releaseBall();touched(p);ball.vel.set(f.x*rnd(6,10)+rnd(-2,2),rnd(0.3,1.4),f.z*rnd(6,10)+rnd(-2,2));ball.lastTouch=p;ball.lastKind='deflect';offCheck=null;if(lastPass)lastPass.open=false;intended=null;SND.kick(0.4);computeTraj();
     }
     if(!p.slideHit){for(const o of teams[1-p.team].players){if(o.state!=='normal')continue;
       const dd=Math.hypot(o.pos.x-fx,o.pos.z-fz),dd2=d2(o.pos,p.pos);
       if(o.sk&&o.sk.m.fam==='hop'&&o.y>0.08)continue;
-      if((dd<0.7||dd2<0.6)&&(ball.owner===o||(lastOwner===o&&gtime-lastOwnerT<0.35))){o.state='fall';o.stateT=0;o.fallDur=1.1;foul(p,o,'slide');return;}}}
+      if((dd<0.7||dd2<0.6)&&(ball.owner===o||(lastOwner===o&&gtime-lastOwnerT<0.35))){o.state='fall';o.stateT=0;o.fallDur=1.1;o.fallK=Math.random()<0.6?2:3;foul(p,o,'slide');return;}}}
   }
   if(p.stateT>0.95){p.state='normal';p.stun=0.35;}
 }
@@ -3169,11 +3224,11 @@ function tackleUpdate(p,dt){
           stats.tackles[p.team]++;p.tk++;releaseBall();if(wide)traitFlash(p);o.stun=0.6;o.noTouch=0.45;
           tackleBall(p,o,f,clamp((p.st.def-o.st.dri)/40,-0.5,0.5)+(pr>0.75?0.15:0));SND.kick(0.35);
           if(isHumanTeam(o.team))autoSwitch(0,true,o.team);
-        }else if(behind&&Math.random()<(wide?0.2:0.45)){o.state='fall';o.stateT=0;o.fallDur=1.0;foul(p,o,'tackle');}
+        }else if(behind&&Math.random()<(wide?0.2:0.45)){o.state='fall';o.stateT=0;o.fallDur=1.0;o.fallK=2;foul(p,o,'tackle');}
         else o.protect=0.3;
       }else gainPossession(p);
     }
-    if(!p.tackleHit&&o&&o.team!==p.team&&!o.holding&&d2(o.pos,p.pos)<0.6&&p.stateT>0.15){p.tackleHit=true;if(Math.random()<0.5){o.state='fall';o.stateT=0;o.fallDur=1.0;foul(p,o,'tackle');}}
+    if(!p.tackleHit&&o&&o.team!==p.team&&!o.holding&&d2(o.pos,p.pos)<0.6&&p.stateT>0.15){p.tackleHit=true;if(Math.random()<0.5){o.state='fall';o.stateT=0;o.fallDur=1.0;o.fallK=Math.random()<0.5?3:2;foul(p,o,'tackle');}}
   }
   if(p.stateT>0.55){p.state='normal';p.stun=0.12;}
 }
@@ -3360,7 +3415,7 @@ function updatePlayer(p,dt){
   traitTick(p,dt);
   if(p.state==='slide'){slideUpdate(p,dt);}
   else if(p.state==='tackle'){tackleUpdate(p,dt);}
-  else if(p.state==='fall'){p.stateT+=dt;p.vel.multiplyScalar(Math.exp(-6*dt));p.y=0;if(p.stateT>p.fallDur){p.state='normal';p.stateT=0;}}
+  else if(p.state==='fall'){p.stateT+=dt;p.vel.multiplyScalar(Math.exp(-6*dt));p.y=0;if(p.stateT>p.fallDur){p.state='normal';p.stateT=0;p.fallK=0;}}
   else if(p.state==='dive'){
     p.stateT+=dt;const t=p.stateT;
     if(t<0.6){p.vel.copy(p.diveV).multiplyScalar(1-t/0.9);}else p.vel.multiplyScalar(Math.exp(-8*dt));
@@ -3377,7 +3432,7 @@ function updatePlayer(p,dt){
       const maxA=(want.length()>cur?(cutting?0:(10+p.st.pac*0.05)*((p.cutRecT||0)>gtime?0.3:1)):17)*dt*K;
       if(dv.length()>maxA)dv.setLength(maxA);p.vel.add(dv);p.vel.y=0;}
     else locoStep(p,want,dt,K);
-    p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:p.oAnim==='bicycle'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.85:p.oAnim==='scissor'?Math.sin(clamp(p.oT/0.55,0,1)*Math.PI)*0.55:p.oAnim==='fvolley'?Math.sin(clamp(p.oT/0.4,0,1)*Math.PI)*0.1:0;
+    p.y=p.oAnim==='header'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.38:p.oAnim==='jump'?Math.sin(clamp(p.oT/0.62,0,1)*Math.PI)*0.5:p.oAnim==='volley'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.45:p.oAnim==='bicycle'?Math.sin(clamp(p.oT/0.6,0,1)*Math.PI)*0.85:p.oAnim==='scissor'?Math.sin(clamp(p.oT/0.55,0,1)*Math.PI)*0.55:p.oAnim==='fvolley'?Math.sin(clamp(p.oT/0.4,0,1)*Math.PI)*0.1:p.oAnim==='celjump'?Math.sin(clamp(p.oT/0.55,0,1)*Math.PI)*0.38:p.oAnim==='gkpunch'?Math.sin(clamp(p.oT/0.5,0,1)*Math.PI)*0.42:0;
   }
   p.pos.x+=p.vel.x*dt;p.pos.z+=p.vel.z*dt;
   const sp=Math.hypot(p.vel.x,p.vel.z);
@@ -3510,13 +3565,16 @@ function officialsUpdate(dt){
 }
 
 /* ================= set pieces ================= */
-function resetTransient(p){p.diveAt=null;p.stAt=null;p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
+function resetTransient(p){p.diveAt=null;p.stAt=null;p.celK=null;p.fallK=0;   // (a reaction runs on through a restart: it ends by itself)
+p.tgS=null;p.tgP=null;p.djP=null;p.djS=null;p.inWall=false;p.state='normal';p.stateT=0;p.vel.set(0,0,0);p.wantVel.set(0,0,0);p.save=null;p.holding=false;p.oAnim=null;p.y=0;p.runT=0;p.celebrating=false;p.poseHold=null;p.stun=0;p.noTouch=0;}
 function pushAway(T,pos,R){for(const p of T.players){const dx=p.pos.x-pos.x,dz=p.pos.z-pos.z,d=Math.hypot(dx,dz);if(d<R-0.05){if(d>0.01){p.pos.x=pos.x+dx/d*R;p.pos.z=pos.z+dz/d*R;}else{p.pos.x=pos.x+R;}}}}
 function startSetPiece(type,ti,pos,opts={}){
+  const missBy=(type==='goalkick'||type==='corner')&&ball.lastKind==='shot'&&ball.shotBy&&ball.shotBy.team!==ti?ball.shotBy:null;
   state='setpiece';const T=teams[ti],O=teams[1-ti];
   SP={type,team:ti,ballPos:new V3(pos.x,type==='throw'?2.05:BR,pos.z),t:0,aim:0,taker:null,aiDelay:rnd(1.1,1.9),whistled:false,indirect:!!opts.indirect,fk:null};foulSeq=null;
   releaseBall();ball.vel.set(0,0,0);ball.pos.copy(SP.ballPos);intended=null;offCheck=null;lastPass=null;possTeam=ti;ball.shotBy=null;CTRL[0].buffer=CTRL[1].buffer=null;
   for(const p of players){if(!p.sentOff)resetTransient(p);}
+  if(missBy){const r=Math.random();if(r<MISS_REACT[0])react(missBy,2,2.0);else if(r<MISS_REACT[0]+MISS_REACT[1])react(missBy,3,2.2);}   // the shooter who missed
   for(const p of players){if(p.sentOff)continue;formTarget(p,p.pos);p.pos.y=0;}
   const goalC=new V3(T.dir*HL,0,0);
   let aim=new V3(T.dir,0,0),taker=null;
@@ -3764,7 +3822,7 @@ function aiSetPiece(){
   }
 }
 function kickoff(ti){
-  for(const p of players)p.celebrating=false;
+  for(const p of players){p.celebrating=false;p.celK=null;p.react=null;}
   ball.pos.set(0,BR,0);ball.vel.set(0,0,0);
   startSetPiece('kickoff',ti,new V3(0,BR,0));
   cam.snap=true;
@@ -3794,12 +3852,28 @@ function goalScored(ti){
   say(own?'아! 자책골입니다. '+nm:pick(['골!!! ','골망을 흔듭니다! ','들어갑니다! '])+teams[ti].def.name+'의 '+nm+'!');
   drawBigScreen();
 }
+// After a goal: the scorer runs off and finishes with a celebration (knee slide, a jump and a punch of the air, both
+// arms to the sky, or the run with arms out); team-mates run to him and hug him or clap; the side that let it in stand
+// with hands on heads or hips, a few bent over or down on the grass, the keeper often sat down (CONCEDE: shares).
+const CELEB=[['celknee',0.3],['celjump',0.25],['celsky',0.2],[null,0.25]];
 function goalUpdate(dt){
   goalT+=dt;const gi=goalInfo,sc=gi.scorer;
   for(const p of players){
     if(p.sentOff||p.state!=='normal')continue;
-    if(sc&&p===sc&&!gi.own){p.celebrating=true;moveTo(p,gi.flag,0.95);}
-    else if(sc&&p.team===gi.team&&!gi.own&&!p.isGK){tmpA.copy(sc.pos).add(tmpB.set((p.slot%3-1)*1.5,0,((p.slot>>1)%3-1)*1.5));moveTo(p,tmpA,0.75);}
+    if(sc&&p===sc&&!gi.own){
+      if(p.celK===undefined||p.celK===null){const d=Math.hypot(gi.flag.x-p.pos.x,gi.flag.z-p.pos.z);
+        if(d<3.2||goalT>2.3){let r=Math.random(),k=null;for(const [c,w] of CELEB){if(r<w){k=c;break;}r-=w;}
+          if(k==='celknee'&&p.spd<3.5)k='celjump';p.celK=k||'run';if(k){p.celebrating=false;p.oAnim=k;p.oT=0;p.oDur=3;}}
+        else{p.celebrating=true;moveTo(p,gi.flag,0.95);}}
+      if(p.celK==='run'){p.celebrating=true;moveTo(p,gi.flag,0.6);}
+      else if(p.celK){tmpA.set(p.pos.x+p.vel.x*(p.celK==='celknee'?0.35:0.05),0,p.pos.z+p.vel.z*(p.celK==='celknee'?0.35:0.05));moveTo(p,tmpA,0.1);}}
+    else if(sc&&p.team===gi.team&&!gi.own&&!p.isGK){tmpA.copy(sc.pos).add(tmpB.set((p.slot%3-1)*1.5,0,((p.slot>>1)%3-1)*1.5));moveTo(p,tmpA,0.75);
+      if(!p.celK&&goalT>0.8&&d2(p.pos,sc.pos)<2.6){p.celK=Math.random()<0.6?'celhug':'clap';if(p.celK==='celhug'){p.oAnim='celhug';p.oT=0;p.oDur=2.4;}else react(p,6,2.4);}}
+    else if(p.team!==gi.team||gi.own&&p.team===1-gi.team){
+      // the side that let it in (an own goal: the scorer's own side)
+      if(!p.celK&&goalT>0.5+((p.slot*0.37)%0.8)){let r=Math.random(),k='none';const W=p.isGK?CONCEDE.gk:CONCEDE.out;for(const [c,w] of W){if(r<w){k=c;break;}r-=w;}
+        p.celK=k;if(k==='head')react(p,2,4);else if(k==='hips')react(p,3,4);else if(k!=='none'){p.oAnim=k;p.oT=0;p.oDur=4;}}
+      if(p.oAnim&&OVIS[p.oAnim]){moveTo(p,p.pos,0);}else{formTarget(p,tmpA);moveTo(p,tmpA,0.12);}}
     else{formTarget(p,tmpA);moveTo(p,tmpA,0.15);}
   }
   if(goalT>3.6){if(recCount>90)startReplay();else afterGoal();}
@@ -4258,19 +4332,27 @@ function tick(dt){
 // situational motions drawn as an existing state with a side code (|code|>=2; the sign is the kicking foot or the side):
 // shots (front volley, bicycle, scissor, slide finish) and a keeper's standing saves. Replays and online carry them as
 // any state, and the old codes (side 0 or ±1) draw exactly as before.
-const OVIS={fvolley:[A.volley,2],bicycle:[A.volley,3],scissor:[A.volley,4],slideshot:[A.slide,2],gkscoop:[A.gkready,2],gkchest:[A.gkready,3],gkhigh:[A.gkready,4]};
+const OVIS={fvolley:[A.volley,2],bicycle:[A.volley,3],scissor:[A.volley,4],slideshot:[A.slide,2],gkscoop:[A.gkready,2],gkchest:[A.gkready,3],gkhigh:[A.gkready,4],
+  celknee:[A.celeb,2],celjump:[A.celeb,3],celsky:[A.celeb,4],celhug:[A.celeb,5],knees:[A.celeb,6],sitdown:[A.celeb,7],kneelhead:[A.celeb,8],
+  chestctl:[A.header,2],thighctl:[A.header,3],block:[A.stackle,2],gkpunch:[A.gkhold,2],gkpunt:[A.volley,5]};
+// a reaction carried over standing or running for a while (p.react: RX code and the time it ends)
+function react(p,k,secs){if(p&&!p.sentOff)p.react={k,until:gtime+secs};}
 function syncAnimState(p){
   let a,t=0,ph=p.phase,side=0;
   if(p.state==='slide'){a=A.slide;t=p.stateT;}
   else if(p.state==='tackle'){a=A.stackle;t=p.stateT;}
   else if(p.state==='dive'){a=A.dive;t=p.stateT;ph=p.diveH;side=p.diveSide*(p.diveK||1);}
-  else if(p.state==='fall'){a=A.fall;t=p.stateT;}
+  else if(p.state==='fall'){a=A.fall;t=p.stateT;side=p.fallK||0;}
   else if(p.poseHold==='throw'){a=A.throw;t=0;}
   else if(p.oAnim&&OVIS[p.oAnim]){const v=OVIS[p.oAnim];a=v[0];t=p.oT;side=v[1]*(p.oSide<0?-1:1);}
   else if(p.oAnim){a=A[p.oAnim];t=p.oT;if(p.oAnim==='skill')side=p.skillSide;else if(p.oAnim==='kick'&&p.kickSide<0)side=-1;else if(p.oAnim==='stagger')side=p.stagSide||1;}
   else if(p.holding){a=A.gkhold;}
   else if(p.spd>0.35)a=p.celebrating?A.celeb:A.run,t=gtime;
   else a=(p.isGK&&d2(p.pos,ball.pos)<32&&state==='play')?A.gkready:A.idle,t=gtime;
+  if((a===A.idle||a===A.run)&&!p.celebrating){
+    if(p.inWall&&state==='setpiece')side=7;   // in a wall: hands cupped in front
+    else if(p.isGK&&state==='setpiece'&&SP&&SP.type==='penalty'&&SP.team!==p.team)side=8;   // facing a penalty: arms spread on the line
+    else if(p.react){if(gtime<p.react.until)side=p.react.k;else p.react=null;}}
   p.visA=a;p.visT=t;p.visPh=ph;p.visSide=side;
 }
 function applyVisual(p,x,y,z,face,a,t,ph,spd,side){

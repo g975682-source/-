@@ -528,14 +528,23 @@ window.P3D=(()=>{
       for(const sd of ['Left','Right']){qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'UpLeg'].quaternion.multiply(qL);
         qL.setFromAxisAngle(xAxis,1.6*c);bone[sd+'Leg'].quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-0.8*c);bone[sd+'Foot'].quaternion.multiply(qL);}
       bone.Hips.position.y-=0.92*(1-Math.cos(0.8*c));qL.setFromAxisAngle(xAxis,0.1*w);bone.Spine.quaternion.multiply(qL);}
-    if(va===10||va===17){const dur=va===10?0.5:0.62,q=clampN(t/dur,0,1);
+    if((va===10&&Math.abs(r.vside||0)<2)||va===17){const dur=va===10?0.5:0.62,q=clampN(t/dur,0,1);
       for(const [sd,sx] of [['Left',1],['Right',-1]]){let x,z,e;
         if(q<0.5){const u=q/0.5;x=-0.4-1.3*u;z=sx*(0.25+0.15*u);e=1.1;}else{const v=(q-0.5)/0.5;x=-1.7+(va===10?1.2:1.3)*v;z=sx*(0.4+(va===10?0.4:0.1)*v);e=1.1-0.5*v;}
         blendArm(A,sd,x,z,e,w);}}
-    if(va===13||va===11){const dur=va===13?0.34:0.3,q=clampN(t/dur,0,1),e2=Math.sin(Math.min(1,q)*Math.PI*0.5)*w;
+    if((va===13&&Math.abs(r.vside||0)<2)||va===11){const dur=va===13?0.34:0.3,q=clampN(t/dur,0,1),e2=Math.sin(Math.min(1,q)*Math.PI*0.5)*w;
       qL.setFromAxisAngle(xAxis,0.18*e2);bone.Spine.quaternion.multiply(qL);
       // stackle tackles with the right leg, tackle pokes with the left: the opposite arm out
       const sd=va===13?'Left':'Right',sx=va===13?1:-1;blendArm(A,sd,-0.3,sx*1.0,0.4,e2);}
+  }
+  // Reactions over standing and running (the game's side codes 2-8 on states 0 and 1: hands on head or hips, arms up
+  // appealing, a fist pump, clapping, hands cupped in a wall, arms out): the clips keep the legs and trunk, the arms are
+  // taken from the game rig, which the game posed for the reaction, faded in and out over about 0.15 s.
+  function reactArms(A,dt){
+    const r=A.rig,on=(r.va===0||r.va===1)&&Math.abs(r.vside||0)>=2;
+    A.rxw=(A.rxw||0)+((on?1:0)-(A.rxw||0))*(dt>0?1-Math.exp(-dt*14):1);if(on)A.gest=null;
+    if(A.rxw<0.01)return;
+    for(const [sd,a,e] of [['Left',r.armL,r.elbowL],['Right',r.armR,r.elbowR]])blendArm(A,sd,a.rotation.x,a.rotation.z,-e.rotation.x,A.rxw);
   }
   // an arm towards given game-convention angles by weight w, from what the bones hold now
   function blendArm(A,sd,x,z,e,w){const b=A.bone,keep=[b[sd+'Arm'].quaternion.clone(),b[sd+'ForeArm'].quaternion.clone()];
@@ -635,7 +644,7 @@ window.P3D=(()=>{
     const leanT=loco?clampN(-rate*s*0.07,-0.35,0.35):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
     kick(A,dt);
     if(A.wp<1){locomotion(A,s,dt,A.back);gestureTick(A,s,dt);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
-      trunk(A,s);legs(A);kickShape(A);
+      trunk(A,s);legs(A);kickShape(A);reactArms(A,dt);
       if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
         // the clip's hips sway (its in-place leftover) turns with the hips, or the feet would slide along the old line
