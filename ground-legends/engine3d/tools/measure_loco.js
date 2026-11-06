@@ -16,7 +16,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
   const page=await b.newPage({viewport:{width:800,height:480}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(mm=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);}catch(e){}},process.env.MM||'');   // MM=0 / MM=1: GL-Motion off / on
+  await page.addInitScript(([mm,full])=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);localStorage.setItem('gl-mm-full',full||'0');}catch(e){}},[process.env.MM||'',process.env.MMFULL||'']);   // MM=0 / MM=1: GL-Motion off / on; MMFULL=1: GL-Motion at every pace and direction
   // a pausable drawing loop: while __rafPause is set the game's frame callbacks wait
   await page.addInitScript(()=>{const raf=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=cb=>raf(t=>{if(window.__rafPause){window.requestAnimationFrame(cb);return;}cb(t);});});
   await page.route('**/*',r=>{const u=new URL(r.request().url());
@@ -31,12 +31,12 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   await page.evaluate('window.__freeze=true;window.__st='+ST);
   // move him each drawn frame (before the game draws: a requestAnimationFrame registered now runs ahead of the game's next one)
   // nobody on the ball (at the kick-off it is his): the plain runs are measured off the ball, dribbling separately
-  await page.evaluate(()=>{window.__rafPause=true;P3D.clock(1/60);__game.ball.owner=null;});
+  await page.evaluate(()=>{window.__rafPause=true;P3D.clock(1/60);__game.ball.owner=null;window.__mmLive=true;});   // __mmLive: GL-Motion reads p.wantVel, set below to where the path is going
   // ang: travel against facing (rad): 0 forwards, pi/2 sideways, pi backwards
   const run=(spd,secs,turn,ang)=>page.evaluate(([spd,secs,turn,ang])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
     p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);
     for(let i=0;i*dt<secs;i++){if(turn)p.face+=turn*dt;
-      p.pos.x+=Math.sin(p.face+ang)*spd*dt;p.pos.z+=Math.cos(p.face+ang)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));p.touchPh=(p.touchPh||0)+2*Math.PI*spd/V.strideAt(spd)*dt;
+      p.pos.x+=Math.sin(p.face+ang)*spd*dt;p.pos.z+=Math.cos(p.face+ang)*spd*dt;p.spd=spd;p.wantVel.set(Math.sin(p.face+ang)*spd,0,Math.cos(p.face+ang)*spd);p.vel.copy(p.wantVel);p.visA=spd>0.05?1:0;p.visT=12+i*dt;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));p.touchPh=(p.touchPh||0)+2*Math.PI*spd/V.strideAt(spd)*dt;
       V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);if(__game.ball.owner===p)V.ballMesh.position.set(p.pos.x+Math.sin(p.face)*0.6,0.14,p.pos.z+Math.cos(p.face)*0.6);else V.ballMesh.position.set(0,0.14,40);P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
       const f=P3D.feet(p),m=P3D.measure(p);rows.push({t:i*dt,dt,feet:f,w:m.weights,lean:m.lean,transfer:m.transfer,hy:m.hipsYaw,back:m.backwards});}
     return rows;},[spd,secs,turn||0,ang||0]);
@@ -68,8 +68,9 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   const path2=(kind,secs)=>page.evaluate(([kind,secs])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
     p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);let face=0,tgt=0,spd=0;
     for(let i=0;i*dt<secs;i++){const t=i*dt;
-      if(kind==='zig'){spd=1.5;tgt=(Math.floor(t/1.2)%2?1:-1)*Math.PI/4;face+=(tgt-face)*Math.min(1,dt/0.3*3);}
-      else{const on=Math.floor(t/1.5)%2===0;spd+=((on?2:0)-spd)*Math.min(1,dt/0.4*3);}
+      let ws;if(kind==='zig'){spd=1.5;tgt=(Math.floor(t/1.2)%2?1:-1)*Math.PI/4;face+=(tgt-face)*Math.min(1,dt/0.3*3);ws=1.5;}
+      else{const on=Math.floor(t/1.5)%2===0;spd+=((on?2:0)-spd)*Math.min(1,dt/0.4*3);ws=on?2:0;tgt=face;}
+      p.wantVel.set(Math.sin(tgt)*ws,0,Math.cos(tgt)*ws);p.vel.set(Math.sin(face)*spd,0,Math.cos(face)*spd);
       p.face=face;p.pos.x+=Math.sin(face)*spd*dt;p.pos.z+=Math.cos(face)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+t;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
       V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);V.ballMesh.position.set(0,0.14,40);P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
       rows.push({t,dt,feet:P3D.feet(p),w:P3D.measure(p).weights});}
