@@ -1,4 +1,4 @@
-# Ground Legends 인계 메모 (2026-11-05)
+# Ground Legends 인계 메모 (2026-11-06)
 
 다른 세션이 이어서 작업할 때 먼저 읽을 것. 자세한 내용은 아래에 적힌 문서들에 있음.
 
@@ -76,6 +76,11 @@
 11. (2026-11-05) 리액션·세리머니·볼 컨트롤·넘어짐·블록·키퍼 펀칭/펀트(`RX`, `react()`, `OVIS`, `CELEB`, `CONCEDE`),
     실제 자세 비율로 맞춤(`MOVEMENT_ANALYSIS.md` 8-15, `tools/situ_pose.py`). 개인기 발-공 접촉 IK(`legIK`, 각 계열 `touch`).
     강화 게이지: 대상보다 OVR 3 낮은 재료까지 1칸(25%). 백업 `pre-motions2-2026-11-05`.
+
+12. (2026-11-06) 풀게이지 자동 발사(`autoFull`), 리그 스타(`STARS`, `starTeams`, `withStar`; 상위 5팀, 능력치 105, 그 팀과의
+    경기는 cupWC AI; 실명은 `prototypes/real-players/stars.json`(gitignore)에서 읽어 아티팩트에만 함께 발행, 공개 사이트는 대체 이름).
+    GL-Motion 모션 매칭(`MOVEMENT_ANALYSIS.md` 9절): 지금은 옆걸음만 사용, 나머지는 측정상 기존 클립이 나음. DB 다시 굽기:
+    `sh engine3d/tools/fetch_100style.sh <폴더>` 후 `MM_EXTRA=<폴더>/cmu node engine3d/tools/bake_mm.js`. 백업 `pre-glmotion-2026-11-06`.
 
 ## 4. 배포 절차 (매번)
 

@@ -1,5 +1,5 @@
 // Foot sliding and blending of the 3D models' standing, walking and running, in the real game page. Development tool.
-//   node ground-legends/engine3d/tools/measure_loco.js [out.json]
+//   [MM=0|1] node ground-legends/engine3d/tools/measure_loco.js [out.json]   (MM: GL-Motion off / on)
 // The game is frozen (window.__freeze: no physics, no AI) and its drawing loop paused; this script steps time itself at
 // 60 frames a second: it moves one player in a straight line at a fixed speed (game state run, or idle at 0), facing
 // his way, poses him with the game's own applyVisual (test access injected in memory, as the other tools do), and calls
@@ -16,7 +16,7 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
   const page=await b.newPage({viewport:{width:800,height:480}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(()=>{try{localStorage.setItem('gl-tut-v1','1');}catch(e){}});
+  await page.addInitScript(mm=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);}catch(e){}},process.env.MM||'');   // MM=0 / MM=1: GL-Motion off / on
   // a pausable drawing loop: while __rafPause is set the game's frame callbacks wait
   await page.addInitScript(()=>{const raf=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=cb=>raf(t=>{if(window.__rafPause){window.requestAnimationFrame(cb);return;}cb(t);});});
   await page.route('**/*',r=>{const u=new URL(r.request().url());
@@ -63,6 +63,21 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
     out.dribble.push({spd,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3)});
     console.log(`dribble at ${spd} m/s | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)}`);}
   await page.evaluate(()=>{__game.ball.owner=null;});
+  // changes of direction and pace, where motion matching should help: a zigzag at 1.5 m/s (the travel and facing turn
+  // 90 deg every 1.2 s, eased over 0.3 s) and stop-and-go (0 and 2 m/s, every 1.5 s, eased over 0.4 s)
+  const path2=(kind,secs)=>page.evaluate(([kind,secs])=>{const V=window.__vis,p=window.__st,rows=[],dt=1/60;
+    p.pos.set(0,0,-20);p.face=0;p.vel.set(0,0,0);V.setVisDt(dt);let face=0,tgt=0,spd=0;
+    for(let i=0;i*dt<secs;i++){const t=i*dt;
+      if(kind==='zig'){spd=1.5;tgt=(Math.floor(t/1.2)%2?1:-1)*Math.PI/4;face+=(tgt-face)*Math.min(1,dt/0.3*3);}
+      else{const on=Math.floor(t/1.5)%2===0;spd+=((on?2:0)-spd)*Math.min(1,dt/0.4*3);}
+      p.face=face;p.pos.x+=Math.sin(face)*spd*dt;p.pos.z+=Math.cos(face)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+t;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
+      V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);V.ballMesh.position.set(0,0.14,40);P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
+      rows.push({t,dt,feet:P3D.feet(p),w:P3D.measure(p).weights});}
+    return rows;},[kind,secs]);
+  out.changes=[];
+  for(const kind of ['zig','stopgo']){await path2(kind,1);const rows=(await path2(kind,6)).filter(r=>r.dt>0),sl=slideOf(rows);
+    out.changes.push({kind,slideMean:+sl.mean.toFixed(3),slideMedian:+sl.p50.toFixed(3),slideP90:+sl.p90.toFixed(3)});
+    console.log(`${kind==='zig'?'zigzag 1.5 m/s':'stop-and-go 0-2 m/s'} | standing-foot slide mean ${sl.mean.toFixed(3)} m/s, median ${sl.p50.toFixed(3)}, 90% ${sl.p90.toFixed(3)}`);}
   const turn=await run(6,2.5,1.2);const leans=turn.map(r=>r.lean);out.turn={spd:6,yawRate:1.2,leanMax:Math.max(...leans.map(Math.abs))};
   console.log(`turn at 6 m/s, 1.2 rad/s: lean up to ${out.turn.leanMax.toFixed(3)} rad`);
   out.errors=errors;console.log('page errors',errors.length);

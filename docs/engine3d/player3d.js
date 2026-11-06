@@ -186,6 +186,64 @@ window.P3D=(()=>{
     return out;
   }
 
+  // GL-Motion (motion matching, as EA's FIFA / FC locomotion): anim/mm.json (tools/bake_mm.js) holds 2577 frames of
+  // captured walking, jogging and running with turns, starts, stops, side and back steps, each with features (where the
+  // root goes and faces 0.2/0.4/0.6 s on, the feet, the root's velocity). Below about 3.5 m/s and off the ball, every
+  // 0.1 s a player's wanted path (from the game's velocity and the velocity it is steering to) is matched against them
+  // and the best frame faded in over 0.2 s; faster, dribbling or kicking, the gait clips take over as before.
+  async function loadMM(url,names){
+    const r=await fetch(url);if(!r.ok||/html/i.test(r.headers.get('content-type')||''))throw new Error(url+': '+r.status);
+    const d=await r.json(),dec=(T,b)=>{const s=atob(b),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return new T(u.buffer);};
+    const N=d.frames,D=d.dims,nb=d.bones.length,q=dec(Int16Array,d.q),hp=dec(Int16Array,d.hp),feat=dec(Float32Array,d.feat),valid=dec(Uint8Array,d.valid),take=dec(Uint8Array,d.take),speed=dec(Float32Array,d.speed);
+    const fn=new Float32Array(N*D);for(let i=0;i<N;i++)for(let k=0;k<D;k++)fn[i*D+k]=(feat[i*D+k]-d.mean[k])/d.std[k];
+    const times=new Float32Array(N);for(let i=0;i<N;i++)times[i]=i/d.fps;
+    const tracks=[];
+    d.bones.forEach((b,j)=>{if(!names[b])return;const v=new Float32Array(N*4);for(let i=0;i<N;i++)for(let c=0;c<4;c++)v[i*4+c]=q[(i*nb+j)*4+c]/32767;tracks.push(new TH.QuaternionKeyframeTrack(names[b]+'.quaternion',times,v));});
+    if(names.Hips){const v=new Float32Array(N*3);for(let i=0;i<N*3;i++)v[i]=hp[i]/1000;tracks.push(new TH.VectorKeyframeTrack(names.Hips+'.position',times,v));}
+    const clip=new TH.AnimationClip('mm',(N-1)/d.fps,tracks);
+    const end=new Int32Array(N);for(const t of d.takes)for(let i=t.start;i<t.end;i++)end[i]=t.end;
+    return {N,D,fps:d.fps,fn,valid,take,speed,end,mean:d.mean,std:d.std,clips:[clip,clip.clone()],takes:d.takes};
+  }
+  const MM={on:true,max:2.0,fade:0.2,every:0.1,tau:0.25,stay:0.75};   // max: full below max-0.4 m/s, gone above max+0.4
+  // the wanted path in the root's frame (as the features): positions 0.2/0.4/0.6 s on, the facing then, the velocity
+  function mmQuery(A,dt){
+    const M=S.mm,p=A.p,yaw=A.holder.rotation.y,c=Math.cos(-yaw),sn=Math.sin(-yaw),Q=A.mmQ||(A.mmQ=new Float32Array(M.D));
+    // now: the drawn movement (so a replay or an online guest's view works too); where it is going: the velocity the game
+    // is steering him to, in live play
+    const g=window.__game,live=g&&g.state==='play'&&!window.__freeze&&p.state==='normal'&&p.wantVel;
+    const v0x=A.vx||0,v0z=A.vz||0,vtx=live?p.wantVel.x:v0x,vtz=live?p.wantVel.z:v0z,tau=MM.tau;
+    const yr=clampN(A.yrate||0,-3,3);
+    [0.2,0.4,0.6].forEach((t,i)=>{const e=tau*(1-Math.exp(-t/tau)),x=vtx*t+(v0x-vtx)*e,z=vtz*t+(v0z-vtz)*e;Q[i*2]=x*c+z*sn;Q[i*2+1]=-x*sn+z*c;
+      const dy=clampN(yr*t*(1-t/1.5),-1.6,1.6);Q[6+i*2]=Math.sin(dy);Q[6+i*2+1]=Math.cos(dy);});
+    // the feet as the frame now playing has them
+    const f=Math.min(M.N-1,Math.max(0,Math.round(A.mmF[A.mmC]||0)));for(let k=12;k<24;k++)Q[k]=M.fn[f*M.D+k]*M.std[k]+M.mean[k];
+    Q[24]=v0x*c+v0z*sn;Q[25]=-v0x*sn+v0z*c;
+    for(let k=0;k<M.D;k++)Q[k]=(Q[k]-M.mean[k])/M.std[k];
+    return Q;
+  }
+  function mmSearch(A,Q){
+    const M=S.mm,D=M.D,fn=M.fn;let best=-1,bc=1e9;
+    for(let i=0;i<M.N;i++){if(!M.valid[i])continue;let c=0,o=i*D;for(let k=0;k<D;k++){const d=fn[o+k]-Q[k];c+=d*d;if(c>=bc)break;}if(c<bc){bc=c;best=i;}}
+    return [best,bc];
+  }
+  function mmCost(Q,i){const M=S.mm,D=M.D,o=i*D;let c=0;for(let k=0;k<D;k++){const d=M.fn[o+k]-Q[k];c+=d*d;}return c;}
+  // advance the two streams, search now and then, set the weights (wm: how much of the gait is GL-Motion)
+  function mmStep(A,s,dt,wm){
+    const M=S.mm;if(!A.mmA){A.mmA=[A.mixer.clipAction(M.clips[0]),A.mixer.clipAction(M.clips[1])];for(const a of A.mmA){a.setLoop(TH.LoopRepeat,Infinity);a.setEffectiveWeight(0);a.play();}
+      A.mmF=[0,0];A.mmC=0;A.mmX=1;A.mmT=Math.random()*MM.every;A.mmNew=true;}
+    if(wm<1e-3){A.mmNew=true;for(const a of A.mmA)a.setEffectiveWeight(0);return;}
+    // playback: at the game's pace against the frame's own (0.8-1.25), within the frame's take
+    for(const j of [0,1]){const f=Math.round(A.mmF[j]),sp=M.speed[Math.min(M.N-1,Math.max(0,f))],rate=sp>0.3&&s>0.3?clampN(s/sp,0.8,1.25):1;
+      A.mmF[j]=Math.min(M.end[Math.max(0,f)]-1,A.mmF[j]+dt*M.fps*rate);}
+    A.mmT-=dt;const cur=Math.round(A.mmF[A.mmC]),atEnd=cur>=M.end[cur]-2;
+    if(A.mmNew||A.mmT<=0||atEnd){A.mmT=MM.every;const Q=mmQuery(A,dt),[b,bc]=mmSearch(A,Q);
+      const same=M.take[b]===M.take[cur]&&Math.abs(b-cur)<8;
+      if(b>=0&&(A.mmNew||atEnd||(!same&&bc<mmCost(Q,cur)*MM.stay))){const n=1-A.mmC;A.mmF[n]=b;A.mmC=n;A.mmX=A.mmNew?1:0;A.mmNew=false;}}
+    A.mmX=Math.min(1,A.mmX+dt/MM.fade);
+    const wc=wm*A.mmX,wo=wm*(1-A.mmX);
+    A.mmA[A.mmC].time=A.mmF[A.mmC]/M.fps;A.mmA[A.mmC].setEffectiveWeight(wc);
+    A.mmA[1-A.mmC].time=A.mmF[1-A.mmC]/M.fps;A.mmA[1-A.mmC].setEffectiveWeight(wo);
+  }
   // each gait clip's own trunk lean (deg, the neck over the hips' middle, forward +), averaged over its cycle, on the
   // model at rest (its pose put back afterwards)
   function clipLean(){
@@ -369,9 +427,19 @@ window.P3D=(()=>{
     for(const [k] of GAITS)if(A.act[k]){A.act[k].time=(c[k].foot+A.ph*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight(w[k]*rest);}
     for(const k of ['side','sideR'])if(A.act[k]){A.act[k].time=(c[k].foot+(A.phS||0)*c[k].dur)%c[k].dur;A.act[k].setEffectiveWeight((w[k]||0)*rest);}
     for(const k of ['kick','kickL'])if(A.act[k]){const on=k===(A.kside<0?'kickL':'kick')&&wk>0;A.act[k].setEffectiveWeight(on?wk:0);if(on)A.act[k].time=clampN(A.kt,0,c[k].dur-1e-3);}
+    // GL-Motion's share: walking and jogging speeds, off the ball, not kicking (the clips keep the dribble in step with
+    // the touches and the sprint's stretched stride)
+    // Measured (tools/measure_loco.js, standing-foot slide): GL-Motion wins walking sideways (0.12 m/s against 0.77) and
+    // loses backwards, in zigzags, stop-and-go and when mixed with the clips at jogging pace; so for now it takes only
+    // the sideways walk (travel 60-120 deg off the facing, up to 1.6 m/s, gone by 2.4)
+    const wm=S.mm&&MM.on&&!A.p.isOfficial?(A.mmSide||0)*(1-smooth(MM.max-0.4,MM.max+0.4,s))*(1-smooth(0.15,0.4,A.st.dribble))*rest:0;
+    A.mmw=wm;
+    if(S.mm){if(wm>0){A.act.idle.setEffectiveWeight(w.idle*rest*(1-wm));for(const [k] of GAITS)if(A.act[k])A.act[k].setEffectiveWeight(w[k]*rest*(1-wm));
+      for(const k of ['side','sideR'])if(A.act[k])A.act[k].setEffectiveWeight((w[k]||0)*rest*(1-wm));}
+      mmStep(A,s,dt,wm);}
     A.w=w;A.mixer.update(0);
     // the stride scaled: each thigh's rotation pushed out from (or drawn in to) the gaits' mean thigh rotation
-    const kk=1+(A.ks-1)*(fw/Math.max(mv,1e-3))*rest;
+    const kk=1+(A.ks-1)*(fw/Math.max(mv,1e-3))*rest*(1-(A.mmw||0));
     if(Math.abs(kk-1)>0.01&&fw>0.05)for(const sd of ['Left','Right']){qM.set(0,0,0,0);let ref=null;
       for(const [k] of GAITS){const h=c[k].hip&&c[k].hip[sd];if(!(w[k]>0)||!h)continue;if(!ref)ref=h;const sg2=h.dot(ref)<0?-w[k]:w[k];qM.x+=sg2*h.x;qM.y+=sg2*h.y;qM.z+=sg2*h.z;qM.w+=sg2*h.w;}
       if(!ref)continue;qM.normalize();const q=A.bone[sd+'UpLeg'].quaternion;qS.copy(qM).slerp(q,kk);q.copy(qS);}
@@ -633,12 +701,14 @@ window.P3D=(()=>{
     // 70-120 deg in open play (real players 21% of walking); 60-130 on the ball and for keepers (41%, 37%)
     const wide=A.st.dribble>0.3||A.p.isGK,swT=loco&&!A.back&&S.clips&&S.clips.side?smooth(wide?0.8:1.05,wide?1.05:1.25,ar)*(1-smooth(wide?2.05:1.95,wide?2.3:2.15,ar))*(1-smooth(1.9,2.4,s)):0;
     A.sw=(A.sw||0)+(swT-(A.sw||0))*kf;if(ar>0.3)A.sd=rel>0?1:-1;
+    const msT=loco&&vm>0.3?smooth(1.0,1.25,ar)*(1-smooth(1.95,2.2,ar)):0;A.mmSide=(A.mmSide||0)+(msT-(A.mmSide||0))*kf;   // GL-Motion's part: walking sideways
     // the side clip goes off square (its own travel, dir): the hips turn by what is left over
     const sc=S.clips&&S.clips.side,sideAng=sc?Math.atan2(sc.dir[0],sc.dir[1]):Math.PI/2,sideYaw=clampN(wrap(rel-(A.sd>0?1:-1)*sideAng),-0.6,0.6);
     const hyF=A.back?clampN(wrap(rel-Math.PI),-0.9,0.9):clampN(rel,-1.6,1.6);
-    const hyT=loco?hyF*(1-A.sw)+sideYaw*A.sw:0;A.hy+=(hyT-A.hy)*kf;
+    const hyT=(loco?hyF*(1-A.sw)+sideYaw*A.sw:0)*(1-(A.mmw||0));A.hy+=(hyT-A.hy)*kf;   // GL-Motion's frames carry their own
     // lean into turns: how fast the path bends, times speed
-    let rate=0;if(A.tr!=null&&dt>0&&vm>0.3)rate=wrap(travel-A.tr)/dt;A.tr=vm>0.3?travel:null;A.yaw=yaw;
+    let rate=0;if(A.tr!=null&&dt>0&&vm>0.3)rate=wrap(travel-A.tr)/dt;A.tr=vm>0.3?travel:null;
+    A.yrate=(A.yrate||0)+((A.yaw!=null&&dt>0?wrap(yaw-A.yaw)/dt:0)-(A.yrate||0))*kf;A.yaw=yaw;   // facing turn rate (GL-Motion's query)
     // (0.07 rad, about 4 deg, per m/s2 of the bend's pull on the hips: the trunk then leans about 2 deg per m/s2 as real
     // players' do, MOVEMENT_ANALYSIS.md section 7)
     const leanT=loco?clampN(-rate*s*0.07,-0.35,0.35):0;A.lean+=(leanT-A.lean)*(dt>0?1-Math.exp(-dt*10):1);
@@ -745,11 +815,15 @@ window.P3D=(()=>{
   }
 
   return {
-    get status(){return {clipLean:S.clipLean,mode:S.mode,ready:S.ready,error:S.error,attached:[...S.actors.keys()].map(p=>p.short||p.name),frames:S.frames,msPerFrame:S.frames?+(S.ms/S.frames).toFixed(3):0,msPerAttach:S.attached?+(S.attachMs/S.attached).toFixed(1):0,attachCount:S.attached,detachCount:S.detached,verts:S.tpl&&S.tpl.verts,clips:S.clips?Object.keys(S.clips):null,clipError:S.clipError||null};},
+    mm(on){if(on!=null){MM.on=!!on;try{localStorage.setItem('gl-mm',on?'1':'0');}catch(e){}}return {on:MM.on,loaded:!!S.mm,frames:S.mm?S.mm.N:0,error:S.mmError||null};},
+    get status(){return {gm:S.mm?{on:MM.on,frames:S.mm.N}:null,clipLean:S.clipLean,mode:S.mode,ready:S.ready,error:S.error,attached:[...S.actors.keys()].map(p=>p.short||p.name),frames:S.frames,msPerFrame:S.frames?+(S.ms/S.frames).toFixed(3):0,msPerAttach:S.attached?+(S.attachMs/S.attached).toFixed(1):0,attachCount:S.attached,detachCount:S.detached,verts:S.tpl&&S.tpl.verts,clips:S.clips?Object.keys(S.clips):null,clipError:S.clipError||null};},
     async init(opt){S.mode=(opt&&opt.mode)||'one';if(opt&&opt.base)S.base=opt.base;
       try{S.tpl=await load(S.base+'models/mh_player.glb');}catch(err){S.error=String(err&&err.message||err);S.ready=false;console.warn('P3D: 3D players off,',S.error);return this.status;}
       // the clips are optional: without them standing and running use the transfer like every other state
       try{S.clips=await loadClips(S.base+'anim/clips.json',S.tpl.names);S.clipLean=clipLean();}catch(err){S.clips=null;S.clipError=String(err&&err.message||err);console.warn('P3D: no motion clips,',S.clipError);}
+      // GL-Motion: optional, and only with the clips (it shares their mixer); ?mm=0 / ?mm=1 switches it (remembered)
+      try{const q=new URLSearchParams(location.search).get('mm');if(q==='0'||q==='1')localStorage.setItem('gl-mm',q);MM.on=localStorage.getItem('gl-mm')!=='0';}catch(e){}
+      if(S.clips)try{S.mm=await loadMM(S.base+'anim/mm.json',S.tpl.names);}catch(err){S.mm=null;S.mmError=String(err&&err.message||err);console.warn('P3D: no GL-Motion database,',S.mmError);}
       S.ready=true;
       return this.status;},
     // once per drawn frame, after the game has posed its players
