@@ -5000,7 +5000,38 @@ function recordResult(a,b,ga,gb){
   A.p++;B.p++;A.gf+=ga;A.ga+=gb;B.gf+=gb;B.ga+=ga;
   if(ga>gb){A.w++;B.l++;A.pts+=3;}else if(ga<gb){B.w++;A.l++;B.pts+=3;}else{A.d++;B.d++;A.pts++;B.pts++;}
 }
-function teamStrength(i){const t=club.league.teams[i];return t.id==='me'?clubOvr():leagueOvr(t.id);}
+function teamStrength(i){const t=club.league.teams[i];return t.id==='me'?clubOvr():leagueOvr(t.id)+(starTeams()[t.id]!=null?3:0);}
+// League stars: the five strongest other sides of the season's league each field one star, every rating 105, and play
+// the club with the smartest AI (cupWC). Their names come from stars.json beside the page, which only private copies
+// carry (ground-legends/prototypes/real-players/stars.json, not in the repository or the public site); without it they
+// play under stand-in names.
+const STARS=[
+  {k:'s1',alt:'레전드 10',label:'RW',foot:'L',trait:'trickster',num:10,skin:1,hair:1,hs:1,boot:5,h:0.95},
+  {k:'s2',alt:'레전드 7',label:'LW',foot:'R',trait:'laser',num:7,skin:1,hair:0,hs:2,boot:3,h:1.03},
+  {k:'s3',alt:'레전드 9',label:'ST',foot:'R',trait:'speedster',num:9,skin:3,hair:5,hs:0,boot:4,h:1.0},
+  {k:'s4',alt:'레전드 스트라이커',label:'ST',foot:'R',trait:'acrobatic',num:9,skin:0,hair:3,hs:1,boot:1,h:1.03},
+  {k:'s5',alt:'레전드 스피드',label:'LW',foot:'R',trait:'speedster',num:7,skin:4,hair:0,hs:0,boot:2,h:1.0}];
+let starNames=null;
+try{fetch('stars.json').then(r=>r.ok&&!/html/i.test(r.headers.get('content-type')||'')?r.json():null).then(j=>{if(j&&j.stars)starNames=j.stars;}).catch(()=>{});}catch(e){}
+function starTeams(){
+  if(!club||!club.league)return {};const key=club.season+':'+club.league.teams.map(t=>t.id).join(',');
+  if(starTeams.k===key)return starTeams.m;
+  const ids=club.league.teams.filter(t=>t.id!=='me').map(t=>t.id).sort((a,b)=>leagueOvr(b)-leagueOvr(a)||a-b).slice(0,STARS.length),m={};
+  ids.forEach((id,i)=>{m[id]=i;});starTeams.k=key;starTeams.m=m;return m;
+}
+function starPd(i){
+  const S=STARS[i],nm=starNames&&starNames[S.k]||{};
+  return {name:nm.name||S.alt,short:nm.short||nm.name||S.alt,label:S.label,line:LINE[S.label],ovr:105,st:{pac:105,sho:105,pas:105,dri:105,def:105,phy:105,gk:20},
+    num:S.num,reg:'en',skin:SKINS[S.skin],hair:HAIRS[S.hair],hs:S.hs,boot:BOOTS[S.boot],h:S.h,trait:S.trait,ft:{f:S.foot,w:4},star:S.k,legend:true};
+}
+// a league side's roster with its star in
+function withStar(id,roster){
+  const m=starTeams();if(m[id]==null)return roster;const pd=starPd(m[id]),out=roster.slice();
+  // the same place in every formation (his place in a 4-3-3), so the man he replaces is the same in every match
+  const F=FORMATIONS['4-3-3'];let k=F.findIndex(s=>s[0]===pd.label);if(k<0||k>=out.length)k=out.length-1;
+  if(out.some((p,j)=>j!==k&&p.num===pd.num))pd.num=out[k].num;
+  out[k]=Object.assign(pd,{label:out[k].label,line:out[k].line});return out;
+}
 function createClub(name,code,kitIdx){
   club={v:1,name,code,kit:KIT_CHOICES[kitIdx],money:120000,season:1,form:'4-3-3',lineup:[],players:[],nextId:1,stadium:0,diff:'semipro',minutes:5,market:[],marketKey:'',history:[],lastSeason:null};
   const labels=['GK','GK','CB','CB','CB','LB','RB','CDM','CM','CM','CAM','LM','RM','LW','RW','ST','ST'];
@@ -5018,8 +5049,9 @@ function startClubMatch(){
   const lt=club.league.teams[fx.opp],oppBase=TEAMS[lt.id],form=club.form;
   const myRoster=clubRoster();
   const oppForm=pick(Object.keys(FORMATIONS)),oppT=Object.assign({},oppBase,{ovr:leagueOvr(lt.id)});
-  beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:oppT,form:oppForm,roster:rosterFor(oppT,oppForm,false)}],
-    diff:club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
+  const star=starTeams()[lt.id]!=null;
+  beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:oppT,form:oppForm,roster:withStar(lt.id,rosterFor(oppT,oppForm,false))}],
+    diff:star?'cupWC':club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
 }
 function applyClubResult(forfeit){
   const fx=matchCfg.club.fx,my=forfeit?0:score[0],op=forfeit?3:score[1],L=club.league;
@@ -5058,7 +5090,8 @@ const SS_W={g:{ST:5,LW:3.4,RW:3.4,CAM:3,LM:2.4,RM:2.4,CM:1.5,CDM:0.8,LWB:0.9,RWB
   c:{CDM:1.7,CB:1.5,LB:1.2,RB:1.2,LWB:1.2,RWB:1.2,CM:1.15,LM:0.8,RM:0.8,CAM:0.75,LW:0.6,RW:0.6,ST:0.8,GK:0.15}};
 const AWARDS={gb:{name:'득점왕',prize:30000},ya:{name:'야신상',prize:30000},bd:{name:'발롱도르',prize:60000}};
 const lgRosters={};
-function lgRoster(id){return lgRosters[id]||(lgRosters[id]=rosterFor(TEAMS[id],'4-3-3',false));}
+function lgRoster(id){const k=id+':'+(club?club.season:0)+':'+(starTeams()[id]??'');return lgRosters[k]||(lgRosters[k]=withStar(id,rosterFor(TEAMS[id],'4-3-3',false)));}
+const ssKey=(id,s,pd)=>TEAMS[id].code+'#'+(pd&&pd.star?pd.star:s);
 function seasonStats(){if(!club.ss||club.ss.season!==club.season)club.ss={season:club.season,rows:{}};return club.ss;}
 function ssRow(key,t,pd){
   const R=seasonStats().rows,r=R[key]||(R[key]={t,g:0,a:0,y:0,r:0,ap:0,kp:0,cs:0,gc:0,sv:0,rs:0});
@@ -5070,7 +5103,7 @@ function ssMyMatch(oppId,my,op){
   for(const p of players){
     const mine=p.team===0;let key,t,pd;
     if(mine){const cp=p.pd&&p.pd.id!=null?byId(p.pd.id):null;if(!cp)continue;key='m'+cp.id;t='me';pd=cp;}
-    else{key=TEAMS[oppId].code+'#'+p.slot;t=oppId;pd=lgRoster(oppId)[p.slot]||p.pd;}
+    else{pd=p.pd&&p.pd.star?p.pd:lgRoster(oppId)[p.slot]||p.pd;key=ssKey(oppId,p.slot,pd);t=oppId;}
     const r=ssRow(key,t,pd),ga=mine?op:my;
     r.ap++;r.g+=p.g;r.a+=p.a;r.y+=p.yellow;if(p.sentOff)r.r++;r.rs+=rating(p);
     if(p.isGK){r.kp++;r.gc+=ga;if(ga===0)r.cs++;r.sv+=p.sv;}
@@ -5080,7 +5113,7 @@ function ssMyMatch(oppId,my,op){
 function ssSim(a,b,ga,gb){
   const L=club.league,side=(i,gf,gc,res,oppS)=>{
     const id=L.teams[i].id;if(id==='me')return;
-    const R=lgRoster(id),I=R.map((_,s)=>s),rows=R.map((pd,s)=>ssRow(TEAMS[id].code+'#'+s,id,pd)),pr=R.map(()=>6.3+res*0.35+(Math.random()-0.5)*0.9);
+    const R=lgRoster(id),I=R.map((_,s)=>s),rows=R.map((pd,s)=>ssRow(ssKey(id,s,pd),id,pd)),pr=R.map(()=>6.3+res*0.35+(Math.random()-0.5)*0.9);
     for(let k=0;k<gf;k++){
       const s=wPick(I,x=>(SS_W.g[R[x].label]??1)*(0.6+R[x].st.sho/150));rows[s].g++;pr[s]+=1.2;
       if(Math.random()<0.78){const q=wPick(I.filter(x=>x!==s),x=>SS_W.a[R[x].label]??1);rows[q].a++;pr[q]+=0.8;}}
@@ -5719,6 +5752,7 @@ function clubHomeHtml(fx){
       <div class="nm-vs"><div class="nm-team"><span class="crest" style="--c1:${club.kit.shirt};--c2:${club.kit.trim}">${club.code}</span><b>${club.name}</b><span>팀 OVR ${clubOvr()}</span></div>
       <span class="nm-mid">VS</span>
       <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${leagueOvr(opp.id)}</span></div></div>
+      ${starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 (능력치 105) · 상대 AI 최고 수준(월드컵 AI)</p>`:''}
       <div class="set"><span class="lbl">AI 난이도</span><div class="seg">${Object.entries(DIFFS).filter(([k,v])=>!v.hidden).map(([k,v])=>`<button class="chip ${club.diff===k?'on':''}" data-cdiff="${k}">${v.label}</button>`).join('')}</div></div>
       <div class="set"><span class="lbl">경기 시간</span><div class="seg">${[3,5,8,12].map(m=>`<button class="chip ${club.minutes===m?'on':''}" data-cmin="${m}">${m}분</button>`).join('')}</div></div>
       <div class="row end"><button class="btn primary big" data-act="play">경기 시작</button></div>
