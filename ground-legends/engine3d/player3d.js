@@ -445,7 +445,9 @@ window.P3D=(()=>{
     // with the travel). Hysteresis keeps it from flickering; each change is smoothed like a frame switch (mmInert).
     let wm=0;
     if(S.mm&&MM.on&&!A.p.isOfficial){const yr=Math.abs(A.yrate||0),was=!!A.mmOn;
-      const on=was?s<MM.max+0.25&&yr<2.5&&A.st.dribble<0.3&&wk<0.05:s<MM.max-0.25&&yr<1.5&&A.st.dribble<0.15&&wk<0.01;
+      // (until the zigzag is won too, only walking sideways by default; gl-mm-full=1 in localStorage: every walk)
+      const side=MM.full||(A.mmSide||0)>(was?0.3:0.6);
+      const on=side&&(was?s<MM.max+0.25&&yr<2.5&&A.st.dribble<0.3&&wk<0.05:s<MM.max-0.25&&yr<1.5&&A.st.dribble<0.15&&wk<0.01);
       if(on!==was){A.mmOn=on;A.mmJ=true;if(on)A.mmNew=true;}wm=on?1:0;}
     A.mmw=wm;
     if(S.mm){if(wm>0){A.act.idle.setEffectiveWeight(w.idle*rest*(1-wm));for(const [k] of GAITS)if(A.act[k])A.act[k].setEffectiveWeight(w[k]*rest*(1-wm));
