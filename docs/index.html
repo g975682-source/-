@@ -4042,6 +4042,16 @@ function actDown(a){const L=LC();if(L.act[a])return;L.act[a]=true;L.downAt[a]=pe
   if(a==='shoot'&&L.ps){L.swallow=true;psHit(L,false);return;}          // the strike of a power shot: only its timing goes out
   if(a==='shoot'&&L.act.f&&psCan(L))psStart(L);
   if(mode==='match'&&!paused||prac&&lobbyOpen())L.inq.push({type:'down',act:a,mods:modsOf(L)});netLocalEdge('down',a,0);}
+// A held shot, pass, through ball or lob goes as soon as its gauge is full, as if the key were let go then (the
+// release that follows is ignored). Only when the user's player has the ball, is taking the restart, or is meeting a
+// pass or a loose ball: a key held to press or to keep a team-mate pressing does nothing new.
+function autoFull(){
+  if(!(mode==='match'&&!paused||prac&&lobbyOpen()))return;
+  const L=LC(),p=L.controlled;if(!p||L.ps||L.act.f)return;
+  if(!(ball.owner===p||SP&&SP.taker===p||!ball.owner&&(receiving(p)||looseNear(p))))return;
+  const now=performance.now();
+  for(const a of ['shoot','pass','through','lob'])if(L.act[a]&&!L.consumed[a]&&now-(L.downAt[a]||now)>=holdFull(a)*1000){actUp(a);break;}
+}
 function actUp(a){const L=LC();if(!L.act[a])return;L.act[a]=false;if(a==='shoot'&&L.swallow){L.swallow=false;return;}const held=(performance.now()-(L.downAt[a]||0))/1000;if(mode==='match'&&!paused||prac&&lobbyOpen())L.inq.push({type:'up',act:a,held,mods:modsOf(L)});netLocalEdge('up',a,held);}
 window.addEventListener('keydown',e=>{
   if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')&&e.target.offsetParent!==null)return;
@@ -6243,7 +6253,7 @@ function netTickLobby(dt){
 let last=performance.now(),acc=0,exciteT=0;
 function frame(now){
   const dt=Math.min(0.05,(now-last)/1000);last=now;
-  pollPad();
+  pollPad();autoFull();
   if(net&&net.role==='guest'&&mode==='match')netGuestFrame(dt);
   else if((!paused||net)&&!window.__freeze){acc+=dt;let n=0;while(acc>=STEP&&n<4){if(net)netHostRead();tick(STEP);acc-=STEP;n++;}if(n>=4)acc=0;if(net&&mode==='match')netHostSend();}
   netTickLobby(dt);
