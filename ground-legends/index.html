@@ -718,7 +718,7 @@ table.lt{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;f
       <tr><td>방향키 · <kbd>W</kbd></td><td>공을 든 채 박스 안에서 이동 (이동하면서 S·D·A로 패스·킥) · 공 내려놓기</td></tr>
       <tr><td><kbd>E</kbd> · <kbd>Z</kbd></td><td>팀 전진 · 공 줍기 (백패스는 불가)</td></tr>
       <tr><th colspan="2">세트피스</th></tr>
-      <tr><td>직접 프리킥</td><td>방향키 조준 · D 길게 눌렀다 떼면 슛 · 도움닫기 중 ←→ 감아차기 ↑ 드롭 ↓ 띄우기 · Q+D 드라이브 · E 키커 변경 · C/Z 두 번째·세 번째 키커 (C+D·Z+D 슛, C+S 내주기) · S 땅볼 · A 높은 패스</td></tr>
+      <tr><td>직접 프리킥</td><td>방향키 조준 · D 길게 눌렀다 떼면 슛(게이지가 가득 차면 바로) · 도움닫기 중 ←→ 감아차기 ↑ 드롭 ↓ 띄우기 · Q+D 드라이브 · E 키커 변경 · C/Z 두 번째·세 번째 키커 (C+D·Z+D 슛, C+S 내주기) · S 땅볼 · A 높은 패스</td></tr>
       <tr><td>상대 프리킥</td><td>W 수비벽 점프 · D 수비벽 달려들기 · Z 수비벽 전진 · C/E 수비벽 좌우 이동</td></tr>
       <tr><td>페널티킥</td><td>방향키 조준 · D 슛 · Q+D 칩슛(파넨카) · Z+D 감아차기 / 막을 때 ←→ 좌우 이동 · D·Ctrl+방향 다이브 방향 결정</td></tr>
       <tr><td>승부차기</td><td>대회 토너먼트(8강·4강·결승)에서 비기면 바로 승부차기. 우리 키커는 페널티킥처럼 직접 차고(조준 + D · Q+D 칩슛 · Z+D 감아차기), 상대 키커는 골키퍼로 막습니다(←→ 이동 · D+방향 다이브). 5번씩, 이후 서든데스</td></tr>
@@ -5288,7 +5288,7 @@ const TUT_STEPS=[
   {t:'로빙 패스 · 크로스',x:`수비수가 길을 막고 있으면 ${kb('A')}로 공을 띄워 넘기세요. 측면 깊은 곳에서는 크로스가 됩니다.`,
    setup(){const a=tutPlace(tutP(0,5),-12,-4),b=tutPlace(tutP(0,9),14,6,-Math.PI/2),d=tutPlace(tutP(1,6),1,1,-Math.PI/2);tutStage([a,b,d]);tut.park.set(d,d.pos.clone());tutBall(a);},
    check(){return tutHas('pass',m=>m==='lob'||m==='cross');}},
-  {t:'슛',x:`${kb('D')}를 누르고 있다가 떼면 슛. 길게 누를수록 강하고 높게 갑니다. 방향키로 좌우 코스를 정하세요. 골을 넣어 보세요!`,
+  {t:'슛',x:`${kb('D')}를 누르고 있다가 떼면 슛. 길게 누를수록 강하고 높게 가고, 게이지가 가득 차면 떼지 않아도 바로 찹니다. 방향키로 좌우 코스를 정하세요. 골을 넣어 보세요!`,
    setup(){const p=tutPlace(tutP(0,9),36,2);tutStage([p,teams[1].gk]);teams[1].gk.pos.set(HL-0.6,0,0);tutBall(p);},
    check(){return tut.goals>0;}},
   {t:'감아차기',touchSkip:1,x:`${kb('Z')}를 누른 채 ${kb('D')}: 골대 바깥을 보고 차서 안으로 휘어 들어가는 감아차기입니다.`,
@@ -5325,7 +5325,7 @@ const TUT_STEPS=[
   {t:'골키퍼',x:`골키퍼가 공을 잡았습니다. 방향키로 박스 안을 걸어 나간 뒤 ${kb('S')}로 던지거나 ${kb('D')}·${kb('A')}로 길게 차세요. ${kb('W')}는 공을 내려놓습니다.`,
    setup(){const g=teams[0].gk,a=tutPlace(tutP(0,2),-30,10);tutStage([g,a]);g.pos.set(-HL+2,0,0);g.face=Math.PI/2;tutBall(g);g.holding=true;g.holdT=-30;tut.gk0=g.pos.clone();},
    check(){return tutHas('gkout');}},
-  {t:'직접 프리킥',x:`방향키로 노란 조준점을 옮기고 ${kb('D')}를 길게 눌렀다 떼면 도움닫기 후 슛. 달리는 동안 ${kb('←')}${kb('→')}로 감아차기, ${kb('↑')}로 드롭슛.`,
+  {t:'직접 프리킥',x:`방향키로 노란 조준점을 옮기고 ${kb('D')}를 길게 눌렀다 떼면(게이지가 가득 차면 바로) 도움닫기 후 슛. 달리는 동안 ${kb('←')}${kb('→')}로 감아차기, ${kb('↑')}로 드롭슛.`,
    setup(){const p=tutPlace(tutP(0,9),20,0);tutStage([p,teams[1].gk]);startSetPiece('freekick',0,new V3(HL-24,BR,5));tut.park.clear();},
    check(){return tutHas('shot',k=>k==='fk');}},
   {t:'페널티킥',x:`방향키로 구석을 노리고 ${kb('D')}. ${kb('Q')}+${kb('D')}는 가운데로 띄우는 칩슛입니다. 막을 때는 ←→로 움직이고 차는 순간 방향키로 다이브합니다.`,
