@@ -2140,6 +2140,9 @@ function laneOpen(a,b,ti){
   return m;
 }
 
+// a player's own AI, where he has one (the league stars: the smartest AI on a side that plays at its own level);
+// everyone else plays with his team's
+const AIof=p=>p.ai||teams[p.team].ai;
 function makePlayer(T,slot,pd,base){
   const p={team:T.idx,slot,pd,name:pd.name,short:pd.short,label:pd.label,line:pd.line,st:pd.st,num:pd.num,ovr:pd.ovr,isGK:pd.label==='GK',base,
     pos:new V3(),vel:new V3(),wantVel:new V3(),face:0,y:0,state:'normal',stateT:0,fallDur:1,stamina:100,
@@ -2148,7 +2151,8 @@ function makePlayer(T,slot,pd,base){
     save:null,diveV:new V3(),diveSide:1,diveH:0,oAnim:null,oT:0,oDur:0,phase:Math.random()*TAU,spd:0,visA:0,visT:0,celebrating:false,poseHold:null,slideHit:false,skillSide:1,
     g:0,a:0,sh:0,so:0,pa:0,pc:0,tk:0,sv:0,yellow:0,rig:null,
     trait:traitOk(pd.label,pd.trait)?pd.trait:(pd.label==='GK'?'deadeye':pd.trait||null),recvVel:new V3(),recvY:0,boostT:0,boostMul:1,fightT:0,lostT:-99,slowT:0,gainT:-99,flashCD:0,chaseOn:false,chaseShown:false,spin:null,sk:null,postSkT:0,shielding:false,shieldFace:null,faceUp:false,jockeyT:0,gotBack:false,beatenT:-99};
-  p.maxSpd=function(){let s=(5.3+this.st.pac*0.034)*teams[this.team].spdMul*(0.8+0.2*this.stamina/100);if(ball.owner===this)s*=0.86+this.st.dri*0.0013;if(this.boostT>0)s*=this.boostMul;if(this.fightT>0)s*=0.86;if(this.chaseOn)s*=1.12;return s;};
+  if(pd.star&&!T.human)p.ai=DIFFS.cupWC;
+  p.maxSpd=function(){let s=(5.3+this.st.pac*0.034)*(this.ai?this.ai.spd:teams[this.team].spdMul)*(0.8+0.2*this.stamina/100);if(ball.owner===this)s*=0.86+this.st.dri*0.0013;if(this.boostT>0)s*=this.boostMul;if(this.fightT>0)s*=0.86;if(this.chaseOn)s*=1.12;return s;};
   return p;
 }
 function colorDist(a,b){const pa=parseInt(a.slice(1),16),pb=parseInt(b.slice(1),16);return Math.hypot((pa>>16)-(pb>>16),((pa>>8)&255)-((pb>>8)&255),(pa&255)-(pb&255));}
@@ -2294,7 +2298,7 @@ function teamThink(T,dt){
       }else if(intended){moveTo(p,intended.pos,1);}   // jump on the man the pass is going to
       continue;}
     if(p===T.presser2&&ball.owner){const c=ball.owner,v=c.vel.length()>0.5?c.vel:fwd(c);tmpC.set(c.pos.x+v.x*0.45,0,c.pos.z+v.z*0.45);moveTo(p,tmpC,1);p.faceBall=true;
-      if(d2(p.pos,ball.pos)<1.6&&!c.holding&&Math.random()<dt*1.4*T.ai.press)startTackle(p,null);continue;}
+      if(d2(p.pos,ball.pos)<1.6&&!c.holding&&Math.random()<dt*1.4*AIof(p).press)startTackle(p,null);continue;}
     if(p===T.cover&&ball.owner){const c=ball.owner,ox=-T.dir*HL,gx=ox-c.pos.x,gz=-c.pos.z,gl=Math.hypot(gx,gz)||1;
       tmpC.set(c.pos.x+gx/gl*Math.min(9,gl*0.4),0,c.pos.z+gz/gl*Math.min(9,gl*0.4));moveTo(p,tmpC,0.6);p.faceBall=true;continue;}   // the second man covers about 9 m behind
     if(!att&&p.defJob){const j=p.defJob;   // mark or screen a lane: run only to close a real gap, otherwise move with the man
@@ -2324,7 +2328,7 @@ function applyMarking(p,tgt){
   if(!best)return;
   const gx=ox-best.pos.x,gz=-best.pos.z,gl=Math.hypot(gx,gz)||1;
   tmpB.set(best.pos.x+gx/gl*1.6,0,best.pos.z+gz/gl*1.6);
-  const sm=teams[p.team].ai.smart||0,run=best.runT>0&&best.runKind&&best.runKind!=='support';
+  const sm=AIof(p).smart||0,run=best.runT>0&&best.runKind&&best.runKind!=='support';
   if(run)tmpB.addScaledVector(best.vel,-0.35);   // a runner is followed, a beat behind
   tgt.lerp(tmpB,(p.line===1?0.7:0.5)+sm*0.2+(run?0.15:0));   // smart sides mark tighter
 }
@@ -2511,7 +2515,7 @@ function aiPress(p,c,dt,T){
   tmpC.set(c.pos.x+gx/gl*off+c.vel.x*0.3,0,c.pos.z+gz/gl*off+c.vel.z*0.3);
   const gap=d2(p.pos,tmpC);
   moveTo(p,tmpC,cue&&d<8?1:gap>8?0.85:gap>3?0.6:gap>1?0.4:0.2);p.faceBall=d<8;
-  const db=d2(p.pos,ball.pos),pr=T.ai.press;
+  const db=d2(p.pos,ball.pos),pr=AIof(p).press;
   // a heavy touch, a man receiving with his back to goal: go in now
   if(db<2.2&&db>0.4&&!c.holding&&cue&&Math.random()<dt*2.0*pr)return startTackle(p,null);
   if(db<1.8&&db>0.4&&!c.holding&&Math.random()<dt*0.8*pr)return startTackle(p,null);
@@ -2608,7 +2612,7 @@ function bestPassOption(p){
     if(m.isGK&&pxn>-0.45)continue;
     const d=d2(p.pos,m.pos);if(d<4||d>42)continue;
     const offside=xN(m)>off+0.004&&xN(m)>0;
-    if(offside&&Math.random()<T.ai.offIQ)continue;
+    if(offside&&Math.random()<AIof(p).offIQ)continue;
     const lane=laneOpen(p.pos,m.pos,p.team),space=nearestOppDist(m),prog=(xN(m)-pxn)*HL;
     let s=prog*0.04+Math.min(space,7)*0.05+Math.min(lane,3)*0.1-d*0.012-0.6-(lane<1.8?0.25:0),mode='ground';
     if(lane<1.1){if(d>14){mode='lob';s=prog*0.04+Math.min(space,7)*0.06+0.05-d*0.012-0.8;}else s-=0.9;}
@@ -2620,7 +2624,7 @@ function bestPassOption(p){
       else tmpB.set(m.pos.x+T.dir*8,0,m.pos.z*0.9);
       if(Math.abs(tmpB.x)<HL-3){
         const ps=nearestOppDist(m,tmpB),ln=laneOpen(p.pos,tmpB,p.team),dd=d2(p.pos,tmpB),pg=(tmpB.x*T.dir/HL-pxn)*HL;
-        if(ps>4.5&&ln>1.8){const st=pg*0.045+Math.min(ps,7)*0.06+Math.min(ln,3)*0.08-dd*0.01-0.6+(m.trait==='linebreaker'?0.15:0)+(T.ai.smart||0)*0.15+(m.runT>0?0.12:0);if(st>best.s)best={m,s:st,mode:'through',pt:tmpB.clone()};}   // smart sides look for the run
+        if(ps>4.5&&ln>1.8){const st=pg*0.045+Math.min(ps,7)*0.06+Math.min(ln,3)*0.08-dd*0.01-0.6+(m.trait==='linebreaker'?0.15:0)+(AIof(p).smart||0)*0.15+(m.runT>0?0.12:0);if(st>best.s)best={m,s:st,mode:'through',pt:tmpB.clone()};}   // smart sides look for the run
       }
     }
   }
@@ -2637,7 +2641,7 @@ function bestCrossTarget(p){
   return best;
 }
 function aiCarrier(p,dt){
-  const T=teams[p.team],ai=T.ai;
+  const T=teams[p.team],ai=AIof(p);
   if(p.holding){return;}
   if(p.isGK){p.decT-=dt;p.wantVel.set(0,0,0);const pr0=nearestOppDist(p);if(p.decT>0&&pr0>4)return;
     const opt=bestPassOption(p);
@@ -2744,7 +2748,7 @@ function choosePassTarget(p,dir,mode){
 }
 function passTo(p,m,mode,power,isAI,dirHint,o={}){
   const T=teams[p.team],from=ball.pos.clone(),wasSP=!!SP;
-  let err=(1.1-p.st.pas/100)*(isAI?T.ai.errMul:0.85)*(1-(T.talk||0)*3)*(1+clamp((2.5-nearestOppDist(p))/2.5,0,1)*0.6)*(p.fightT>0?1.45:1)*(o.flair?1.35:1);
+  let err=(1.1-p.st.pas/100)*(isAI?AIof(p).errMul:0.85)*(1-(T.talk||0)*3)*(1+clamp((2.5-nearestOppDist(p))/2.5,0,1)*0.6)*(p.fightT>0?1.45:1)*(o.flair?1.35:1);
   const tp=new V3();let ground=mode==='ground'||mode==='through';
   let wk=0;
   if(m){
@@ -2822,7 +2826,7 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   else{const inp=moveInput();let lat=inp.z;if(Math.abs(lat)<0.25)lat=-Math.sign(p.pos.z||1)*0.5;tz=clamp(lat,-1,1)*3.0;ty=0.22+power*power*2.45;}
   const d=Math.hypot(gx-bp.x,tz-bp.z);
   const pressure=clamp((3-nearestOppDist(p))/3,0,1);
-  let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?T.ai.errMul*2.2:1)*(1-(T.talk||0)*3);
+  let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?AIof(p).errMul*2.2:1)*(1-(T.talk||0)*3);
   if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
   if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;if(opts.fin)ty=clamp(ty,0.45,1.85);
     if(pw)ty=rnd(0.45,1.7)+(1-pf)*rnd(0.3,1.5);}   // a clean power strike stays under the bar, a poor one tends to fly
@@ -2909,7 +2913,7 @@ function gainPossession(p){
   if(lastOwner&&lastOwner!==p&&lastOwner.team!==p.team&&gtime-lastOwnerT<1.5)lastOwner.lostT=gtime;
   p.recvVel.copy(ball.vel);p.recvY=ball.pos.y;
   ball.owner=p;ball.lastTouch=p;p.protect=0.4;p.gainT=gtime;p.slowT=0;intended=null;possTeam=p.team;clearSaves();
-  p.decT=teams[p.team].ai.react*1.5+0.55;p.aiDir.set(teams[p.team].dir,0,0);p.runT=0;p.runKind=null;p.runNext=null;
+  p.decT=AIof(p).react*1.5+0.55;p.aiDir.set(teams[p.team].dir,0,0);p.runT=0;p.runKind=null;p.runNext=null;
   if(p.trait==='laser'&&!(isHumanTeam(p.team)&&p===CTRL[p.team].controlled)&&laserReady(p)&&Math.random()<0.6){aiShoot(p);return;}
   if(isHumanTeam(p.team)){const K=CTRL[p.team];setControlled(p);
     if(K.firstTouch&&K.firstTouch.ttl>0&&p===K.controlled&&!SP){const d=K.firstTouch.dir;K.firstTouch=null;K.buffer=null;knockOn(p,d);return;}
@@ -3230,7 +3234,7 @@ function processTackles(){
     const dist=d2(d.pos,ball.pos);if(dist>1.0)continue;
     const mul=(d.wantTackle?0.55:(dist<0.7?0.25:0))*(o.shielding?0.45:1);if(!mul)continue;
     d.cdTackle=0.55;if(o.protect>0)continue;
-    const T=teams[d.team],tm=T.human?1:T.ai.tackle;
+    const T=teams[d.team],tm=T.human?1:AIof(d).tackle;
     if(Math.random()<0.3*mul*tm*((d.st.def+15)/(o.st.dri+15))){
       stats.tackles[d.team]++;d.tk++;d.oAnim='tackle';d.oT=0;d.oDur=0.32;releaseBall();o.stun=0.5;o.noTouch=0.4;
       tackleBall(d,o,fwd(d),clamp((d.st.def-o.st.dri)/40,-0.5,0.5));if(isHumanTeam(o.team))autoSwitch(0,true,o.team);return;
@@ -3274,7 +3278,7 @@ function tackleUpdate(p,dt){
       if(p.trait==='fighter'&&o){o.fightT=1.0;traitFlash(p);}
       p.tackleHit=true;
       if(o){
-        const T=teams[p.team],tm=T.human?1:T.ai.tackle,behind=fwd(p).dot(fwd(o))>0.55;
+        const T=teams[p.team],tm=T.human?1:AIof(p).tackle,behind=fwd(p).dot(fwd(o))>0.55;
         let pr=0.62*tm*((p.st.def+15)/(o.st.dri+15));if(o.protect>0)pr*=0.45;if(o.shielding)pr*=0.6;if(behind)pr*=wide?1.0:0.6;
         if(Math.random()<clamp(pr,0.1,0.9)){
           stats.tackles[p.team]++;p.tk++;releaseBall();if(wide)traitFlash(p);o.stun=0.6;o.noTouch=0.45;
@@ -3529,7 +3533,7 @@ let duelSayT=-99;
 function duelPower(p,o,onBall){
   const s=p.st,nx=o.pos.x-p.pos.x,nz=o.pos.z-p.pos.z,d=Math.hypot(nx,nz)||1;
   const run=clamp((p.vel.x*nx+p.vel.z*nz)/d,0,7);   // speed into the other man
-  return (s.phy*0.75+(onBall?s.dri:s.def)*0.25)*(0.85+0.15*p.stamina/100)*(p.pd&&p.pd.h||1)*(1+run*0.03)*(p.trait==='fighter'?1.12:1)*(p.shielding?1.2:1)*(teams[p.team].ai.duel||1);
+  return (s.phy*0.75+(onBall?s.dri:s.def)*0.25)*(0.85+0.15*p.stamina/100)*(p.pd&&p.pd.h||1)*(1+run*0.03)*(p.trait==='fighter'?1.12:1)*(p.shielding?1.2:1)*(AIof(p).duel||1);
 }
 function stagger(L,W,edge){
   const nx=L.pos.x-W.pos.x,nz=L.pos.z-W.pos.z,d=Math.hypot(nx,nz)||1,push=1.6+2.2*edge;
@@ -3819,7 +3823,7 @@ function fkRunUpdate(dt){
 function executeFK(p,aim,power,curve,top,isAI,isPen,o={}){
   const T=teams[p.team],from=ball.pos.clone();
   p.vel.set(0,0,0);p.wantVel.set(0,0,0);
-  const skill=fkRating(p,isPen),err=(1.12-skill/100)*(isAI?T.ai.errMul:1)*(isPen?0.55:0.85)*(o.chip||o.fin?0.6:1);
+  const skill=fkRating(p,isPen),err=(1.12-skill/100)*(isAI?AIof(p).errMul:1)*(isPen?0.55:0.85)*(o.chip||o.fin?0.6:1);
   let spd=(isPen?16+power*13:16.5+power*11.5)*(0.85+0.15*skill/100)*(top>0?1.06:1);
   if(o.chip)spd=9.5+power*2.5;if(o.fin)spd*=0.82;if(o.drive)spd*=1.1;
   if(o.chip)aim.y=Math.max(aim.y,1.25);if(o.drive)aim.y=Math.max(0.4,aim.y-0.25);
@@ -5001,9 +5005,9 @@ function recordResult(a,b,ga,gb){
   A.p++;B.p++;A.gf+=ga;A.ga+=gb;B.gf+=gb;B.ga+=ga;
   if(ga>gb){A.w++;B.l++;A.pts+=3;}else if(ga<gb){B.w++;A.l++;B.pts+=3;}else{A.d++;B.d++;A.pts++;B.pts++;}
 }
-function teamStrength(i){const t=club.league.teams[i];return t.id==='me'?clubOvr():leagueOvr(t.id)+(starTeams()[t.id]!=null?3:0);}
-// League stars: the five strongest other sides of the season's league each field one star, every rating 105, and play
-// the club with the smartest AI (cupWC). Their names come from stars.json beside the page, which only private copies
+function teamStrength(i){const t=club.league.teams[i];return t.id==='me'?clubOvr():leagueOvr(t.id);}
+// League stars: the five strongest other sides of the season's league each field one star, every rating 105, who plays
+// with the smartest AI (cupWC) while the rest of his side keeps its own level (AIof). Their names come from stars.json beside the page, which only private copies
 // carry (ground-legends/prototypes/real-players/stars.json, not in the repository or the public site); without it they
 // play under stand-in names.
 const STARS=[
@@ -5050,9 +5054,8 @@ function startClubMatch(){
   const lt=club.league.teams[fx.opp],oppBase=TEAMS[lt.id],form=club.form;
   const myRoster=clubRoster();
   const oppForm=pick(Object.keys(FORMATIONS)),oppT=Object.assign({},oppBase,{ovr:leagueOvr(lt.id)});
-  const star=starTeams()[lt.id]!=null;
   beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:oppT,form:oppForm,roster:withStar(lt.id,rosterFor(oppT,oppForm,false))}],
-    diff:star?'cupWC':club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
+    diff:club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
 }
 function applyClubResult(forfeit){
   const fx=matchCfg.club.fx,my=forfeit?0:score[0],op=forfeit?3:score[1],L=club.league;
@@ -5753,7 +5756,7 @@ function clubHomeHtml(fx){
       <div class="nm-vs"><div class="nm-team"><span class="crest" style="--c1:${club.kit.shirt};--c2:${club.kit.trim}">${club.code}</span><b>${club.name}</b><span>팀 OVR ${clubOvr()}</span></div>
       <span class="nm-mid">VS</span>
       <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${leagueOvr(opp.id)}</span></div></div>
-      ${starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 (능력치 105) · 상대 AI 최고 수준(월드컵 AI)</p>`:''}
+      ${starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 105, 이 선수만 최고 수준 AI</p>`:''}
       <div class="set"><span class="lbl">AI 난이도</span><div class="seg">${Object.entries(DIFFS).filter(([k,v])=>!v.hidden).map(([k,v])=>`<button class="chip ${club.diff===k?'on':''}" data-cdiff="${k}">${v.label}</button>`).join('')}</div></div>
       <div class="set"><span class="lbl">경기 시간</span><div class="seg">${[3,5,8,12].map(m=>`<button class="chip ${club.minutes===m?'on':''}" data-cmin="${m}">${m}분</button>`).join('')}</div></div>
       <div class="row end"><button class="btn primary big" data-act="play">경기 시작</button></div>
