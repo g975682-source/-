@@ -33,7 +33,8 @@ const takes=fs.readdirSync(DIR).filter(f=>f.endsWith('.bvh')).sort();
       const toes=['LeftToeBase','RightToeBase'].map(n=>M.by[n]),heels=['LeftFoot','RightFoot'].map(n=>M.by[n]),hips=M.by.Hips,V=()=>new THREE.Vector3();
       const fr=L.sampleClip(M,c,T,t=>{const pa=L.pathAt(c,t),a=V(),b=V(),h=V();toes[0].getWorldPosition(a);toes[1].getWorldPosition(b);hips.getWorldPosition(h);
         const fa=V(),fb=V();heels[0].getWorldPosition(fa);heels[1].getWorldPosition(fb);
-        return {r:[pa[0],pa[1]],h:[h.x+pa[0],h.z+pa[1]],t:[[a.x+pa[0],a.y,a.z+pa[1]],[b.x+pa[0],b.y,b.z+pa[1]]],f:[fa.y,fb.y]};});
+        const nk=V();M.by.Neck.getWorldPosition(nk);const hq=new THREE.Quaternion();hips.getWorldQuaternion(hq);const hf=V().set(0,0,1).applyQuaternion(hq);
+        return {nk:[nk.x-h.x,nk.y-h.y,nk.z-h.z],hf:[hf.x,hf.z],r:[pa[0],pa[1]],h:[h.x+pa[0],h.z+pa[1]],t:[[a.x+pa[0],a.y,a.z+pa[1]],[b.x+pa[0],b.y,b.z+pa[1]]],f:[fa.y,fb.y]};});
       const n=fr.length,dt=1/hz,sp=[],tr=[];
       for(let i=2;i<n-2;i++){const a=fr[i-2].r,b=fr[i+2].r,vx=(b[0]-a[0])/(4*dt),vz=(b[1]-a[1])/(4*dt);sp.push(Math.hypot(vx,vz));}
       for(let i=6;i<n-6;i++){const a=fr[i-6].r,b=fr[i].r,c2=fr[i+6].r,h1=Math.atan2(b[0]-a[0],b[1]-a[1]),h2=Math.atan2(c2[0]-b[0],c2[1]-b[1]),s=Math.hypot(c2[0]-b[0],c2[1]-b[1])/(6*dt);
@@ -41,12 +42,14 @@ const takes=fs.readdirSync(DIR).filter(f=>f.endsWith('.bvh')).sort();
       const hd=[];for(let i=6;i<n-6;i++){const a=fr[i-6].r,b=fr[i+6].r,s=Math.hypot(b[0]-a[0],b[1]-a[1])/(12*dt);hd.push(s>1.0?Math.atan2(b[0]-a[0],b[1]-a[1]):null);}
       let turn1s=0;for(let i=0;i<hd.length;i++){if(hd[i]===null)continue;let acc=0,prev=hd[i];
         for(let j=i+1;j<Math.min(hd.length,i+hz+1);j++){if(hd[j]===null)break;let d=hd[j]-prev;d=Math.atan2(Math.sin(d),Math.cos(d));acc+=d;prev=hd[j];turn1s=Math.max(turn1s,Math.abs(acc));}}
+      let lsum=0,fsum=0,ln=0;for(let i=6;i<n-6;i++){const a=fr[i-6].r,b=fr[i+6].r,vx=b[0]-a[0],vz=b[1]-a[1],v=Math.hypot(vx,vz)/(12*dt);if(v<2)continue;const ux=vx/(v*12*dt),uz=vz/(v*12*dt),k=fr[i].nk;
+        lsum+=Math.atan2(k[0]*ux+k[2]*uz,k[1])*180/Math.PI;fsum+=(fr[i].hf[0]*ux+fr[i].hf[1]*uz)/Math.hypot(fr[i].hf[0],fr[i].hf[1]);ln++;}
       const lo=[0,1].map(k=>Math.min(...fr.map(f=>f.t[k][1]))),slide=[];
       for(let i=1;i<n;i++)for(const k of [0,1]){const o=1-k;if(fr[i].t[k][1]<=fr[i].t[o][1]&&fr[i].t[k][1]<lo[k]+0.03&&fr[i-1].t[k][1]<lo[k]+0.03)slide.push(Math.hypot(fr[i].t[k][0]-fr[i-1].t[k][0],fr[i].t[k][2]-fr[i-1].t[k][2])/dt);}
       const q=(a,p)=>{if(!a.length)return 0;const s=a.slice().sort((x,y)=>x-y);return s[Math.min(s.length-1,Math.floor(s.length*p))];},mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
       const sole=Math.min(...fr.map(f=>Math.min(f.t[0][1],f.t[1][1])));
       return {take,dur:+c.duration.toFixed(2),speedMean:+mean(sp).toFixed(2),speedP90:+q(sp,0.9).toFixed(2),speedMax:+Math.max(0,...sp).toFixed(2),
-        turnP90:Math.round(q(tr,0.9)),turn1s:Math.round(turn1s*180/Math.PI),turnMax:Math.round(Math.max(0,...tr)),slideMean:+mean(slide).toFixed(3),slideP90:+q(slide,0.9).toFixed(3),toeLow:+sole.toFixed(3),
+        turnP90:Math.round(q(tr,0.9)),turn1s:Math.round(turn1s*180/Math.PI),turnMax:Math.round(Math.max(0,...tr)),slideMean:+mean(slide).toFixed(3),slideP90:+q(slide,0.9).toFixed(3),toeLow:+sole.toFixed(3),leanRun:ln?+(lsum/ln).toFixed(1):null,faceTravel:ln?+(fsum/ln).toFixed(2):null,
         toeHighOfLowest:+Math.max(...lo).toFixed(3)};}catch(e){return {take,error:String(e&&e.message||e)};}},take);
     out.push(r);console.log(JSON.stringify(r));}
   await browser.close();if(errors.length)console.log('page errors',errors.slice(0,3));

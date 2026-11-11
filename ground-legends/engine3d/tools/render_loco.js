@@ -20,11 +20,12 @@ const html='<!doctype html><html><head><meta charset="utf-8"></head><body>'+game
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
   const W=+(process.env.SIZE||480),H=Math.round(W*0.75),CAM=process.env.CAM||'side',NEAR=process.env.NEAR==='1',SCENE=process.env.SCENE||'loco';
   const page=await b.newPage({viewport:{width:W,height:H}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(()=>{try{localStorage.setItem('gl-tut-v1','1');}catch(e){}
-    const raf=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=cb=>raf(t=>{if(window.__rafPause){window.requestAnimationFrame(cb);return;}cb(t);});});
+  await page.addInitScript(([mm,full])=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);localStorage.setItem('gl-mm-full',full||'0');}catch(e){}
+    const raf=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=cb=>raf(t=>{if(window.__rafPause){window.requestAnimationFrame(cb);return;}cb(t);});},[process.env.MM||'',process.env.MMFULL||'']);   // MM=0|1, MMFULL=1: GL-Motion as measure_loco.js; MMDB=<mm.json>: another database
   await page.route('**/*',r=>{const u=new URL(r.request().url());
     if(u.host==='game.local'&&u.pathname==='/')return r.fulfill({body:html,contentType:'text/html'});
     if(u.href.includes('three.min.js'))return r.fulfill({body:three,contentType:'application/javascript'});
+    if(process.env.MMDB&&u.pathname==='/engine3d/anim/mm.json')return r.fulfill({body:fs.readFileSync(path.resolve(process.env.MMDB)),contentType:'application/json'});
     if(u.pathname.startsWith('/engine3d/')){const f=path.join(GL,u.pathname);if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':f.endsWith('.json')?'application/json':'model/gltf-binary'});return r.fulfill({status:404,body:''});}
     return r.abort();});
   await page.goto('http://game.local/?p3d=one');await page.waitForFunction(()=>window.P3D&&P3D.status.ready,null,{timeout:60000});

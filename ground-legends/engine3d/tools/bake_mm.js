@@ -2,7 +2,7 @@
 // pick each player's next stretch of captured movement, as EA's FIFA / FC games do for locomotion (motion matching:
 // Clavet, GDC 2016; EA, GDC 2021 "Environmental and Motion Matched Interactions; Madden, FIFA and beyond").
 // Development tool only: the game never runs this; it reads the JSON.
-//   [MM_EXTRA=<folder with S100_*.bvh>] node ground-legends/engine3d/tools/bake_mm.js
+//   [MM_EXTRA=<folder with S100_*.bvh>] [MM_MORE=<folder>] [MM_OUT=<file>] node ground-legends/engine3d/tools/bake_mm.js
 // Takes (CMU Graphics Lab motion capture, cgspeed BVH conversion; prototypes/glb-viewer/player-animation/assets/cmu):
 // walking, jogging and running with 90-degree turns (subject 16: 16_17, 16_19, 16_41-43, 16_51-53), jogging (16_35),
 // walking (35_01), running (127_08), starts and stops (143_01, 143_02, 143_03); with MM_EXTRA, the 100STYLE takes below
@@ -17,14 +17,21 @@ const GL=path.join(__dirname,'..','..'),PA=path.join(GL,'prototypes','glb-viewer
 const P=require(path.join(GL,'tests','legacy','paths.js'));
 const {chromium}=require(P.PLAYWRIGHT);
 const three=fs.readFileSync(P.THREE_JS,'utf8'),model=fs.readFileSync(path.join(GL,'engine3d','models','mh_player.glb'));
-const OUT=path.join(GL,'engine3d','anim','mm.json');
+const OUT=process.env.MM_OUT?path.resolve(process.env.MM_OUT):path.join(GL,'engine3d','anim','mm.json');
 // [take, from s, to s]; S100_*: the 100STYLE dataset's Neutral style (Ian Mason, Sebastian Starke, Taku Komura, 2022;
 // CC BY 4.0; Xsens, 60 fps): forward walk and run, backward walk and run, sidestep walk and run, idle, transitions.
 // Fetched by tools/fetch_100style.sh into a folder given as MM_EXTRA (not kept in the repository), joints renamed to
 // the CMU names retarget.js knows. Without MM_EXTRA only the CMU takes are used.
-const EXTRA=process.env.MM_EXTRA||'';
+// MM_MORE: a folder with the further takes of MOTION_DATA.md (CMU 127/128/141/143/16/78/104 runs, turns, starts and
+// stops; EMM snakes and circles, CC BY 4.0; SkillCorner sprints and cuts converted by pose_to_bvh.py, broadcast-derived,
+// non-commercial): running up to sprinting pace and turning at speed. MM_OUT: where to write (default anim/mm.json).
+const EXTRA=process.env.MM_EXTRA||'',MORE=process.env.MM_MORE||'';
+const MORE_TAKES=MORE?fs.readdirSync(MORE).filter(f=>f.endsWith('.bvh')).sort().map(f=>{const t=f.slice(0,-4);
+  return t==='EMM_snakes'?[t,2,32,1]:t==='EMM_circles_3'?[t,2,17,1]:[t,null,null,1];}):[];
 const TAKES=[['16_17'],['16_19'],['16_41'],['16_42'],['16_43'],['16_51'],['16_52'],['16_53'],['143_01'],['143_02'],['143_03'],['127_08'],['16_35'],['35_01']]
-  .concat(EXTRA?[['S100_FW',10,40],['S100_FR',5,35],['S100_BW',10,35],['S100_BR',5,30],['S100_SW',10,35],['S100_SR',5,30],['S100_ID',2,17],['S100_TR1',0,60]]:[['09_12'],['41_02'],['143_40']]);
+  .concat(EXTRA?(MORE?[['S100_FW',10,25],['S100_FR',5,25],['S100_BW',10,25],['S100_BR',5,20],['S100_SW',10,35],['S100_SR',5,30],['S100_ID',2,10],['S100_TR1',0,30]]
+    :[['S100_FW',10,40],['S100_FR',5,35],['S100_BW',10,35],['S100_BR',5,30],['S100_SW',10,35],['S100_SR',5,30],['S100_ID',2,17],['S100_TR1',0,60]]):[['09_12'],['41_02'],['143_40']])
+  .concat(MORE_TAKES);
 const FPS=30,H=[6,12,18];
 (async()=>{
   const browser=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
@@ -33,6 +40,8 @@ const FPS=30,H=[6,12,18];
     if(u.includes('three.min.js'))return r.fulfill({body:three,contentType:'application/javascript'});
     if(u==='http://viewer.local/engine_model.glb')return r.fulfill({body:model,contentType:'model/gltf-binary'});
     if(EXTRA&&u.startsWith('http://viewer.local/extra/')){const f=path.join(EXTRA,path.basename(decodeURIComponent(u.split('?')[0])));
+      if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:'text/plain'});return r.fulfill({status:404,body:'not found'});}
+    if(MORE&&u.startsWith('http://viewer.local/more/')){const f=path.join(MORE,path.basename(decodeURIComponent(u.split('?')[0])));
       if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:'text/plain'});return r.fulfill({status:404,body:'not found'});}
     if(u.startsWith('http://viewer.local/')){const f=path.join(PA,decodeURIComponent(u.slice(20).split('?')[0]));
       if(fs.existsSync(f)&&fs.statSync(f).isFile())return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':f.endsWith('.html')?'text/html':'text/plain'});
@@ -45,7 +54,7 @@ const FPS=30,H=[6,12,18];
     const bones=M.bones,names=bones.map(b=>b.name.replace(/^mixamorig:?/,'')),hips=M.by.Hips,fl=M.by.LeftFoot,fr=M.by.RightFoot,V=()=>new THREE.Vector3(),Q=()=>new THREE.Quaternion();
     const pq=Q();hips.parent.getWorldQuaternion(pq);const ps=V();hips.parent.getWorldScale(ps);
     const takes=[];
-    for(const [take,a,b] of TAKES){const bv=await L.loadTake((take.startsWith('S100_')?'http://viewer.local/extra/':base)+take+'.bvh'),dur=bv.clip.duration;
+    for(const [take,a,b,more] of TAKES){const bv=await L.loadTake((more?'http://viewer.local/more/':take.startsWith('S100_')?'http://viewer.local/extra/':base)+take+'.bvh'),dur=bv.clip.duration;
       const c=L.makeClip(M,bv,{name:take,from:a!=null?a:0.05,to:b!=null?Math.min(b,dur-0.05):dur-0.05,pad:0});
       const T=[];for(let t=0;t<=c.duration+1e-6;t+=1/FPS)T.push(t);
       const fr2=L.sampleClip(M,c,T,t=>{const pa=L.pathAt(c,t),hw=V(),hq=Q(),a=V(),b=V();hips.getWorldPosition(hw);hips.getWorldQuaternion(hq);fl.getWorldPosition(a);fr.getWorldPosition(b);

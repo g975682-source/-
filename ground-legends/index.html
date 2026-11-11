@@ -5649,7 +5649,7 @@ function clubCupsHtml(){
 // file for bankruptcy before it can play again. A loan grows 20% a match (the interest is added to what is owed) and can
 // be paid back from the finance panel; owing more than DEBT_LIMIT, the club goes bankrupt. Bankruptcy winds the club
 // up: it starts again under the same name and kit with the founding squad and funds (trophies and records go).
-const DEBT_LIMIT=300000,DEBT_RATE=0.2;
+const DEBT_LIMIT=500000,DEBT_RATE=0.2;
 function settleFinance(total){
   club.money+=total;const out={interest:0,debt:club.debt||0,short:0,forced:false};
   if(club.debt>0){out.interest=Math.round(club.debt*DEBT_RATE);club.debt+=out.interest;out.debt=club.debt;}
