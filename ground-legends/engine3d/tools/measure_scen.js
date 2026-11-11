@@ -1,11 +1,12 @@
 // Locomotion scenarios for comparing the gait clips with GL-Motion (motion matching), in the real game page, as
 // measure_loco.js (frozen game, time stepped at 60 a second, one player moved along a path, posed with the game's own
 // applyVisual and P3D.frame). Development tool.
-//   [MM=0|1] [MMFULL=1|MMHYB=1] [MMDB=<mm.json>] [SCEN=sprint,...] [DUMP=<file prefix>] node ground-legends/engine3d/tools/measure_scen.js [out.json]
+//   [MM=0|1] [MMFULL=1|MMHYB=1] [MMDB=<mm.json>] [SCEN=sprint,...] [DUMP=<file prefix>] [ENGINE=<engine3d folder>] node ground-legends/engine3d/tools/measure_scen.js [out.json]
+// Each scenario runs three times (different warm-ups, so the stride meets the turns at different points), averaged.
 // Scenarios: straight sprint (0 to 8.5 m/s in 2 s, held), zigzag at 1.5 m/s and at 5 m/s, stop and restart (0 and
 // 6 m/s), a full circle at 4 m/s (360 deg in 2.4 s), walking backwards and sideways at 1.4 m/s. Per scenario:
-//   slide   the standing foot's speed over the ground (the lower toe within 3 cm of its 10th percentile height), mean
-//           and 90th percentile;
+//   slide   the standing foot's speed over the ground (the lower toe within 3 cm of its 10th percentile height for 4
+//           frames or more), mean and 90th percentile;
 //   sink    the lowest the toes go (m; below 0 is into the ground); float: share of frames with no toe within 5 cm of
 //           the grass; stance: how many standing-foot samples the slide is over;
 //   jerk    joint velocity breaks: each joint's acceleration against the hips (m/s2), 99th percentile and top;
@@ -22,13 +23,13 @@ const MMDB=process.env.MMDB?path.resolve(process.env.MMDB):null;
 (async()=>{
   const b=await chromium.launch({args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
   const page=await b.newPage({viewport:{width:800,height:480}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-  await page.addInitScript(([mm,full,hyb])=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);localStorage.setItem('gl-mm-full',full||'0');localStorage.setItem('gl-mm-hyb',hyb||'0');}catch(e){}},[process.env.MM||'',process.env.MMFULL||'',process.env.MMHYB||'']);
+  await page.addInitScript(([mm,full,hyb])=>{try{localStorage.setItem('gl-tut-v1','1');if(mm)localStorage.setItem('gl-mm',mm);localStorage.setItem('gl-mm-full',full||'0');if(hyb)localStorage.setItem('gl-mm-hyb',hyb);}catch(e){}},[process.env.MM||'',process.env.MMFULL||'',process.env.MMHYB||'']);
   await page.addInitScript(()=>{const raf=window.requestAnimationFrame.bind(window);window.requestAnimationFrame=cb=>raf(t=>{if(window.__rafPause){window.requestAnimationFrame(cb);return;}cb(t);});});
   await page.route('**/*',r=>{const u=new URL(r.request().url());
     if(u.host==='game.local'&&u.pathname==='/')return r.fulfill({body:html,contentType:'text/html'});
     if(u.href.includes('three.min.js'))return r.fulfill({body:three,contentType:'application/javascript'});
     if(MMDB&&u.pathname==='/engine3d/anim/mm.json')return r.fulfill({body:fs.readFileSync(MMDB),contentType:'application/json'});
-    if(u.pathname.startsWith('/engine3d/')){const f=path.join(GL,u.pathname);if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':f.endsWith('.json')?'application/json':'model/gltf-binary'});return r.fulfill({status:404,body:''});}
+    if(u.pathname.startsWith('/engine3d/')){const f=process.env.ENGINE?path.join(path.resolve(process.env.ENGINE),u.pathname.slice(10)):path.join(GL,u.pathname);if(fs.existsSync(f))return r.fulfill({body:fs.readFileSync(f),contentType:f.endsWith('.js')?'application/javascript':f.endsWith('.json')?'application/json':'model/gltf-binary'});return r.fulfill({status:404,body:''});}
     return r.abort();});
   await page.goto('http://game.local/?p3d=one');await page.waitForFunction(()=>window.P3D&&P3D.status.ready,null,{timeout:60000});
   await page.evaluate(()=>{__game.startMatch({mode:'play',minutes:12,home:0,away:2,firstKick:0});});
@@ -51,14 +52,16 @@ const MMDB=process.env.MMDB?path.resolve(process.env.MMDB):null;
       p.wantVel.set(Math.sin(wh)*ws,0,Math.cos(wh)*ws);p.vel.set(Math.sin(hd)*spd,0,Math.cos(hd)*spd);
       p.face=hd-off;p.pos.x+=Math.sin(hd)*spd*dt;p.pos.z+=Math.cos(hd)*spd*dt;p.spd=spd;p.visA=spd>0.05?1:0;p.visT=12+t;p.visPh=(p.visPh||0)+dt*(spd*1.2+(spd>0.3?1.5:0));
       V.applyVisual(p,p.pos.x,p.y,p.pos.z,p.face,p.visA,p.visT,p.visPh,p.spd,0);V.ballMesh.position.set(0,0.14,60);P3D.frame(V.players,V.scene,V.teams,null,V.ballMesh.position);
-      const m=P3D.measure(p);rows.push({t,dt,spd,face:p.face,feet:P3D.feet(p),j:P3D.joints(p),mm:m.mm});}
+      const m=P3D.measure(p);rows.push({t,dt,spd,face:p.face,feet:P3D.feet(p),j:P3D.joints(p),mm:m.mm,lock:m.lock});}
     return rows;},[kind,secs]);
   // (the standing band: each toe's 10th percentile height + 3 cm, so that one dip does not leave too few samples)
   const pct=(a,q)=>{const b=a.slice().sort((x,y)=>x-y);return b[Math.floor(b.length*q)];};
   const slideOf=rows=>{const lowL=pct(rows.map(r=>r.feet.LeftToeBase[1]),0.1),lowR=pct(rows.map(r=>r.feet.RightToeBase[1]),0.1),s=[];
-    for(let i=1;i<rows.length;i++){const a=rows[i-1],c=rows[i];
-      for(const [k,lo] of [['LeftToeBase',lowL],['RightToeBase',lowR]]){const o=k==='LeftToeBase'?'RightToeBase':'LeftToeBase';
-        if(c.feet[k][1]<=c.feet[o][1]&&c.feet[k][1]<lo+0.03&&a.feet[k][1]<lo+0.03)s.push(Math.hypot(c.feet[k][0]-a.feet[k][0],c.feet[k][2]-a.feet[k][2])/c.dt);}}
+    // (a foot counts as standing only in a run of 4 or more such frames: a stance lasts 0.07 s or more even sprinting,
+    // while in the flight phase of a run the lower, swinging foot crosses the band in 2-3 frames)
+    for(const [k,lo] of [['LeftToeBase',lowL],['RightToeBase',lowR]]){const o=k==='LeftToeBase'?'RightToeBase':'LeftToeBase',inb=rows.map(r=>r.feet[k][1]<=r.feet[o][1]&&r.feet[k][1]<lo+0.03);
+      let i=0;while(i<rows.length){if(!inb[i]){i++;continue;}let j=i;while(j+1<rows.length&&inb[j+1])j++;
+        if(j-i+1>=4)for(let q=i+1;q<=j;q++)s.push(Math.hypot(rows[q].feet[k][0]-rows[q-1].feet[k][0],rows[q].feet[k][2]-rows[q-1].feet[k][2])/rows[q].dt);i=j+1;}}
     // float: the share of frames with neither toe within 5 cm of the grass (feet in the air; a sprint has some)
     const fl=rows.filter(r=>Math.min(r.feet.LeftToeBase[1],r.feet.RightToeBase[1])>0.05).length/rows.length;
     s.sort((x,y)=>x-y);return {mean:s.reduce((a,x)=>a+x,0)/(s.length||1),p90:s[Math.floor(s.length*0.9)]||0,lo:Math.min(...rows.map(r=>Math.min(r.feet.LeftToeBase[1],r.feet.RightToeBase[1]))),fl,n:s.length};};
@@ -75,8 +78,12 @@ const MMDB=process.env.MMDB?path.resolve(process.env.MMDB):null;
   const out={mm:status,scenarios:[]};
   const ONLY=process.env.SCEN?process.env.SCEN.split(','):null;   // SCEN=sprint,zig5: only those; DUMP=<file>: their frames
   for(const [kind,secs] of [['sprint',4.5],['zig15',6],['zig5',6],['stopgo',8],['circle',3.6],['back',4],['side',4]]){if(ONLY&&!ONLY.includes(kind))continue;
-    await go(kind,0.6);const rows=(await go(kind,secs)).filter(r=>r.dt>0).slice(30);if(process.env.DUMP)fs.writeFileSync(process.env.DUMP+'.'+kind+'.json',JSON.stringify(rows));
-    const sl=slideOf(rows),j=jerkOf(rows),le=leanOf(rows),sw=switchOf(rows);
+    // three runs, each after a different warm-up (0.6, 0.73, 0.87 s), so the steps meet the path's turns at different
+    // points of the stride; the figures are over all three
+    const parts=[];for(let r=0;r<3;r++){await go(kind,0.6+0.133*r);parts.push((await go(kind,secs)).filter(x=>x.dt>0).slice(30));}
+    const rows=parts[0];if(process.env.DUMP)fs.writeFileSync(process.env.DUMP+'.'+kind+'.json',JSON.stringify(rows));
+    const avg=f=>{const v=parts.map(f);const o={};for(const k in v[0])o[k]=v.reduce((a,x)=>a+x[k],0)/v.length;return o;};
+    const sl=avg(slideOf),j=avg(jerkOf),le=avg(leanOf),sw=avg(switchOf);sl.lo=Math.min(...parts.map(p=>slideOf(p).lo));
     const o={kind,slideMean:+sl.mean.toFixed(3),slideP90:+sl.p90.toFixed(3),sink:+sl.lo.toFixed(3),float:+sl.fl.toFixed(2),stance:sl.n,jerkP99:+j.p99.toFixed(1),jerkMax:+j.max.toFixed(1),
       leanSlope:+le.slope.toFixed(2),leanR:+le.r.toFixed(2),leanMean:+le.mean.toFixed(1),switchPerSec:+sw.perSec.toFixed(2),mmShare:+sw.mmShare.toFixed(2)};
     out.scenarios.push(o);console.log(JSON.stringify(o));}

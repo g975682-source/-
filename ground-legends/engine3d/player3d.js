@@ -209,7 +209,7 @@ window.P3D=(()=>{
       for(let i=t.start;i<t.end;i++){const o=i*D,v=Math.hypot(feat[o+18+3*k],feat[o+20+3*k]);contact[i*2+k]=feat[o+13+3*k]<lo+0.03&&v<0.5?1:0;}}
     return {N,D,fps:d.fps,fn,valid,take,speed,end,contact,mean:d.mean,std:d.std,clips:[clip,clip.clone()],takes:d.takes,bones:d.bones.filter(b=>names[b])};
   }
-  const MM={on:true,max:1.9,fade:0.2,every:0.1,tau:0.25,stay:0.75,half:0.1,full:false,hyb:false};   // half: inertialization half-life (s); full: everywhere, up to sprinting (tests, gl-mm-full); hyb: every direction at walking pace (tests, gl-mm-hyb)   // max: full below max-0.4 m/s, gone above max+0.4
+  const MM={on:true,max:1.9,fade:0.2,every:0.1,tau:0.25,stay:0.75,half:0.1,full:false,hyb:true};   // half: inertialization half-life (s); full: everywhere, up to sprinting (tests, gl-mm-full=1); hyb (default): every direction at walking pace (gl-mm-hyb=0: walking sideways only, as before)   // max: full below max-0.4 m/s, gone above max+0.4
   // the wanted path in the root's frame (as the features): positions 0.2/0.4/0.6 s on, the facing then, the velocity
   function mmQuery(A,dt){
     const M=S.mm,p=A.p,yaw=A.holder.rotation.y,c=Math.cos(-yaw),sn=Math.sin(-yaw),Q=A.mmQ||(A.mmQ=new Float32Array(M.D));
@@ -453,8 +453,18 @@ window.P3D=(()=>{
       // (until the zigzag is won too, only walking sideways by default; gl-mm-full=1 in localStorage: every walk)
       const side=MM.full||MM.hyb||(A.mmSide||0)>(was?0.3:0.6);
       const yo=MM.full||MM.hyb?1e9:1;   // full: GL-Motion's own frames turn with the facing (its turns), so fast turns stay with it
-      const on=side&&(was?s<MM.max+0.25&&yr<2.5*yo&&A.st.dribble<0.3&&wk<0.05:s<MM.max-0.25&&yr<1.5*yo&&A.st.dribble<0.15&&wk<0.01);
-      if(on!==was){A.mmOn=on;A.mmJ=true;if(on)A.mmNew=true;}wm=on?1:0;}
+      // (in live play it also has to be heading for a walking pace: a player setting off on a run stays on the clips,
+      // so there is no hand-over a step later)
+      const g=window.__game,lv=(window.__mmLive||g&&g.state==='play'&&!window.__freeze)&&A.p.wantVel,ts=lv?Math.hypot(A.p.wantVel.x,A.p.wantVel.z):s;
+      // (standing still stays on the idle clip: no search for a player who is not going anywhere)
+      const mv2=MM.full||Math.max(s,ts)>(was?0.15:0.3);
+      const on=side&&mv2&&(was?s<MM.max+0.25&&ts<MM.max+0.25&&yr<2.5*yo&&A.st.dribble<0.3&&wk<0.05:s<MM.max-0.25&&ts<MM.max-0.25&&yr<1.5*yo&&A.st.dribble<0.15&&wk<0.01);
+      if(on!==was){A.mmOn=on;A.mmJ=true;if(on)A.mmNew=true;
+        // handing back to the clips: their gait phase picks up from the foot the capture has down (clips: left foot down
+        // at phase 0), so the standing foot stays the standing foot
+        else if(A.mmF){const f=Math.min(S.mm.N-1,Math.max(0,Math.round(A.mmF[A.mmC]))),cl=S.mm.contact[f*2],cr=S.mm.contact[f*2+1];
+          if(cl&&!cr)A.ph=0.1;else if(cr&&!cl)A.ph=0.6;}}
+      wm=on?1:0;}
     A.mmw=wm;
     if(S.mm){if(wm>0){A.act.idle.setEffectiveWeight(w.idle*rest*(1-wm));for(const [k] of GAITS)if(A.act[k])A.act[k].setEffectiveWeight(w[k]*rest*(1-wm));
       for(const k of ['side','sideR'])if(A.act[k])A.act[k].setEffectiveWeight((w[k]||0)*rest*(1-wm));}
@@ -650,8 +660,13 @@ window.P3D=(()=>{
   // (S.clipLean, measured once at start) is set to that. Running, the shoulders turn against the hips with each stride
   // (about 13 deg seen; the right shoulder forward as the left leg goes forward).
   const TLEAN=[[0,4.2],[1.25,4.4],[2.25,6.2],[3,8.1],[4.75,10.1],[6.25,11.8],[8,12.4]];   // section 8: standing 4, walking 4, jogging 8, running 10-12
-  const TWOSC=[[0,0],[1.5,0.04],[2.5,0.1],[4,0.14],[9,0.14]];
+  const TWOSC=[[0,0],[1.5,0.04],[2.5,0.1],[4,0.14],[9,0.14]],vL1=new TH.Vector3(),vL2=new TH.Vector3();
   function trunk(A,s){
+    // GL-Motion's frames: their trunk as posed (the neck over the hips' middle, forward in the facing) brought to the same
+    // real players' lean (the captures lean 15-20 deg walking, real players about 4)
+    if((A.mmw||0)>0.5){A.holder.updateMatrixWorld(true);const n=A.bone.Neck.getWorldPosition(vL1),h=A.bone.Hips.getWorldPosition(vL2),yw=A.holder.rotation.y;
+      const cur=Math.atan2((n.x-h.x)*Math.sin(yw)+(n.z-h.z)*Math.cos(yw),n.y-h.y)*180/Math.PI,c2=clampN((A.back?2:interp(TLEAN,s))-cur,-25,10)*1.35*Math.PI/180*A.mmw;
+      if(Math.abs(c2)>1e-3){qL.setFromAxisAngle(xAxis,c2);A.bone.Spine.quaternion.multiply(qL);qL.setFromAxisAngle(xAxis,-c2*0.7);A.bone.Neck.quaternion.multiply(qL);}}
     const w=A.w,L=S.clipLean;if(!L)return;let fw=0,cl=0;
     for(const k of ['idle','walk','jog','run'])if(w[k]>0&&L[k]!=null){fw+=w[k];cl+=w[k]*L[k];}
     if(fw<1e-3)return;cl/=fw;fw*=1-(A.mmw||0);if(fw<1e-3)return;   // (GL-Motion's frames keep their captured trunk)
@@ -738,7 +753,14 @@ window.P3D=(()=>{
     kick(A,dt);
     if(A.wp<1){locomotion(A,s,dt,A.back);gestureTick(A,s,dt);arms(A,s,(A.T=(A.T||0)+dt));   // arms read A.st as last updated by stance()
       trunk(A,s);legs(A);kickShape(A);reactArms(A,dt);
-      if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);}
+      // (leaning into a bend swings the legs out about the hips and lifts the feet: the hips come down by what the lower
+      // ball of the foot then is over its standing height, at most what the lean lifts)
+      if(Math.abs(A.lean)>1e-4){qL.setFromAxisAngle(zAxis,A.lean);bone.Hips.quaternion.premultiply(qL);
+        A.holder.updateMatrixWorld(true);const k2=A.holder.scale.x,hw=bone.Hips.getWorldPosition(vL1).y-A.holder.position.y;
+        const lo=Math.min(bone.LeftToeBase.getWorldPosition(vL2).y,bone.RightToeBase.getWorldPosition(vL1).y)-A.holder.position.y-t.toeY*k2;
+        A.leanS=(A.leanS||0)+(A.lean-(A.leanS||0))*(dt>0?1-Math.exp(-dt*2):1);   // (a held bend, not a zigzag's swing: smoothed over about 0.5 s)
+        const dT=clampN(lo,0,hw*(1-Math.cos(Math.min(Math.abs(A.lean),Math.abs(A.leanS)))));A.hdrop=(A.hdrop||0)+(dT-(A.hdrop||0))*(dt>0?1-Math.exp(-dt*8):1);   // (eased, so the hips do not jitter)
+        if(A.hdrop>1e-4&&hw>0.1)bone.Hips.position.y*=1-A.hdrop/hw;}else A.hdrop=0;
       if(Math.abs(A.hy)>1e-3){qL.setFromAxisAngle(yAxis,A.hy);bone.Hips.quaternion.premultiply(qL);
         // the clip's hips sway (its in-place leftover) turns with the hips, or the feet would slide along the old line
         const hp=bone.Hips.position,hr=t.hipsRest,dx=hp.x-hr.x,dz=hp.z-hr.z,cs=Math.cos(A.hy),sn=Math.sin(A.hy);hp.x=hr.x+dx*cs+dz*sn;hp.z=hr.z-dx*sn+dz*cs;
@@ -784,7 +806,7 @@ window.P3D=(()=>{
   function footLock(A,dt,on){
     if(!on||!(dt>0)){A.lock=null;return;}
     const k=A.holder.scale.x,ground=(S.tpl.toeY+0.03)*k,s=A.rig.vspd||0;A.holder.updateMatrixWorld(true);
-    A.lock=A.lock||{Left:{pin:null,w:0,off:new TH.Vector3(),prev:null},Right:{pin:null,w:0,off:new TH.Vector3(),prev:null}};
+    A.lock=A.lock||{Left:{pin:null,w:0,off:new TH.Vector3(),prev:null,cool:0},Right:{pin:null,w:0,off:new TH.Vector3(),prev:null,cool:0}};
     for(const sd of ['Left','Right']){const L=A.lock[sd],up=A.bone[sd+'UpLeg'],leg=A.bone[sd+'Leg'],foot=A.bone[sd+'Foot'],toe=A.bone[sd+'ToeBase'];
       const tw=toe.getWorldPosition(new TH.Vector3()),sp=L.prev?Math.hypot(tw.x-L.prev.x,tw.z-L.prev.z)/dt:0;L.prev=tw.clone();
       // under GL-Motion the capture says when a foot is down (its contacts, loadMM), whatever the body does over it; the
@@ -792,16 +814,24 @@ window.P3D=(()=>{
       const mf=A.mmw>0.5&&S.mm&&A.mmF?Math.min(S.mm.N-1,Math.max(0,Math.round(A.mmF[A.mmC]))):-1;
       // (a foot the capture has down but up to 5 cm over the grass, as some takes float, is put down on it)
       const mc=mf>=0&&S.mm.contact[mf*2+(sd==='Left'?0:1)]===1;
-      const planted=(tw.y<ground&&sp<0.8*s+0.6)||(mc&&tw.y<ground+0.05*k)||(mf>=0&&L.pin&&tw.y<ground-0.01*k);
-      if(planted&&!L.pin)L.pin=tw.clone();
-      if(!planted)L.pin=null;
-      // a spot more than 25 cm behind is dragged along (the foot slides there rather than jumping to a new spot)
-      if(L.pin){const d=Math.hypot(L.pin.x-tw.x,L.pin.z-tw.z);if(d>0.25){const f=(d-0.25)/d;L.pin.x+=(tw.x-L.pin.x)*f;L.pin.z+=(tw.z-L.pin.z)*f;}}
-      if(L.pin)L.off.set(L.pin.x-tw.x,mf>=0?Math.min(0,S.tpl.toeY*k-tw.y):0,L.pin.z-tw.z);
-      // let go no faster than the foot catching up at 2 m/s (0.08-0.25 s)
-      L.w=L.pin?Math.min(1,L.w+dt/0.04):Math.max(0,L.w-dt*clampN(2/Math.max(1e-3,L.off.length()),4,12.5));
+      // a pinned foot stays until the ball of the foot is 1.5 cm over the standing band (it comes away in the air)
+      const planted=(tw.y<ground&&sp<0.8*s+0.6)||(mc&&tw.y<ground+0.05*k)||(L.pin&&tw.y<ground+0.015*k);
+      if(L.cool>0)L.cool-=dt;
+      if(planted&&!L.pin&&!(L.cool>0))L.pin=tw.clone();
+      if(!planted&&L.pin){L.pin=null;L.cool=0.1;}
+      // a spot left more than 25 cm behind is let go: the foot steps to where the pose has it (lifted on the way, below),
+      // rather than sliding along the grass
+      if(L.pin&&Math.hypot(L.pin.x-tw.x,L.pin.z-tw.z)>0.25){L.pin=null;L.cool=0.15;}
+      L.dy=(L.dy||0)+((mc&&L.pin?Math.min(0,S.tpl.toeY*k-tw.y):0)-(L.dy||0))*Math.min(1,dt*20);   // down onto the grass while the capture has it down
+      if(L.pin)L.off.set(L.pin.x-tw.x,L.dy,L.pin.z-tw.z);
+      // let go no faster than the foot catching up at 2 m/s (0.15-0.25 s)
+      L.w=L.pin?Math.min(1,L.w+dt/0.04):Math.max(0,L.w-dt*clampN(2/Math.max(1e-3,L.off.length()),4,6.7));
       // the ankle moved by what the ball of the foot is off its spot
-      if(L.w>1e-3&&L.off.lengthSq()>1e-8){const t=foot.getWorldPosition(new TH.Vector3()).addScaledVector(L.off,L.w);twoBone(up,leg,foot,t);}}
+      // (while it catches up after being let go, the foot is lifted, up to 3 cm half way, as a short step)
+      // and, under GL-Motion, never into the grass: a ball of the foot below its standing height is raised to it
+      const rise=mf>=0?Math.max(0,S.tpl.toeY*k-0.005-tw.y-(L.w>1e-3?L.off.y*L.w:0)):0;
+      if((L.w>1e-3&&L.off.lengthSq()>1e-8)||rise>0.002){const t=foot.getWorldPosition(new TH.Vector3());if(L.w>1e-3)t.addScaledVector(L.off,L.w);
+        if(!L.pin&&L.w>1e-3)t.y+=0.03*k*Math.sin(Math.PI*L.w)*Math.min(1,L.off.length()/0.05);t.y+=rise;twoBone(up,leg,foot,t);}}
   }
 
   // The ball as the players handle it: the drawn ball (the game's ball mesh; the game's own ball, its physics, online
@@ -853,7 +883,7 @@ window.P3D=(()=>{
       // the clips are optional: without them standing and running use the transfer like every other state
       try{S.clips=await loadClips(S.base+'anim/clips.json',S.tpl.names);S.clipLean=clipLean();}catch(err){S.clips=null;S.clipError=String(err&&err.message||err);console.warn('P3D: no motion clips,',S.clipError);}
       // GL-Motion: optional, and only with the clips (it shares their mixer); ?mm=0 / ?mm=1 switches it (remembered)
-      try{const q=new URLSearchParams(location.search).get('mm');if(q==='0'||q==='1')localStorage.setItem('gl-mm',q);MM.on=localStorage.getItem('gl-mm')!=='0';MM.full=localStorage.getItem('gl-mm-full')==='1';MM.hyb=!MM.full&&localStorage.getItem('gl-mm-hyb')==='1';if(MM.full)MM.max=9.5;}catch(e){}
+      try{const q=new URLSearchParams(location.search).get('mm');if(q==='0'||q==='1')localStorage.setItem('gl-mm',q);MM.on=localStorage.getItem('gl-mm')!=='0';MM.full=localStorage.getItem('gl-mm-full')==='1';MM.hyb=!MM.full&&localStorage.getItem('gl-mm-hyb')!=='0';if(MM.full)MM.max=9.5;}catch(e){}
       if(S.clips)try{S.mm=await loadMM(S.base+'anim/mm.json',S.tpl.names);}catch(err){S.mm=null;S.mmError=String(err&&err.message||err);console.warn('P3D: no GL-Motion database,',S.mmError);}
       S.ready=true;
       return this.status;},
@@ -880,7 +910,7 @@ window.P3D=(()=>{
       return {holder:A.holder.position.toArray(),rig:A.rig.root.position.toArray(),face:[A.holder.rotation.y,A.rig.root.rotation.y],scale:A.holder.scale.x,
         lowBoot:lo,hiddenMeshes:A.hidden.length,hiddenOk,rigRootVisible:A.rig.root.visible,inScene:!!A.holder.parent,
         ballHold:+(S.bw||0).toFixed(2),transfer:+A.wp.toFixed(3),weights:Object.fromEntries(Object.entries(A.w).map(([k,v])=>[k,+v.toFixed(3)])),phase:+A.ph.toFixed(3),lean:+A.lean.toFixed(3),hipsYaw:+A.hy.toFixed(3),kick:+(A.kw||0).toFixed(2),kickTime:+(A.kt||0).toFixed(3),backwards:A.back,stance:Object.fromEntries(Object.entries(A.st).map(([k,v])=>[k,+v.toFixed(2)])),gameState:A.rig.va,gameSpeed:A.rig.vspd,look:A.look,
-        lock:A.lock?[+A.lock.Left.w.toFixed(2),+A.lock.Right.w.toFixed(2)]:null,mm:A.mmOn&&S.mm?{frame:Math.round(A.mmF[A.mmC]),take:S.mm.take[Math.round(A.mmF[A.mmC])]}:null};},
+        lock:A.lock?[+A.lock.Left.w.toFixed(2),+A.lock.Right.w.toFixed(2),+A.lock.Left.off.length().toFixed(3),+A.lock.Right.off.length().toFixed(3)]:null,mm:A.mmOn&&S.mm?{frame:Math.round(A.mmF[A.mmC]),take:S.mm.take[Math.round(A.mmF[A.mmC])]}:null};},
     // for checks: world positions of any of the copy's bones (short names)
     bones(p,list){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);const o={};for(const b of list)if(A.bone[b])o[b]=A.bone[b].getWorldPosition(new TH.Vector3()).toArray();return o;},
     // for checks: world positions of the copy's toes and feet (bones), and which of the two toes is lower
