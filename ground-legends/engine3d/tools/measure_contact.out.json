@@ -1,0 +1,167 @@
+{
+ "secs": 480,
+ "kicks": {
+  "kick (from the strike)": {
+   "n": 64,
+   "median": 0.107,
+   "p90": 0.415,
+   "over10cm": 34,
+   "toeSpeedMedian": 17.25,
+   "toeSpeedP90": 24.95
+  },
+  "dribble": {
+   "n": 354,
+   "median": 0.02,
+   "p90": 0.16,
+   "over10cm": 55,
+   "toeSpeedMedian": 7.42,
+   "toeSpeedP90": 12.52
+  },
+  "other 10": {
+   "n": 23,
+   "median": 0.401,
+   "p90": 0.563,
+   "over10cm": 18,
+   "toeSpeedMedian": 2.95,
+   "toeSpeedP90": 6.67
+  },
+  "other 12": {
+   "n": 35,
+   "median": 0.02,
+   "p90": 0.097,
+   "over10cm": 2,
+   "toeSpeedMedian": 3.22,
+   "toeSpeedP90": 16.54
+  },
+  "other 20": {
+   "n": 6,
+   "median": 0.081,
+   "p90": 0.244,
+   "over10cm": 2,
+   "toeSpeedMedian": 2.6,
+   "toeSpeedP90": 5.71
+  },
+  "other 4": {
+   "n": 3,
+   "median": 1.342,
+   "p90": 1.541,
+   "over10cm": 3,
+   "toeSpeedMedian": 5.15,
+   "toeSpeedP90": 6.13
+  },
+  "other 5": {
+   "n": 5,
+   "median": 0.247,
+   "p90": 0.999,
+   "over10cm": 4,
+   "toeSpeedMedian": 0,
+   "toeSpeedP90": 5.27
+  },
+  "other 13": {
+   "n": 9,
+   "median": 0.206,
+   "p90": 0.998,
+   "over10cm": 6,
+   "toeSpeedMedian": 3.81,
+   "toeSpeedP90": 9.84
+  },
+  "other 0": {
+   "n": 2,
+   "median": 0.492,
+   "p90": 0.492,
+   "over10cm": 2,
+   "toeSpeedMedian": 1.76,
+   "toeSpeedP90": 1.76
+  },
+  "kick (shot, wind-up)": {
+   "n": 1,
+   "median": 0.063,
+   "p90": 0.063,
+   "over10cm": 0,
+   "toeSpeedMedian": 1.24,
+   "toeSpeedP90": 1.24
+  }
+ },
+ "headers": {
+  "n": 39,
+  "median": 0.089,
+  "p90": 0.854,
+  "over10cm": 19,
+  "byAnim": {
+   "header": [
+    0.029,
+    0.085,
+    0.023,
+    0.027,
+    0.03,
+    0.029,
+    0.01,
+    0.895,
+    0.025,
+    0.009,
+    0.03,
+    0.101,
+    0.025,
+    0.233,
+    0.089,
+    0.024,
+    0.016,
+    0.029,
+    0.91,
+    0.264,
+    0.029,
+    0.067,
+    0.025,
+    0.025,
+    0.501,
+    0.233,
+    0.179,
+    0.129,
+    0.038,
+    0.63
+   ],
+   "?": [
+    0.379,
+    1.015,
+    0.305,
+    0.333,
+    0.854
+   ],
+   "throw": [
+    0.422,
+    0.369,
+    0.485,
+    0.395
+   ]
+  }
+ },
+ "catches": {
+  "n": 4,
+  "median": 0,
+  "p90": 0,
+  "over10cm": 0
+ },
+ "inside": {
+  "by": {
+   "dribble u0 RightLeg": 149,
+   "v5 LeftUpLeg": 46,
+   "v12 LeftLeg": 20,
+   "v20 LeftLeg": 19,
+   "v12 RightLeg": 14,
+   "v12 LeftFoot": 10,
+   "dribble u0.75 LeftLeg": 9,
+   "v1 LeftLeg": 9
+  },
+  "framesPerMin": 43.25,
+  "p90": 0.11,
+  "max": 0.144
+ },
+ "pops": {
+  "perMin": 452.63,
+  "p90": 22.61,
+  "p99": 98.17,
+  "over10PerMin": 172.13,
+  "max": 2364.08
+ },
+ "errors": []
+}

@@ -483,12 +483,15 @@ window.P3D=(()=>{
   // 0.06 / 0.2 s.
   function kick(A,dt){
     const r=A.rig,c=S.clips&&S.clips.kick;if(!c||!c.contact)return;const inKick=r.va===2;
-    if(inKick&&!A.kOn){A.kOn=true;A.k0=r.vt;A.kc=r.vt<0.05?0.15:r.vt;A.kside=r.vside<0?-1:1;}
-    if(!inKick)A.kOn=false;
+    // (the AI's kicks start at the strike: the game's ball has just been struck near him. Then the clip is played from
+    // 0.12 s before its foot strike, 1.6 times as fast up to it, and the drawn ball waits for the foot: ballContact)
+    if(inKick&&!A.kOn){A.kOn=true;A.k0=r.vt;const bk=S.bKick&&S.frames-S.bKick.f<=2&&Math.hypot(S.bKick.x-A.holder.position.x,S.bKick.z-A.holder.position.z)<1.8;
+      A.kNow=r.vt>=0&&r.vt<0.05&&!!bk;A.kc=A.kNow?r.vt:r.vt<0.05?0.15:r.vt;A.kside=r.vside<0?-1:1;}
+    if(!inKick){A.kOn=false;A.kNow=false;}
     // before the strike the clip runs 1.35 times as fast, so that a shot's 0.25 s wind-up shows the clip from its plant
     // step (0.24 s in) rather than only the swing; after it, at its own pace
-    if(A.kOn){const d=r.vt-A.kc;A.kt=c.contact.contact+(d<0?d*1.35:d);}else if(A.kw>0)A.kt=(A.kt||0)+dt;
-    const tgt=A.kOn?1:0;A.kw=tgt>A.kw?Math.min(1,A.kw+(dt>0?dt/0.06:1)):Math.max(0,A.kw-(dt>0?dt/0.2:1));
+    if(A.kOn){const d=r.vt-A.kc;if(A.kNow){const e=d*1.6;A.kt=e<0.12?c.contact.contact-0.12+e:c.contact.contact+d-0.075;}else A.kt=c.contact.contact+(d<0?d*1.35:d);}else if(A.kw>0)A.kt=(A.kt||0)+dt;
+    const tgt=A.kOn?1:0;A.kw=tgt>A.kw?Math.min(1,A.kw+(dt>0?dt/(A.kNow?0.03:0.06):1)):Math.max(0,A.kw-(dt>0?dt/0.2:1));
   }
   // The kicking leg as real players swing it (SkillCorner body pose, 59 shots and 1,644 passes, MOVEMENT_ANALYSIS.md
   // 8-9): the knee folded to about 110 deg 0.12 s before the strike and 95 at it, the thigh no higher than about 16 deg
@@ -843,21 +846,52 @@ window.P3D=(()=>{
   //  - a header: the ball at the forehead at the top of the jump;
   //  - a keeper holding the ball: between his hands; diving, his hands reach for it (IK).
   // Only for a player with the 3D model, the ball within 1.6 m of where it is put.
-  const vK1=new TH.Vector3(),vK2=new TH.Vector3();
+  const vK1=new TH.Vector3(),vK2=new TH.Vector3(),vB1=new TH.Vector3(),vB2=new TH.Vector3(),vB3=new TH.Vector3(),vB4=new TH.Vector3();
+  const BODYCAP=[['Hips','Neck',0.14],['Head',null,0.11],['LeftUpLeg','LeftLeg',0.07],['RightUpLeg','RightLeg',0.07]];   // (bone, to bone, radius m)
+  const SHINCAP=[['LeftLeg','LeftFoot',0.06],['RightLeg','RightFoot',0.06]];
   function ballContact(bp,dt){
     let best=null,bd=2.5;for(const A of S.actors.values()){const d=Math.hypot(A.holder.position.x-bp.x,A.holder.position.z-bp.z);if(d<bd){bd=d;best=A;}}
-    const A=best;if(!A){S.bw=0;return;}
+    const A=best;if(!A){S.bw=0;if(S.bo)S.bo.set(0,0,0);return;}
     A.holder.updateMatrixWorld(true);const yaw=A.holder.rotation.y,fx=Math.sin(yaw),fz=Math.cos(yaw),p=A.p;let w=0;
     if(p.holding&&p.isGK){A.bone.LeftHand.getWorldPosition(vK1);A.bone.RightHand.getWorldPosition(vK2);vK1.add(vK2).multiplyScalar(0.5);vK1.x+=fx*0.08;vK1.z+=fz*0.08;w=1;}
     else if((A.kw||0)>0.05&&S.kickSpot){const k=A.kside<0?'kickL':'kick',sp=S.kickSpot[k],c=S.clips[k];
-      if(sp&&c&&c.contact){const ct=c.contact.contact,kt=A.kt||0;w=smooth(ct-0.3,ct-0.05,kt)*(1-smooth(ct,ct+0.05,kt))*Math.min(1,A.kw*1.5);
+      if(sp&&c&&c.contact){const ct=c.contact.contact,kt=A.kt||0;w=A.kNow?(kt<ct+0.01?1:0):smooth(ct-0.3,ct-0.05,kt)*(1-smooth(ct,ct+0.05,kt))*Math.min(1,A.kw*1.5);
         vK1.copy(sp);A.root.localToWorld(vK1);vK1.x+=fx*0.1;vK1.z+=fz*0.1;vK1.y=0.11;}}
-    else if(p.oAnim==='header'&&p.oT>0.08&&p.oT<0.45){   // a header: the ball meets the forehead at the top of the jump
-      w=Math.exp(-Math.pow((p.oT-0.25)/0.08,2));A.bone.Head.getWorldPosition(vK1);vK1.x+=fx*0.15;vK1.z+=fz*0.15;vK1.y+=0.04;}
+    else if(p.oAnim==='header'){   // a header: the ball meets the forehead
+      A.bone.Head.getWorldPosition(vK1);vK1.x+=fx*0.15;vK1.z+=fz*0.15;vK1.y+=0.04;
+      // struck by the game now (most headers start at the strike, the head still low): the drawn ball waits where it
+      // was and is met by the forehead over 0.12 s, then goes; otherwise it is drawn to the head at the top of the jump
+      const hk=S.bKick&&S.frames-S.bKick.f<=1&&Math.hypot(S.bKick.x-A.holder.position.x,S.bKick.z-A.holder.position.z)<1.8;
+      if(hk&&!(A.hHold&&A.hHold.p===p))A.hHold={p,pos:(S.bgp||bp).clone(),t0:p.oT};
+      if(A.hHold&&A.hHold.p===p&&p.oT-A.hHold.t0<0.16){const q=smooth(0,0.12,p.oT-A.hHold.t0);vK1.lerp(A.hHold.pos,1-q);w=1;}
+      else if(p.oT>0.08&&p.oT<0.45)w=Math.exp(-Math.pow((p.oT-0.25)/0.08,2));}
+    // (dribbling: at the touch the ball is at the toe, and between touches it goes out to where the game has it and back
+    // smoothly, as a ball pushed ahead and caught up with: no snap)
     else if(A.st.dribble>0.3&&(p.tchU!=null||p.touchPh!=null)){const u=p.tchU!=null?p.tchU:((p.touchPh/(2*Math.PI))%1+1)%1,c=0.5+0.5*Math.cos(2*Math.PI*u);w=Math.pow(c,6)*Math.min(1,(A.st.dribble-0.3)/0.4);   // the game's touches (tchU), else every stride
       A.bone.RightToeBase.getWorldPosition(vK1);vK1.x+=fx*0.13;vK1.z+=fz*0.13;vK1.y=0.11;}
-    if(w>1e-3&&Math.hypot(vK1.x-bp.x,vK1.z-bp.z)<1.6&&Math.abs(vK1.y-bp.y)<1.2){bp.x+=(vK1.x-bp.x)*w;bp.z+=(vK1.z-bp.z)*w;bp.y+=(vK1.y-bp.y)*w;}
+    // the drawn ball is the game's ball plus an offset that goes to where the foot or hands want it quickly (0.012 s) and
+    // back slowly (0.07 s), so it never jumps from one frame to the next (a struck ball leaves the foot and catches up)
+    const bo=S.bo||(S.bo=new TH.Vector3());let tx=0,ty=0,tz=0;
+    if(p.oAnim!=='header')A.hHold=null;
+    if(w>1e-3&&Math.hypot(vK1.x-bp.x,vK1.z-bp.z)<(A.kNow||A.hHold?3:1.6)&&Math.abs(vK1.y-bp.y)<1.2){tx=(vK1.x-bp.x)*w;ty=(vK1.y-bp.y)*w;tz=(vK1.z-bp.z)*w;}
+    if(S.bgp&&Math.hypot(bp.x-S.bgp.x,bp.y-S.bgp.y,bp.z-S.bgp.z)>3)bo.set(0,0,0);   // (a restart: the game's ball was put somewhere else)
+    const grow=tx*tx+ty*ty+tz*tz>bo.lengthSq(),kb=dt>0?1-Math.exp(-dt/(grow?0.012:0.07)):1;bo.x+=(tx-bo.x)*kb;bo.y+=(ty-bo.y)*kb;bo.z+=(tz-bo.z)*kb;
+    bp.add(bo);if(bp.y<0.11)bp.y=0.11;
+    // on the ball, the drawn ball is kept out of the carrier's feet (13 cm from each ball of the foot, the touch's own distance, pushed ahead)
+    if(A.st.dribble>0.3&&bp.y<0.3)for(const n of ['RightToeBase','LeftToeBase']){A.bone[n].getWorldPosition(vK2);const dx=bp.x-vK2.x,dz=bp.z-vK2.z,d=Math.hypot(dx,dz);
+      if(d<0.13){const ah=dx*fx+dz*fz,need=Math.sqrt(Math.max(0,0.0169-Math.pow(dx*fz-dz*fx,2)))-ah;if(need>0){bp.x+=fx*need;bp.z+=fz*need;}}}   // (pushed ahead, the way the foot sends it)
     S.bw=w;
+    // and never through a body (the game's ball rolls through a player lying on the grass): out of the trunk, head and
+    // thighs (shins too, lying or sliding) of anyone within 2.2 m, along the shortest way (a keeper holding it excepted)
+    for(const B of S.actors.values()){if(B.p.holding)continue;const dh=Math.hypot(B.holder.position.x-bp.x,B.holder.position.z-bp.z);if(dh>2.2)continue;B.holder.updateMatrixWorld(true);
+      const lying=B.rig.va===5||B.rig.va===3;   // (lying or sliding: the shins too)
+      for(const [a,c,r] of lying?BODYCAP.concat(SHINCAP):BODYCAP){const P=B.bone[a].getWorldPosition(vB1),Q=c?B.bone[c].getWorldPosition(vB2):P;
+        vB3.subVectors(Q,P);const L2=vB3.lengthSq(),t=L2>1e-9?clampN(vB4.subVectors(bp,P).dot(vB3)/L2,0,1):0;vB4.copy(P).addScaledVector(vB3,t);
+        vB3.subVectors(bp,vB4);const d=vB3.length(),need=r+0.11-d;
+        if(need>0.005){if(d>1e-4&&bp.y+vB3.y*need/d>=0.11)bp.addScaledVector(vB3,need/d);
+          else{const hx=vB3.x,hz=vB3.z,hl=Math.hypot(hx,hz);   // (out sideways, not down into the grass, from a body lying on it)
+            const ux=hl>1e-4?hx/hl:-vB3.z||1,uz=hl>1e-4?hz/hl:0,dd=Math.sqrt(Math.max(0,(r+0.11)**2-(bp.y-vB4.y)**2))-hl;if(dd>0){bp.x+=ux*dd;bp.z+=uz*dd;}}}}}
+    if(bp.y<0.11)bp.y=0.11;
     // a diving keeper reaches for the ball: both hands drawn to its sides (two-bone IK on each arm) as it comes within
     // 1.6 m of them, fully from 0.6 m
     for(const G of S.actors.values()){const q=G.p;if(!q.isGK||q.state!=='dive')continue;G.holder.updateMatrixWorld(true);
@@ -899,8 +933,11 @@ window.P3D=(()=>{
       // frames (they show the game's own model until then)
       for(const p of want)if(p.rig&&!S.actors.has(p)){if(performance.now()-t0>ATTACH_MS)break;const ta=performance.now();attach(p,scene,teams);S.attachMs+=performance.now()-ta;S.attached++;}
       const t1=performance.now(),dt=S.fixedDt!=null?S.fixedDt:S.last?Math.min(0.1,(t1-S.last)/1000):0;S.last=t1;
+      // the game's ball struck (its velocity changed by more than 2.5 m/s since the last frame): kick timing reads it
+      if(ballPos&&dt>0){if(S.bgp){const vx=(ballPos.x-S.bgp.x)/dt,vy=(ballPos.y-S.bgp.y)/dt,vz=(ballPos.z-S.bgp.z)/dt;
+          if(S.bgv&&Math.hypot(vx-S.bgv.x,vy-S.bgv.y,vz-S.bgv.z)>2.5&&Math.hypot(vx-S.bgv.x,vy-S.bgv.y,vz-S.bgv.z)<60)S.bKick={f:S.frames,x:ballPos.x,z:ballPos.z};S.bgv={x:vx,y:vy,z:vz};}}
       for(const A of S.actors.values())drive(A,dt);
-      if(ballPos)ballContact(ballPos,dt);
+      if(ballPos)ballContact(ballPos,dt);if(ballPos)S.bgp=ballPos.clone().sub(S.bo||new TH.Vector3());
       S.ms+=performance.now()-t1;S.frames++;},
     // for checks: where a player's copy stands against the game rig, and its lowest boot vertex (skinned, world y)
     measure(p){const A=S.actors.get(p);if(!A)return null;A.holder.updateMatrixWorld(true);
