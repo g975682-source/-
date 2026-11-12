@@ -1237,9 +1237,10 @@ const POS_H={GK:0.035,CB:0.026,ST:0.012,CDM:0.01,LB:-0.005,RB:-0.005,LWB:-0.01,R
 function bodyOf(pd){
   const r=mulberry(hashStr((pd.name||'p')+'|'+(pd.label||'')+'|body'));
   const st=pd.st||{phy:65,pac:65},phy=(st.phy||65),pac=(st.pac||65);
-  const S=clamp(1+((pd.h||0.995)-0.995)*1.9+(POS_H[pd.label]||0)+(r()-0.5)*0.03,0.91,1.09);
-  const W=clamp(0.95+(phy-65)/40*0.1+(r()-0.5)*0.1+(S-1)*0.3,0.88,1.14);
-  const M=clamp(0.94+(phy-65)/40*0.12+(r()-0.5)*0.08,0.86,1.16);
+  // (a player with his own height in cm and build, bw shoulders and hips, bm muscle, keeps them: the All-Stars)
+  const S=pd.cm?clamp(pd.cm/181,0.91,1.09):clamp(1+((pd.h||0.995)-0.995)*1.9+(POS_H[pd.label]||0)+(r()-0.5)*0.03,0.91,1.09);
+  const W=pd.bw?clamp(pd.bw,0.88,1.14):clamp(0.95+(phy-65)/40*0.1+(r()-0.5)*0.1+(S-1)*0.3,0.88,1.14);
+  const M=pd.bm?clamp(pd.bm,0.86,1.16):clamp(0.94+(phy-65)/40*0.12+(r()-0.5)*0.08,0.86,1.16);
   const L=clamp(1+(pac-65)/40*0.025+(r()-0.5)*0.05,0.95,1.05);
   const gait={arm:0.78+r()*0.32,lean:0.03+r()*0.08,knee:0.85+r()*0.3,bounce:0.7+r()*0.6,armOut:r()*0.12,seed:r()*TAU};
   return {S,W,M,L,gait,cm:Math.round(181*S)};
@@ -1385,7 +1386,7 @@ function addFace(head,pd){
   for(const sx of [-1,1]){add(FGEO.eye,white,sx*0.04,0.012,0.098);add(FGEO.pupil,dark,sx*0.04,0.012,0.113);add(FGEO.brow,brw,sx*0.042,0.047,0.103).rotation.z=sx*-0.12;}
   add(FGEO.nose,nose,0,-0.012,0.116).rotation.x=Math.PI/2;
   add(FGEO.mouth,lip,0,-0.053,0.105);
-  if(hashStr(pd.name||'')%3===0)add(FGEO.beard,hm,0,0,0).scale.set(0.95,1.05,1);
+  if(pd.beard!=null?pd.beard:hashStr(pd.name||'')%3===0)add(FGEO.beard,hm,0,0,0).scale.set(0.95,1.05,1);
 }
 const A={idle:0,run:1,kick:2,slide:3,dive:4,fall:5,gkready:6,gkhold:7,throw:8,celeb:9,header:10,tackle:11,skill:12,stackle:13,refCard:14,refPoint:15,flag:16,jump:17,volley:18,advantage:19,stagger:20};
 /* ================= skill moves ================= */
@@ -2739,7 +2740,7 @@ function choosePassTarget(p,dir,mode){
 function passTo(p,m,mode,power,isAI,dirHint,o={}){
   const T=teams[p.team],from=ball.pos.clone(),wasSP=!!SP;
   let err=(1.1-p.st.pas/100)*(isAI?AIof(p).errMul:0.85)*(1-(T.talk||0)*3)*(1+clamp((2.5-nearestOppDist(p))/2.5,0,1)*0.6)*(p.fightT>0?1.45:1)*(o.flair?1.35:1);
-  const tp=new V3();let ground=mode==='ground'||mode==='through';
+  const tp=new V3();let ground=mode==='ground'||mode==='through',crossSp=null;
   let wk=0;
   if(m){
     if(mode==='through'||o.lead||o.lobThrough){
@@ -2770,8 +2771,8 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
     if(from.y>0.5){v.y=-1;}
   }else{
     let d=d2(from,tp);
-    let Tf=mode==='throw'?0.7+d/32:mode==='cross'?1.05+d/36:0.95+d/30;
-    if(m&&!o.lobThrough){tp.addScaledVector(m.vel,Tf*0.7);if(mode==='cross')crossClamp(tp,p.team);d=d2(from,tp);Tf=mode==='throw'?0.7+d/32:mode==='cross'?1.05+d/36:0.95+d/30;}
+    let Tf=mode==='throw'?0.7+d/32:mode==='cross'?(1.05+d/36)*CROSS_T:0.95+d/30;
+    if(m&&!o.lobThrough){tp.addScaledVector(m.vel,Tf*0.7);if(mode==='cross')crossClamp(tp,p.team);d=d2(from,tp);Tf=mode==='throw'?0.7+d/32:mode==='cross'?(1.05+d/36)*CROSS_T:0.95+d/30;}
     if(o.low)Tf*=0.72;
     if(mode==='throw'&&d>24){tp.sub(from).setLength(24).add(from);d=24;}
     const ty=mode==='cross'?(o.low?0.95:1.5):0.35;
@@ -2779,14 +2780,29 @@ function passTo(p,m,mode,power,isAI,dirHint,o={}){
     const vy=(ty-from.y+0.5*GRAV*Tf*Tf)/Tf;
     const dir=new V3(tp.x-from.x,0,tp.z-from.z).normalize().applyAxisAngle(new V3(0,1,0),gauss()*err*0.11);
     v=dir.multiplyScalar(hs);v.y=vy;
+    // a cross is whipped in: side spin bending it away from the keeper and a little top spin to make it dip, the kick
+    // worked out by flying it (so it still arrives where the runner will be), the miss-hit spread laid on after
+    if(mode==='cross'){const vd=new V3(tp.x-from.x,0,tp.z-from.z).normalize().multiplyScalar(d/Tf*(1+AIR*Tf*0.55));vd.y=(ty-from.y+0.5*GRAV*Tf*Tf)/Tf;
+      crossSp={s:(o.low?CROSS_SPIN*0.7:CROSS_SPIN)*(Math.sign(vd.z*T.dir)||1),top:o.low?0.3:0.55,g:0};
+      curlAim(from,vd,tp,ty,Tf,crossSp);const ns=1+gauss()*err*0.1;vd.applyAxisAngle(new V3(0,1,0),gauss()*err*0.11);vd.x*=ns;vd.z*=ns;v=vd;}
   }
   stats.passes[p.team]++;p.pa++;
   lastPass={by:p,team:p.team,open:true,kind:o.lobThrough?'lob':mode,sp:wasSP};
   kick(p,v,mode==='throw'?'throw':'pass');
+  if(crossSp){ball.sp.s=crossSp.s;ball.sp.top=crossSp.top;computeTraj();}
   if(o.flair){p.oAnim='volley';p.oT=0.05;p.oDur=0.5;}
   intended=m||null;
   if(T.human&&m){setControlled(m);CTRL[T.idx].switchCD=1.0;}
   if(!wasSP)passRuns(p,m,mode);
+}
+// Crosses: flight time against the old (0.8: faster, flatter), side spin (free kicks use curve x 7) and top spin
+const CROSS_T=0.8,CROSS_SPIN=1.3;
+// a kick v (changed in place) that, with spin sp, has the ball at (tp.x, ty, tp.z) after Tf seconds
+function curlAim(from,v,tp,ty,Tf,sp){
+  for(let it=0;it<4;it++){const pos=from.clone(),vel=v.clone(),s={s:sp.s,top:sp.top,g:0},n=Math.max(1,Math.round(Tf*60));
+    for(let i=0;i<n;i++)ballStep(pos,vel,1/60,s);
+    v.x+=(tp.x-pos.x)/Tf;v.z+=(tp.z-pos.z)/Tf;v.y+=(ty-pos.y)/Tf;}
+  return v;
 }
 // fly a kicked ball forward until it reaches the goal line x=gx: where it crosses and how far the spin bent it
 function flightTo(bp,v,spin,gx){
@@ -2817,7 +2833,8 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
   const d=Math.hypot(gx-bp.x,tz-bp.z);
   const pressure=clamp((3-nearestOppDist(p))/3,0,1);
   let sig=(1.12-p.st.sho/100)*(0.55+d/24)*(1+pressure*0.8)*(isAI?AIof(p).errMul*2.2:1)*(1-(T.talk||0)*3);
-  if(isHeader)sig*=1.6;if(opts.pen)sig*=0.55;
+  if(isHeader)sig*=isAI?1.6:1.15;if(opts.pen)sig*=0.55;   // (the player's headers: truer than the AI's)
+  const plainD=!isAI&&!isHeader&&!opts.pen&&!opts.chip&&!opts.fin&&!opts.low&&!pw;if(plainD)sig*=0.8;   // the plain D shot: truer
   if(!aim&&!isHeader){if(opts.chip){ty=clamp(1.7+power*0.4,1.5,2.2);sig*=0.85;}if(opts.low)ty=0.15+power*0.08;if(opts.fin)ty=clamp(ty,0.45,1.85);
     if(pw)ty=rnd(0.45,1.7)+(1-pf)*rnd(0.3,1.5);}   // a clean power strike stays under the bar, a poor one tends to fly
   if(opts.fin)sig*=0.75;if(opts.flair)sig*=1.25;
@@ -2843,7 +2860,8 @@ function doShoot(p,power,aim,isHeader,isAI,opts={}){
     turn=clamp(Math.pow(clamp((ang-35)/100,0,1),1.2)+away,0,1)*(1-clamp((p.st.dri-55)/100,0,0.45))*(acro?0.35:1)*(isHeader?0.5:1);
     sig*=1+turn*4;ty+=turn*rnd(0.5,2.0);tz+=gauss()*turn*(2.2+d*0.12);}   // a miscue goes wide whatever his finishing
   tz+=gauss()*sig*0.85;ty+=gauss()*sig*0.55;ty=Math.max(0.12,ty);
-  let spd=isHeader?12+power*7:15+power*16*(0.7+0.3*p.st.sho/100);
+  let spd=isHeader?(isAI?12+power*7:14+power*9):15+power*16*(0.7+0.3*p.st.sho/100);
+  if(plainD)spd*=1.1;   // and harder
   if(laser)spd*=1.18;
   if(!isHeader){if(opts.chip)spd=11+power*6.5;if(opts.fin)spd*=0.9;if(opts.low)spd*=1.2;}
   if(pw)spd*=0.71+0.35*pf;
@@ -4846,10 +4864,10 @@ const faceCache=new Map(),faceIds=new Map(),faceJobs=[],faceMats={};let faceR=nu
 const BLANK='data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 function cardKit(){return club&&club.kit?club.kit:TEAMS[0].home;}
 function faceTag(p,kit,up,cls){
-  const gk=p.label==='GK',key=[p.name,p.skin,p.hair,p.hs,kit.shirt,kit.trim,kit.pat,kit.shorts,gk?'g':'o',up?'u':'h',p.num||0].join('|');
+  const gk=p.label==='GK',key=[p.name,p.skin,p.hair,p.hs,p.beard,kit.shirt,kit.trim,kit.pat,kit.shorts,gk?'g':'o',up?'u':'h',p.num||0].join('|');
   let id=faceIds.get(key);if(id==null){id=faceIds.size+1;faceIds.set(key,id);}
   const url=faceCache.get(id);
-  if(!url&&!faceFail&&!faceJobs.some(j=>j.id===id))faceJobs.push({id,p:{name:p.name,short:p.short,skin:p.skin,hair:p.hair,hs:p.hs,boot:p.boot||'#111111',h:1,num:p.num||0},kit,up,gk});
+  if(!url&&!faceFail&&!faceJobs.some(j=>j.id===id))faceJobs.push({id,p:{name:p.name,short:p.short,skin:p.skin,hair:p.hair,hs:p.hs,beard:p.beard,boot:p.boot||'#111111',h:1,num:p.num||0},kit,up,gk});
   return `<img class="${cls} ${up?'up':'head'}" data-fid="${id}" src="${url||BLANK}" alt="">`;
 }
 function initFaceR(){
@@ -5059,13 +5077,29 @@ const DIFF_PAY={amateur:0.75,semipro:1,pro:1.6,world:2.4,legend:3.5};
 function diffPay(k){return DIFF_PAY[k]||1;}
 function lgCount(){if(club.asc==null)club.asc=(club.season-1)*club.league.fixtures.length+club.league.week;return club.asc;}
 function allStarDue(){return !!club&&!!club.league&&!!nextFixture()&&(lgCount()+1)%10===0;}
+// The All-Star eleven, in the 4-3-3's order (GK, LB, CB, CB, RB, CM, CDM, CM, LW, ST, RW). Each is shown with an overall
+// of 120 and plays with the smartest AI; his own game is in his ratings (the best of them over 120, the weak side lower),
+// his trait, his feet, and his looks: height (cm), build (bw shoulders and hips, bm muscle), skin and hair (a shaved
+// head: hair the skin's colour), hair style (hs 0 normal, 1 short, 2 tied back) and beard. The names come from
+// stars.json (keys a1-a11) in private copies; the public site shows the stand-ins (alt).
+const ALLSTAR_XI=[
+  {k:'a1',alt:'올스타 GK',num:1,cm:189,bw:1.04,bm:1.0,skin:0,hair:0,hs:1,beard:0,trait:'deadeye',foot:'R',w:4,boot:0,st:{pac:110,sho:80,pas:112,dri:90,def:105,phy:122,gk:124}},
+  {k:'a2',alt:'올스타 LB',num:12,cm:174,bw:0.98,bm:1.02,skin:3,hair:5,hs:0,beard:0,trait:'trickster',foot:'L',w:3,boot:1,st:{pac:123,sho:110,pas:121,dri:125,def:112,phy:112,gk:20}},
+  {k:'a3',alt:'올스타 CB',num:3,cm:186,bw:1.05,bm:1.0,skin:1,hair:1,hs:0,beard:0,trait:'widetackler',foot:'R',w:5,boot:0,st:{pac:118,sho:98,pas:117,dri:110,def:127,phy:119,gk:20}},
+  {k:'a4',alt:'올스타 CB2',num:4,cm:184,bw:1.08,bm:1.1,skin:1,hair:0,hs:1,beard:1,trait:'fighter',foot:'R',w:4,boot:5,st:{pac:117,sho:112,pas:114,dri:106,def:125,phy:126,gk:20}},
+  {k:'a5',alt:'올스타 RB',num:2,cm:176,bw:1.0,bm:1.06,skin:5,hair:5,hs:1,bald:1,beard:0,trait:'chaser',foot:'R',w:3,boot:4,st:{pac:125,sho:100,pas:117,dri:114,def:118,phy:123,gk:20}},
+  {k:'a6',alt:'올스타 CM',num:8,cm:171,bw:0.92,bm:0.92,skin:0,hair:1,hs:1,beard:0,trait:'trickster',foot:'R',w:5,boot:6,st:{pac:114,sho:113,pas:126,dri:127,def:104,phy:98,gk:20}},
+  {k:'a7',alt:'올스타 CDM',num:6,cm:170,bw:0.93,bm:0.94,skin:1,hair:0,hs:1,beard:0,trait:'chaser',foot:'R',w:4,boot:0,st:{pac:108,sho:110,pas:130,dri:121,def:113,phy:102,gk:20}},
+  {k:'a8',alt:'올스타 CM2',num:80,cm:181,bw:1.0,bm:1.0,skin:3,hair:5,hs:2,beard:0,trait:'trickster',foot:'R',w:4,boot:3,st:{pac:118,sho:121,pas:126,dri:130,def:90,phy:112,gk:20}},
+  {k:'a9',alt:'올스타 LW',num:7,cm:187,bw:1.06,bm:1.12,skin:1,hair:0,hs:1,beard:0,trait:'acrobatic',foot:'R',w:4,boot:2,st:{pac:125,sho:130,pas:113,dri:121,def:88,phy:124,gk:20}},
+  {k:'a10',alt:'올스타 ST',num:9,cm:183,bw:1.06,bm:1.08,skin:2,hair:5,hs:1,bald:1,beard:0,trait:'speedster',foot:'R',w:4,boot:4,st:{pac:127,sho:128,pas:110,dri:127,def:80,phy:121,gk:20}},
+  {k:'a11',alt:'올스타 RW',num:10,cm:170,bw:0.94,bm:0.98,skin:0,hair:2,hs:0,beard:1,trait:'trickster',foot:'L',w:3,boot:3,st:{pac:121,sho:126,pas:126,dri:132,def:80,phy:104,gk:20}}];
 function allStarRoster(){
-  const r=rosterFor(ALLSTAR,'4-3-3',false).map(p=>Object.assign(p,{ovr:120,st:{pac:120,sho:120,pas:120,dri:120,def:120,phy:120,gk:p.label==='GK'?120:20}}));
-  // the league stars where their places are in a 4-3-3 (one each)
-  const F=FORMATIONS['4-3-3'],used=new Set();
-  STARS.forEach((S,i)=>{const k=F.findIndex((f,j)=>f[0]===S.label&&!used.has(j));if(k<0)return;used.add(k);const pd=starPd(i);
-    if(r.some((q,j)=>j!==k&&q.num===pd.num))pd.num=r[k].num;r[k]=Object.assign(pd,{label:r[k].label,line:r[k].line});});
-  return r;
+  const F=FORMATIONS['4-3-3'];
+  return ALLSTAR_XI.map((a,i)=>{const nm=starNames&&starNames[a.k]||{},lab=F[i][0],skin=SKINS[a.skin];
+    return {name:nm.name||a.alt,short:nm.short||nm.name||a.alt,label:lab,line:LINE[lab],ovr:120,st:Object.assign({},a.st),num:a.num,reg:'en',
+      skin,hair:a.bald?skin:HAIRS[a.hair],hs:a.hs,beard:!!a.beard,boot:BOOTS[a.boot],cm:a.cm,bw:a.bw,bm:a.bm,h:+(a.cm/181).toFixed(3),
+      trait:a.trait,ft:{f:a.foot,w:a.w},star:a.k,legend:true};});
 }
 function startAllStarMatch(){
   const form=club.form;
@@ -5817,7 +5851,7 @@ function clubHomeHtml(fx){
       <div class="nm-vs"><div class="nm-team"><span class="crest" style="--c1:${club.kit.shirt};--c2:${club.kit.trim}">${club.code}</span><b>${club.name}</b><span>팀 OVR ${clubOvr()}</span></div>
       <span class="nm-mid">VS</span>
       <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${asd?120:leagueOvr(opp.id)}</span></div></div>
-      ${asd?`<p class="foot" style="margin:0;color:var(--gold)">★ 10번째 경기마다 열리는 올스타전 · 11명 모두 능력치 120, 최고 수준 AI · 리그 순위에는 들어가지 않습니다</p>`:starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 120, 이 선수만 최고 수준 AI</p>`:''}
+      ${asd?`<p class="foot" style="margin:0;color:var(--gold)">★ 10번째 경기마다 열리는 올스타전 · 11명 모두 능력치 120, 최고 수준 AI · 리그 순위에는 들어가지 않습니다</p><p class="foot" style="margin:0">${allStarRoster().map(p=>p.label+' '+esc(p.short)).join(' · ')}</p>`:starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 120, 이 선수만 최고 수준 AI</p>`:''}
       <div class="set"><span class="lbl">AI 난이도</span><div class="seg">${Object.entries(DIFFS).filter(([k,v])=>!v.hidden).map(([k,v])=>`<button class="chip ${club.diff===k?'on':''}" data-cdiff="${k}">${v.label}</button>`).join('')}</div></div>
       ${asd?'':`<p class="foot" style="margin:0">리그 승리 수당 <b>${fmtBP(Math.round(24000*diffPay(club.diff)))} BP</b> · 무승부 ${fmtBP(Math.round(10000*diffPay(club.diff)))} BP (난이도가 높을수록 커집니다)</p>`}
       <div class="set"><span class="lbl">경기 시간</span><div class="seg">${[3,5,8,12].map(m=>`<button class="chip ${club.minutes===m?'on':''}" data-cmin="${m}">${m}분</button>`).join('')}</div></div>

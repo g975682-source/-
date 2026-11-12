@@ -357,7 +357,7 @@ window.P3D=(()=>{
     const t=S.tpl,root=TH.SkeletonUtils.clone(t.root);let mesh=null;const bone={};
     root.traverse(o=>{if(o.isBone)bone[short(o.name)]=o;if(o.isSkinnedMesh&&!mesh)mesh=o;});
     const pd=p.pd||p,body=p.rig&&p.rig.body||{W:1,M:1};
-    const lk={hs:clampN(pd.hs|0,0,2),beard:hashStr(pd.name||'')%3===0,gk:!!p.isGK,W:+(body.W||1).toFixed(3),M:+(body.M||1).toFixed(3),pat:null,decals:0};
+    const lk={hs:clampN(pd.hs|0,0,2),beard:pd.beard!=null?!!pd.beard:hashStr(pd.name||'')%3===0,gk:!!p.isGK,W:+(body.W||1).toFixed(3),M:+(body.M||1).toFixed(3),pat:null,decals:0};
     const kit=kitFor(p,teams);lk.pat=kit.pat;
     mesh.geometry=mesh.geometry.clone();paint(mesh.geometry,t,kit,lk);
     mesh.material=new TH.MeshLambertMaterial({vertexColors:true,skinning:true});
