@@ -4954,10 +4954,11 @@ function clubForfeitLive(){
   try{
     // only if that match is still the one to play (the same league round, or the same cup round)
     let ok=lv.season===club.season;
-    if(ok&&lv.cup){const st=cupState(lv.cup);ok=!!st&&st.stage===lv.stage&&st.round===lv.round;}
+    if(ok&&lv.allstar){ok=lgCount()===lv.asc;}
+    else if(ok&&lv.cup){const st=cupState(lv.cup);ok=!!st&&st.stage===lv.stage&&st.round===lv.round;}
     else if(ok){ok=!!club.league&&club.league.week===lv.week&&!!lv.fx;}
-    if(ok){matchCfg={club:{cup:lv.cup||undefined,fx:lv.fx,done:true}};clubResult(true);
-      ffNote='경기 도중 새로고침(또는 이탈)해서 '+(lv.cup?CUPS[lv.cup].name:'리그')+' 경기가 몰수패(0:3)로 처리되었습니다.';}
+    if(ok){matchCfg={club:{cup:lv.cup||undefined,fx:lv.fx,allstar:!!lv.allstar,done:true}};clubResult(true);
+      ffNote='경기 도중 새로고침(또는 이탈)해서 '+(lv.allstar?'올스타전':lv.cup?CUPS[lv.cup].name:'리그')+' 경기가 몰수패(0:3)로 처리되었습니다.';}
   }catch(e){console.warn('forfeit',e);}
   finally{matchCfg=keep;}
   saveClub();
@@ -5022,7 +5023,7 @@ function recordResult(a,b,ga,gb){
   if(ga>gb){A.w++;B.l++;A.pts+=3;}else if(ga<gb){B.w++;A.l++;B.pts+=3;}else{A.d++;B.d++;A.pts++;B.pts++;}
 }
 function teamStrength(i){const t=club.league.teams[i];return t.id==='me'?clubOvr():leagueOvr(t.id);}
-// League stars: the five strongest other sides of the season's league each field one star, every rating 105, who plays
+// League stars: the five strongest other sides of the season's league each field one star, every rating 120, who plays
 // with the smartest AI (cupWC) while the rest of his side keeps its own level (AIof). Their names come from stars.json beside the page, which only private copies
 // carry (ground-legends/prototypes/real-players/stars.json, not in the repository or the public site); without it they
 // play under stand-in names.
@@ -5042,8 +5043,47 @@ function starTeams(){
 }
 function starPd(i){
   const S=STARS[i],nm=starNames&&starNames[S.k]||{};
-  return {name:nm.name||S.alt,short:nm.short||nm.name||S.alt,label:S.label,line:LINE[S.label],ovr:105,st:{pac:105,sho:105,pas:105,dri:105,def:105,phy:105,gk:20},
+  return {name:nm.name||S.alt,short:nm.short||nm.name||S.alt,label:S.label,line:LINE[S.label],ovr:120,st:{pac:120,sho:120,pas:120,dri:120,def:120,phy:120,gk:20},
     num:S.num,reg:'en',skin:SKINS[S.skin],hair:HAIRS[S.hair],hs:S.hs,boot:BOOTS[S.boot],h:S.h,trait:S.trait,ft:{f:S.foot,w:4},star:S.k,legend:true};
+}
+/* ================= All-Star match: every 10th league match =================
+   The 10th, 20th, 30th ... league match the club plays is against an All-Star side instead of the round's fixture:
+   eleven players, every rating 120 (the keeper's keeping 120 too), the league stars who fit a 4-3-3 among them, with
+   the smartest AI (cupWC). It does not count in the league table or move the league on; it is recorded in the club's
+   history and totals, and pays more. club.asc counts the league and All-Star matches played. */
+const ALLSTAR={code:'ALL',name:'올스타',reg:'en',ovr:120,home:{shirt:'#141414',trim:'#d4af37',pat:'solid',shorts:'#141414',socks:'#d4af37',num:'#d4af37'},
+  away:{shirt:'#d4af37',trim:'#141414',pat:'solid',shorts:'#d4af37',socks:'#141414',num:'#141414'},gk:'#e0408a'};
+const AS_PAY={win:200000,draw:60000,loss:15000,goal:5000};
+// league win and draw bonuses by the club's difficulty (semi-pro, the default, is the base: 24,000 / 10,000 BP)
+const DIFF_PAY={amateur:0.75,semipro:1,pro:1.6,world:2.4,legend:3.5};
+function diffPay(k){return DIFF_PAY[k]||1;}
+function lgCount(){if(club.asc==null)club.asc=(club.season-1)*club.league.fixtures.length+club.league.week;return club.asc;}
+function allStarDue(){return !!club&&!!club.league&&!!nextFixture()&&(lgCount()+1)%10===0;}
+function allStarRoster(){
+  const r=rosterFor(ALLSTAR,'4-3-3',false).map(p=>Object.assign(p,{ovr:120,st:{pac:120,sho:120,pas:120,dri:120,def:120,phy:120,gk:p.label==='GK'?120:20}}));
+  // the league stars where their places are in a 4-3-3 (one each)
+  const F=FORMATIONS['4-3-3'],used=new Set();
+  STARS.forEach((S,i)=>{const k=F.findIndex((f,j)=>f[0]===S.label&&!used.has(j));if(k<0)return;used.add(k);const pd=starPd(i);
+    if(r.some((q,j)=>j!==k&&q.num===pd.num))pd.num=r[k].num;r[k]=Object.assign(pd,{label:r[k].label,line:r[k].line});});
+  return r;
+}
+function startAllStarMatch(){
+  const form=club.form;
+  beginMatch({sides:[{def:clubDef(),form,roster:clubRoster()},{def:ALLSTAR,form:'4-3-3',roster:allStarRoster()}],
+    diff:'cupWC',minutes:club.minutes,human:true,club:{allstar:true,done:false}});
+  clubLive({allstar:true,season:club.season,asc:lgCount()});
+  say('올스타전 · '+(lgCount()+1)+'번째 경기 · 모두 능력치 120');
+}
+function applyAllStarResult(forfeit){
+  const my=forfeit?0:score[0],op=forfeit?3:score[1],lines=[];
+  lines.push(['올스타전 '+(my>op?'승리':my===op?'무승부':'패배')+' 수당',my>op?AS_PAY.win:my===op?AS_PAY.draw:AS_PAY.loss]);
+  if(my>0)lines.push(['득점 보너스 ('+my+'골)',my*AS_PAY.goal]);
+  lines.push(['스폰서 수입',6000]);
+  lines.push(['선수 주급 ('+club.players.length+'명)',-club.players.reduce((a,p)=>a+wageOf(p),0)]);
+  club.history.unshift({s:club.season,w:'올스타',opp:'ALL',home:true,my,op,ff:!!forfeit,as:1});club.history=club.history.slice(0,10);
+  lgCount();club.asc++;
+  const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);saveClub();
+  return {lines,total,season:null,note:my>op?'올스타 팀을 꺾었습니다!':'',debt};
 }
 // a league side's roster with its star in
 function withStar(id,roster){
@@ -5067,6 +5107,7 @@ function refreshMarket(force){
 }
 function startClubMatch(){
   fixLineup();const fx=nextFixture();if(!fx)return;
+  if(allStarDue()){startAllStarMatch();return;}
   const lt=club.league.teams[fx.opp],oppBase=TEAMS[lt.id],form=club.form;
   const myRoster=clubRoster();
   const oppForm=pick(Object.keys(FORMATIONS)),oppT=Object.assign({},oppBase,{ovr:leagueOvr(lt.id)});
@@ -5080,15 +5121,16 @@ function applyClubResult(forfeit){
   if(!forfeit)ssMyMatch(L.teams[fx.opp].id,my,op);
   for(const [a,b] of L.fixtures[L.week]){if(a===0||b===0)continue;const sa=teamStrength(a),sb=teamStrength(b);
     const ga=poisson(clamp(1.45+(sa-sb)*0.07,0.25,3.4)),gb=poisson(clamp(1.15+(sb-sa)*0.07,0.2,3.2));recordResult(a,b,ga,gb);ssSim(a,b,ga,gb);}
-  const lines=[];const res=my>op?'승리':my<op?'패배':'무승부';
-  lines.push([res+' 수당',my>op?24000:my===op?10000:4000]);
+  const lines=[];const res=my>op?'승리':my<op?'패배':'무승부',dm=diffPay(club.diff);
+  // win and draw bonuses grow with the difficulty the club plays on (DIFF_PAY); the loss allowance stays
+  lines.push([res+' 수당'+(my>=op&&dm!==1?' ('+DIFFS[club.diff].label+' ×'+dm+')':''),my>op?Math.round(24000*dm):my===op?Math.round(10000*dm):4000]);
   if(my>0)lines.push(['득점 보너스 ('+my+'골)',my*1500]);
   if(fx.home)lines.push(['홈 경기 입장 수익',Math.round(STADIUM[club.stadium].cap*0.6)]);
   lines.push(['스폰서 수입',6000]);
   lines.push(['선수 주급 ('+club.players.length+'명)',-club.players.reduce((a,p)=>a+wageOf(p),0)]);
   const opp=L.teams[fx.opp];
   club.history.unshift({s:club.season,w:L.week+1,opp:teamCode(opp),home:fx.home,my,op,ff:!!forfeit});club.history=club.history.slice(0,10);
-  L.week++;
+  lgCount();club.asc++;L.week++;
   let season=null;
   if(L.week>=L.fixtures.length){
     const rank=standings().findIndex(t=>t.id==='me')+1,prize=LEAGUE_PRIZE[rank-1];
@@ -5258,17 +5300,18 @@ function careerRow(id,cp,r){
 }
 // one finished club match (before the league or cup moves on)
 function clubRecord(forfeit){
-  const T=clubTot(),cup=matchCfg.club.cup||null,my=forfeit?0:score[0],op=forfeit?3:score[1],sv=forfeit?0:stats.saves[0],sc=cup?'cup':'lg';
+  const T=clubTot(),cup=matchCfg.club.cup||null,as=!!matchCfg.club.allstar,my=forfeit?0:score[0],op=forfeit?3:score[1],sv=forfeit?0:stats.saves[0],sc=as?null:cup?'cup':'lg';   // (an All-Star match: in the totals only)
   let oc,where;
-  if(cup){const st=cupState(cup),o=cupOpp(st);oc=o.code;where=CUPS[cup].name+' '+(st.stage==='group'?'조별 '+(st.round+1)+'차전':KO_NAME[st.stage]);}
+  if(as){oc='ALL';where='올스타전';}
+  else if(cup){const st=cupState(cup),o=cupOpp(st);oc=o.code;where=CUPS[cup].name+' '+(st.stage==='group'?'조별 '+(st.round+1)+'차전':KO_NAME[st.stage]);}
   else{const t=club.league.teams[matchCfg.club.fx.opp];oc=TEAMS[t.id].code;where='리그 '+(club.league.week+1)+'R'+(matchCfg.club.fx.home?' 홈':' 원정');}
-  addRes(T.all,my,op,sv);addRes(T[sc],my,op,sv);
+  addRes(T.all,my,op,sv);if(sc)addRes(T[sc],my,op,sv);
   const gk=forfeit?null:players.find(p=>p.team===0&&p.isGK);
   club.mlog.unshift({s:club.season,w:where,o:oc,my,op,ff:forfeit?1:0,sh:forfeit?0:stats.shots[1],on:forfeit?0:stats.on[1],sv,gk:gk?gk.short:'',pk:matchCfg.club.pens?[matchCfg.club.pens.my,matchCfg.club.pens.op]:null});club.mlog=club.mlog.slice(0,80);
   if(forfeit)return;
   for(const p of players){if(p.team!==0)continue;const cp=p.pd&&p.pd.id!=null?byId(p.pd.id):null;if(!cp)continue;
     const c=careerRow(cp.id,cp),ga=op;
-    for(const o of [c.all,c[sc]]){o.ap++;o.g+=p.g;o.a+=p.a;o.sh+=p.sh;o.so+=p.so;o.y+=p.yellow;if(p.sentOff)o.r++;o.rs+=rating(p);
+    for(const o of sc?[c.all,c[sc]]:[c.all]){o.ap++;o.g+=p.g;o.a+=p.a;o.sh+=p.sh;o.so+=p.so;o.y+=p.yellow;if(p.sentOff)o.r++;o.rs+=rating(p);
       if(p.isGK){o.kp++;o.sv+=p.sv;o.gc+=ga;if(ga===0)o.cs++;}}}
   let a=0,b=0;const G=[];
   for(const e of matchGoals){if(e.t===0)a++;else b++;
@@ -5630,7 +5673,7 @@ function applyCupResult(forfeit){
   const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);saveClub();
   return {lines,total,season:null,note,debt};
 }
-function clubResult(forfeit){delete club.live;clubMorale(forfeit);clubRecord(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
+function clubResult(forfeit){delete club.live;clubMorale(forfeit);clubRecord(forfeit);return matchCfg.club.allstar?applyAllStarResult(forfeit):matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
 function clubMorale(forfeit){
   const xi=new Set(club.lineup),my=forfeit?0:score[0],op=forfeit?3:score[1],res=my>op?5:my<op?-5:0,talk=(matchCfg&&matchCfg.talkMo)||0,rt={};
   if(!forfeit)for(const p of teams[0].players)if(p.pd&&p.pd.id!=null)rt[p.pd.id]=rating(p);
@@ -5765,17 +5808,18 @@ function renderClub(){
   else body.innerHTML=clubFacilityHtml();
 }
 function clubHomeHtml(fx){
-  const L=club.league,opp=L.teams[fx.opp],oc=TEAMS[opp.id];
+  const L=club.league,opp=L.teams[fx.opp],asd=allStarDue(),oc=asd?ALLSTAR:TEAMS[opp.id];
   const wages=club.players.reduce((a,p)=>a+wageOf(p),0);
   const table=standings().map((t,k)=>`<tr class="${t.id==='me'?'me':''}"><td>${k+1}</td><td>${teamLabel(t)}</td><td>${t.p}</td><td>${t.w}</td><td>${t.d}</td><td>${t.l}</td><td>${t.gf-t.ga>0?'+':''}${t.gf-t.ga}</td><td>${t.pts}</td></tr>`).join('');
-  const hist=club.history.length?club.history.slice(0,5).map(h=>`<div><span>S${h.s} ${h.cup?CUPS[h.cup].name:h.w+'R '+(h.home?'홈':'원정')} vs ${h.opp}${h.ff?' (기권)':''}</span><b class="${h.my>h.op?'pos':h.my<h.op?'neg':''}">${h.my} : ${h.op}</b></div>`).join(''):'<div><span>아직 치른 경기가 없습니다.</span></div>';
+  const hist=club.history.length?club.history.slice(0,5).map(h=>`<div><span>S${h.s} ${h.as?'올스타전':h.cup?CUPS[h.cup].name:h.w+'R '+(h.home?'홈':'원정')} vs ${h.opp}${h.ff?' (기권)':''}</span><b class="${h.my>h.op?'pos':h.my<h.op?'neg':''}">${h.my} : ${h.op}</b></div>`).join(''):'<div><span>아직 치른 경기가 없습니다.</span></div>';
   return `<div class="cgrid">
-    <div class="panel"><h3>다음 경기 · ${L.week+1}라운드 ${fx.home?'홈':'원정'}</h3>
+    <div class="panel"><h3>다음 경기 · ${asd?'올스타전 ('+(lgCount()+1)+'번째 경기)':(L.week+1)+'라운드 '+(fx.home?'홈':'원정')}</h3>
       <div class="nm-vs"><div class="nm-team"><span class="crest" style="--c1:${club.kit.shirt};--c2:${club.kit.trim}">${club.code}</span><b>${club.name}</b><span>팀 OVR ${clubOvr()}</span></div>
       <span class="nm-mid">VS</span>
-      <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${leagueOvr(opp.id)}</span></div></div>
-      ${starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 105, 이 선수만 최고 수준 AI</p>`:''}
+      <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${asd?120:leagueOvr(opp.id)}</span></div></div>
+      ${asd?`<p class="foot" style="margin:0;color:var(--gold)">★ 10번째 경기마다 열리는 올스타전 · 11명 모두 능력치 120, 최고 수준 AI · 리그 순위에는 들어가지 않습니다</p>`:starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 120, 이 선수만 최고 수준 AI</p>`:''}
       <div class="set"><span class="lbl">AI 난이도</span><div class="seg">${Object.entries(DIFFS).filter(([k,v])=>!v.hidden).map(([k,v])=>`<button class="chip ${club.diff===k?'on':''}" data-cdiff="${k}">${v.label}</button>`).join('')}</div></div>
+      ${asd?'':`<p class="foot" style="margin:0">리그 승리 수당 <b>${fmtBP(Math.round(24000*diffPay(club.diff)))} BP</b> · 무승부 ${fmtBP(Math.round(10000*diffPay(club.diff)))} BP (난이도가 높을수록 커집니다)</p>`}
       <div class="set"><span class="lbl">경기 시간</span><div class="seg">${[3,5,8,12].map(m=>`<button class="chip ${club.minutes===m?'on':''}" data-cmin="${m}">${m}분</button>`).join('')}</div></div>
       <div class="row end"><button class="btn primary big" data-act="play">경기 시작</button></div>
     </div>
