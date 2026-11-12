@@ -4936,7 +4936,28 @@ function loadClub(){try{const v=localStorage.getItem(CLUB_KEY);club=v?JSON.parse
   // older saves gave keepers outfield traits
   let fixed=false;if(club&&Array.isArray(club.players))for(const p of club.players){if(!traitOk(p.label,p.trait)){p.trait=defaultTrait(p.label,Math.random);fixed=true;}
     if(!p.ft||(p.ft.f!=='L'&&p.ft.f!=='R')){p.ft=makeFoot(p);fixed=true;}}   // saves from before feet
-  if(fixed)saveClub();}
+  if(fixed)saveClub();
+  if(club&&club.live&&!(mode==='match'&&matchCfg&&matchCfg.club&&!matchCfg.club.done))clubForfeitLive();}
+/* ================= a club match left unfinished: lost 0:3 =================
+   A league or cup match is marked as being played (club.live, saved with the club) when it starts and unmarked when
+   its result is recorded (clubResult: full time, or 기권 from the pause menu). If the page is reloaded or closed in
+   between, the next time the club is loaded the match counts as a forfeit, 0:3, exactly as quitting it would. */
+let ffNote=null;
+function clubLive(o){club.live=Object.assign({at:Date.now()},o);saveClub();}
+function clubForfeitLive(){
+  const lv=club.live,keep=matchCfg;delete club.live;
+  try{
+    // only if that match is still the one to play (the same league round, or the same cup round)
+    let ok=lv.season===club.season;
+    if(ok&&lv.cup){const st=cupState(lv.cup);ok=!!st&&st.stage===lv.stage&&st.round===lv.round;}
+    else if(ok){ok=!!club.league&&club.league.week===lv.week&&!!lv.fx;}
+    if(ok){matchCfg={club:{cup:lv.cup||undefined,fx:lv.fx,done:true}};clubResult(true);
+      ffNote='경기 도중 새로고침(또는 이탈)해서 '+(lv.cup?CUPS[lv.cup].name:'리그')+' 경기가 몰수패(0:3)로 처리되었습니다.';}
+  }catch(e){console.warn('forfeit',e);}
+  finally{matchCfg=keep;}
+  saveClub();
+  if(ffNote)setTimeout(()=>{if(!ffNote)return;const t=$('#clubToast');t.textContent=ffNote;t.hidden=false;clearTimeout(ctoast.t);ctoast.t=setTimeout(()=>{t.hidden=true;},6000);},300);
+}
 function saveClub(){try{localStorage.setItem(CLUB_KEY,JSON.stringify(club));}catch(e){}acctDirty();}
 function newCardPlayer(label,ovr,opts={}){
   const r=mulberry((Math.random()*2147483647)|0),regs=Object.keys(NAMEDB);
@@ -5046,6 +5067,7 @@ function startClubMatch(){
   const oppForm=pick(Object.keys(FORMATIONS)),oppT=Object.assign({},oppBase,{ovr:leagueOvr(lt.id)});
   beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:oppT,form:oppForm,roster:withStar(lt.id,rosterFor(oppT,oppForm,false))}],
     diff:club.diff,minutes:club.minutes,human:true,club:{fx,done:false}});
+  clubLive({cup:null,fx,season:club.season,week:club.league.week});
 }
 function applyClubResult(forfeit){
   const fx=matchCfg.club.fx,my=forfeit?0:score[0],op=forfeit?3:score[1],L=club.league;
@@ -5566,6 +5588,7 @@ function startCupMatch(k){
   const oppForm=pick(Object.keys(FORMATIONS));
   beginMatch({sides:[{def:clubDef(),form,roster:myRoster},{def:opp,form:oppForm,roster:rosterFor(opp,oppForm,false)}],
     diff:CUPS[k].diff,minutes:club.minutes,human:true,club:{cup:k,done:false,ko:st.stage!=='group'}});
+  clubLive({cup:k,season:club.season,stage:st.stage,round:st.round});
   say(CUPS[k].name+' '+(st.stage==='group'?'조별리그 '+(st.round+1)+'차전':KO_NAME[st.stage])+' · '+opp.name);
 }
 function applyCupResult(forfeit){
@@ -5602,7 +5625,7 @@ function applyCupResult(forfeit){
   const total=lines.reduce((a,l)=>a+l[1],0),debt=settleFinance(total);saveClub();
   return {lines,total,season:null,note,debt};
 }
-function clubResult(forfeit){clubMorale(forfeit);clubRecord(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
+function clubResult(forfeit){delete club.live;clubMorale(forfeit);clubRecord(forfeit);return matchCfg.club.cup?applyCupResult(forfeit):applyClubResult(forfeit);}
 function clubMorale(forfeit){
   const xi=new Set(club.lineup),my=forfeit?0:score[0],op=forfeit?3:score[1],res=my>op?5:my<op?-5:0,talk=(matchCfg&&matchCfg.talkMo)||0,rt={};
   if(!forfeit)for(const p of teams[0].players)if(p.pd&&p.pd.id!=null)rt[p.pd.id]=rating(p);
@@ -5705,7 +5728,7 @@ function goClub(tab,msg){
   if(mode==='match')startDemo();
   loadClub();
   if(!club){openClubNew();return;}
-  fixLineup();clubTab=tab||clubTab;showScreen('#club');renderClub();if(msg)ctoast(msg);debtCrisis();
+  fixLineup();clubTab=tab||clubTab;showScreen('#club');renderClub();if(!msg&&ffNote)msg=ffNote;ffNote=null;if(msg)ctoast(msg);debtCrisis();
 }
 function openClubNew(){
   let k=0;$('#cnKits').innerHTML=KIT_CHOICES.map((c,i)=>`<button class="sw ${i===0?'on':''}" data-kit="${i}" style="--c1:${c.shirt};--c2:${c.trim}" aria-label="유니폼 ${i+1}"></button>`).join('');
