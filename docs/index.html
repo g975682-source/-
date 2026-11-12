@@ -4072,6 +4072,11 @@ window.addEventListener('keydown',e=>{
   else if(e.code==='KeyH'){cycleGuide();}
 });
 window.addEventListener('keyup',e=>{if(e.target&&e.target.tagName==='INPUT'&&e.target.offsetParent!==null)return;const a=KEYMAP[e.code];if(a){e.preventDefault();actUp(a);}});
+{const held=new Set();let armed=true;
+  window.addEventListener('keydown',e=>{if(e.code!=='Semicolon'&&e.code!=='Quote')return;if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
+    held.add(e.code);if(armed&&held.has('Semicolon')&&held.has('Quote')&&mode==='menu'&&lobbyOpen()){loadClub();if(club){armed=false;club.money=(club.money||0)+1000000;saveClub();updateLobby();}}});
+  window.addEventListener('keyup',e=>{held.delete(e.code);if(!held.size)armed=true;});
+  window.addEventListener('blur',()=>{held.clear();armed=true;});}
 window.addEventListener('blur',()=>{const L=LC();for(const k of ACTS){if(L.act[k])actUp(k);}L.inq.length=0;});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&mode==='match'&&!net&&!paused&&['play','setpiece','dead'].includes(state))togglePause();});
 const fwdV=new V3();
