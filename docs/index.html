@@ -5079,7 +5079,7 @@ function starPd(i){
 /* ================= All-Star match: every 10th league match =================
    The 10th, 20th, 30th ... league match the club plays is against an All-Star side instead of the round's fixture:
    eleven players, every rating 120 (the keeper's keeping 120 too), the league stars who fit a 4-3-3 among them, with
-   the smartest AI (cupWC). It does not count in the league table or move the league on; it is recorded in the club's
+   the 레전드 (legend) AI, whatever the club plays on. It does not count in the league table or move the league on; it is recorded in the club's
    history and totals, and pays more. club.asc counts the league and All-Star matches played. */
 const ALLSTAR={code:'ALL',name:'올스타',reg:'en',ovr:120,home:{shirt:'#141414',trim:'#d4af37',pat:'solid',shorts:'#141414',socks:'#d4af37',num:'#d4af37'},
   away:{shirt:'#d4af37',trim:'#141414',pat:'solid',shorts:'#d4af37',socks:'#141414',num:'#141414'},gk:'#e0408a'};
@@ -5090,7 +5090,7 @@ function diffPay(k){return DIFF_PAY[k]||1;}
 function lgCount(){if(club.asc==null)club.asc=(club.season-1)*club.league.fixtures.length+club.league.week;return club.asc;}
 function allStarDue(){return !!club&&!!club.league&&!!nextFixture()&&(lgCount()+1)%10===0;}
 // The All-Star eleven, in the 4-3-3's order (GK, LB, CB, CB, RB, CM, CDM, CM, LW, ST, RW). Each is shown with an overall
-// of 120 and plays with the smartest AI; his own game is in his ratings (the best of them over 120, the weak side lower),
+// of 120 and plays on 레전드 (the side's difficulty); his own game is in his ratings (the best of them over 120, the weak side lower),
 // his trait, his feet, and his looks: height (cm), build (bw shoulders and hips, bm muscle), skin and hair (a shaved
 // head: hair the skin's colour), hair style (hs 0 normal, 1 short, 2 tied back) and beard. The names come from
 // stars.json (keys a1-a11) in private copies; the public site shows the stand-ins (alt).
@@ -5111,12 +5111,12 @@ function allStarRoster(){
   return ALLSTAR_XI.map((a,i)=>{const nm=starNames&&starNames[a.k]||{},lab=F[i][0],skin=SKINS[a.skin];
     return {name:nm.name||a.alt,short:nm.short||nm.name||a.alt,label:lab,line:LINE[lab],ovr:120,st:Object.assign({},a.st),num:a.num,reg:'en',
       skin,hair:a.bald?skin:HAIRS[a.hair],hs:a.hs,beard:!!a.beard,boot:BOOTS[a.boot],cm:a.cm,bw:a.bw,bm:a.bm,h:+(a.cm/181).toFixed(3),
-      trait:a.trait,ft:{f:a.foot,w:a.w},star:a.k,legend:true};});
+      trait:a.trait,ft:{f:a.foot,w:a.w},allstar:a.k,legend:true};});
 }
 function startAllStarMatch(){
   const form=club.form;
   beginMatch({sides:[{def:clubDef(),form,roster:clubRoster()},{def:ALLSTAR,form:'4-3-3',roster:allStarRoster()}],
-    diff:'cupWC',minutes:club.minutes,human:true,club:{allstar:true,done:false}});
+    diff:'legend',minutes:club.minutes,human:true,club:{allstar:true,done:false}});
   clubLive({allstar:true,season:club.season,asc:lgCount()});
   say('올스타전 · '+(lgCount()+1)+'번째 경기 · 모두 능력치 120');
 }
@@ -5863,7 +5863,7 @@ function clubHomeHtml(fx){
       <div class="nm-vs"><div class="nm-team"><span class="crest" style="--c1:${club.kit.shirt};--c2:${club.kit.trim}">${club.code}</span><b>${club.name}</b><span>팀 OVR ${clubOvr()}</span></div>
       <span class="nm-mid">VS</span>
       <div class="nm-team"><span class="crest" style="--c1:${oc.home.shirt};--c2:${oc.home.trim}">${oc.code}</span><b>${oc.name}</b><span>팀 OVR ${asd?120:leagueOvr(opp.id)}</span></div></div>
-      ${asd?`<p class="foot" style="margin:0;color:var(--gold)">★ 10번째 경기마다 열리는 올스타전 · 11명 모두 능력치 120, 최고 수준 AI · 리그 순위에는 들어가지 않습니다</p><p class="foot" style="margin:0">${allStarRoster().map(p=>p.label+' '+esc(p.short)).join(' · ')}</p>`:starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 120, 이 선수만 최고 수준 AI</p>`:''}
+      ${asd?`<p class="foot" style="margin:0;color:var(--gold)">★ 10번째 경기마다 열리는 올스타전 · 11명 모두 능력치 120, 난이도 레전드 고정 · 리그 순위에는 들어가지 않습니다</p><p class="foot" style="margin:0">${allStarRoster().map(p=>p.label+' '+esc(p.short)).join(' · ')}</p>`:starTeams()[opp.id]!=null?`<p class="foot" style="margin:0;color:var(--gold)">★ ${esc(starPd(starTeams()[opp.id]).name)} 출전 · 능력치 120, 이 선수만 최고 수준 AI</p>`:''}
       <div class="set"><span class="lbl">AI 난이도</span><div class="seg">${Object.entries(DIFFS).filter(([k,v])=>!v.hidden).map(([k,v])=>`<button class="chip ${club.diff===k?'on':''}" data-cdiff="${k}">${v.label}</button>`).join('')}</div></div>
       ${asd?'':`<p class="foot" style="margin:0">리그 승리 수당 <b>${fmtBP(Math.round(24000*diffPay(club.diff)))} BP</b> · 무승부 ${fmtBP(Math.round(10000*diffPay(club.diff)))} BP (난이도가 높을수록 커집니다)</p>`}
       <div class="set"><span class="lbl">경기 시간</span><div class="seg">${[3,5,8,12].map(m=>`<button class="chip ${club.minutes===m?'on':''}" data-cmin="${m}">${m}분</button>`).join('')}</div></div>
