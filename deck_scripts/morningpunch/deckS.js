@@ -8,7 +8,7 @@ const lines = t => t.split('\n').join(' ');
 
 (async () => {
   // 1
-  d.cover({ label: 'MORNING PUNCH', title: '모닝펀치', lead: '베개 속 손이 깨워주는 자동기상베개\n가상 창업 계획 발표', meta: '발표자 ○○○  ·  약 18분', notes: N(1) });
+  d.cover({ label: 'MORNING PUNCH', title: [{ text: '베개 속 손이', options: { breakLine: true } }, { text: '깨워주는', options: { breakLine: true } }, { text: '모닝펀치', options: { color: C.accent1,  } }], lead: '자동기상베개 · 가상 창업 계획 발표', meta: '발표자 ○○○  ·  약 18분', notes: N(1) });
 
   // 2 three questions
   let G = g('S', 2), s = d.body({ section: '시작', label: '00  오늘의 질문', title: '오늘 발표의 세 가지 질문', lead: '세 질문에 차례로 답합니다. 숫자 옆에는 확인한 정도(사실·추정·가정)를 표시했습니다.', notes: N(2) });
@@ -199,7 +199,7 @@ const lines = t => t.split('\n').join(' ');
 
   // 16 allocation
   G = g('S', 16); s = d.body({ section: '사회 환원', label: '04  제안', title: '매출의 0.5%, 어떻게 나눌까?', lead: G('환원 계산') + ' (구성 비율은 우리가 정한 가정, 단위 만원)', tag: '가정', notes: N(16) });
-  stacked(s, [{ v: 40, color: NAVY, short: '제품 기부 40%' }, { v: 30, color: '3B4A73', short: '후원금 30%' }, { v: 15, color: ORANGE, short: '재능 15%', dark: true }, { v: 15, color: 'F2B79F', short: '봉사 15%', dark: true }], { x: ML, y: 2.3, w: CW, h: 0.5, labelSize: 11.5 });
+  stacked(s, [{ v: 40, color: NAVY, short: '제품 기부 40%' }, { v: 30, color: '3B4A73', short: '후원금 30%' }, { v: 15, color: ORANGE, short: '재능 15%', dark: true }, { v: 15, color: 'A9C6EE', short: '봉사 15%', dark: true }], { x: ML, y: 2.3, w: CW, h: 0.5, labelSize: 11.5 });
   tableFrom(s, tbl('S', 16), { x: ML, y: 3.05, w: CW, colW: [2.2, 1.4, 1.4, 1.4, 5.333], rowH: 0.45, align: ['left', 'right', 'right', 'right', 'left'], boldFirst: true, emphRows: [5], fontSize: 12.5, headSize: 10.5 });
   tx(s, G('환원 이유'), ML, 5.8, CW, 0.3, { fontSize: 13, bold: true, color: C.accent2 }, '환원 이유');
   tx(s, G('환원 각주'), ML, 6.15, CW, 0.5, { fontSize: 10, color: C.text2 }, '환원 각주');

@@ -9,7 +9,7 @@ const NOTE = i => C0[i].notes;
 
 (async () => {
   // 1 cover
-  d.cover({ label: 'MORNING PUNCH', title: '모닝펀치', lead: '베개 속 손이 깨워주는 자동기상베개\n3분 발표', meta: '가상 창업 시나리오  ·  발표용', notes: NOTE(1) });
+  d.cover({ label: 'MORNING PUNCH', title: [{ text: '베개 속 손이', options: { breakLine: true } }, { text: '깨워주는', options: { breakLine: true } }, { text: '모닝펀치', options: { color: C.accent1,  } }], lead: '자동기상베개 · 3분 발표', meta: '가상 창업 시나리오  ·  발표용', notes: NOTE(1) });
 
   // 2 problem
   let s = d.body({ section: '발표', label: '01  문제', title: '늦잠은 정말 흔한 문제일까', lead: '알람을 끄고 다시 잠드는 일은 설문과 앱 기록 양쪽에서 확인됩니다.', tag: '사실', notes: NOTE(2) });
@@ -85,7 +85,7 @@ const NOTE = i => C0[i].notes;
     tx(s, c[1], ML + 1.0, y + 0.3, 4.2, 0.6, { fontSize: 22, bold: true, color: C.background1 }, '정리 제목');
     tx(s, c[2], ML + 5.4, y + 0.34, CW - 5.4, 0.7, { fontSize: 15, color: C.accent6 }, '정리 설명');
   });
-  tx(s, '감사합니다', ML, 6.55, 5, 0.4, { fontSize: 16, bold: true, color: C.background1 }, '마무리 인사');
+  tx(s, '감사합니다', ML, 6.15, 5, 0.4, { fontSize: 16, bold: true, color: C.background1 }, '마무리 인사');
 
   await d.finish();
 

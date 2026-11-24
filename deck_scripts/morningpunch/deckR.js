@@ -7,7 +7,7 @@ const strip = t => t.replace(/^\d+\.\s*/, '');
 
 (async () => {
   // 1 cover
-  d.cover({ label: 'MORNING PUNCH', title: '모닝펀치\n조사 정리 보고서', lead: '경쟁 제품 · 시장 · 비용 · 매출 전망 · 사회 환원\n지금까지 조사한 내용의 정리', meta: '가상 창업 시나리오  ·  조사 요약', notes: N(1) });
+  d.cover({ label: 'MORNING PUNCH', title: [{ text: '모닝펀치', options: { color: C.accent1, breakLine: true } }, { text: '조사 정리 보고서', options: {  } }], lead: '경쟁 제품 · 시장 · 비용 · 매출 전망 · 사회 환원\n지금까지 조사한 내용의 정리', meta: '가상 창업 시나리오  ·  조사 요약', notes: N(1) });
 
   // 2 how to read
   let G = g('R', 2), s = d.body({ section: '개요', label: '00  읽는 법', title: '이 자료를 읽는 법', lead: '모든 숫자에 확인 정도를 표시했습니다. 표시를 먼저 보면 어느 숫자를 믿을 수 있는지 알 수 있습니다.', notes: N(2) });
@@ -123,7 +123,7 @@ const strip = t => t.replace(/^\d+\.\s*/, '');
   hbars(s, [1, 2, 3, 4].map(i => ({ label: G(`막대 이름 ${i}`), value: parseFloat(G(`막대 값 ${i}`)), text: G(`막대 값 ${i}`) })), { x: ML, y: 2.8, labelW: 2.9, trackW: 2.4, gap: 0.78, barH: 0.2, max: 1.0, highlight: 2 });
   tx(s, G('벤치마크 출처'), ML, 5.95, 6.9, 0.5, { fontSize: 10, color: C.text2 }, '벤치마크 출처');
   tx(s, G('환원 제목'), 8.35, 2.25, 4.18, 0.3, { fontSize: 11, bold: true, color: C.accent2 }, '환원 제목');
-  stacked(s, [{ v: 40, color: NAVY, short: '제품 40' }, { v: 30, color: '3B4A73', short: '후원금 30' }, { v: 15, color: ORANGE, short: '재능 15', dark: true }, { v: 15, color: 'F2B79F', short: '봉사 15', dark: true }], { x: 8.35, y: 2.65, w: 4.18, h: 0.55, labelSize: 10 });
+  stacked(s, [{ v: 40, color: NAVY, short: '제품 40' }, { v: 30, color: '3B4A73', short: '후원금 30' }, { v: 15, color: ORANGE, short: '재능 15', dark: true }, { v: 15, color: 'A9C6EE', short: '봉사 15', dark: true }], { x: 8.35, y: 2.65, w: 4.18, h: 0.55, labelSize: 10 });
   tx(s, '※ 구성 비율은 우리가 정한 가정입니다.', 8.35, 3.28, 4.18, 0.3, { fontSize: 10, color: C.text2 }, '환원 주석');
   hair(s, 8.35, 3.8, 4.18, HAIR, 0.5);
   tx(s, G('환원 금액').split(/\n| \/ /).join('\n'), 8.35, 3.95, 4.18, 1.0, { fontSize: 14, bold: true }, '환원 금액');

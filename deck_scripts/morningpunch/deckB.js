@@ -6,19 +6,10 @@ const N = i => notes('B', i);
 const SP = /\n| \/ /;
 
 (async () => {
-  d.cover({ label: 'MORNING PUNCH', title: '모닝펀치\n사업 보고서', lead: '경쟁 제품 분석 · 연간 매출 예상 · 사회 환원 제안', meta: '가상 창업 시나리오  ·  베개 속 손이 깨워주는 자동기상베개', notes: N(1) });
+  d.cover({ label: 'MORNING PUNCH', title: [{ text: '모닝펀치', options: { color: C.accent1, breakLine: true } }, { text: '사업 보고서', options: {  } }], lead: '경쟁 제품 분석 · 연간 매출 예상 · 사회 환원 제안', meta: '가상 창업 시나리오  ·  베개 속 손이 깨워주는 자동기상베개', notes: N(1) });
 
-  // contents
-  let s = d.body({ section: '개요', label: '목차', title: '목차', lead: '', notes: '보고서는 세 가지 질문에 답하는 순서로 구성했습니다. 마지막에 리스크와 실행 계획, 먼저 검증할 것을 정리합니다.' });
-  [['01', '시장과 경쟁 분석', '같거나 비슷한 제품, 1년 매출, 비용 구조, 시장 규모'], ['02', '매출·손익 예상', '1대당 손익, 1년차 시나리오, 3개년 전망, 민감도'], ['03', '사회 환원 제안', '기업 기부 수준, 환원 비율과 구성, 세법 점검'], ['04', '리스크와 실행 계획', '안전·인증·특허·수요, 로드맵, 먼저 검증할 것'], ['부록', '신뢰도 점검, 가정과 출처', '숫자별 확인 정도, 주요 가정, 출처 34건']].forEach((r, i) => {
-    const y = 1.75 + i * 0.95;
-    hair(s, ML, y, CW, i === 0 ? NAVY : HAIR, i === 0 ? 1.25 : 0.5);
-    tx(s, r[0], ML, y + 0.22, 1.2, 0.5, { fontSize: 22, bold: true, color: C.accent2, valign: 'middle' }, '목차 번호');
-    tx(s, r[1], ML + 1.5, y + 0.22, 4.5, 0.5, { fontSize: 20, bold: true, valign: 'middle' }, '목차 제목');
-    tx(s, r[2], ML + 6.2, y + 0.22, 5.5, 0.5, { fontSize: 13, color: C.text2, valign: 'middle' }, '목차 설명');
-  });
-  hair(s, ML, 1.75 + 5 * 0.95, CW, HAIR, 0.5);
-
+  d.contents({ section: '개요', items: [['01', '시장과 경쟁 분석', '같거나 비슷한 제품, 1년 매출, 비용 구조, 시장 규모'], ['02', '매출·손익 예상', '1대당 손익, 1년차 시나리오, 3개년 전망, 민감도'], ['03', '사회 환원 제안', '기업 기부 수준, 환원 비율과 구성, 세법 점검'], ['04', '리스크와 실행 계획', '안전·인증·특허·수요, 로드맵, 먼저 검증할 것'], ['부록', '신뢰도·가정·출처', '숫자별 확인 정도, 주요 가정, 출처 34건']], notes: '보고서는 세 가지 질문에 답하는 순서로 구성했습니다. 마지막에 리스크와 실행 계획, 먼저 검증할 것을 정리합니다.' });
+  let s;
   // exec summary
   let G = g('B', 2);
   s = d.body({ section: '개요', label: '요약', title: '핵심 요약: 세 가지 결론', lead: '이 보고서가 던진 세 질문에 대한 답입니다.', notes: N(2) });
@@ -238,7 +229,7 @@ const SP = /\n| \/ /;
 
   G = g('B', 21);
   s = d.body({ section: '03 사회 환원', label: '03  구성', title: '환원 방식과 연도별 금액', lead: '제품·후원금·재능·봉사의 구성 비율(40·30·15·15%)은 우리가 정한 가정입니다. 단위는 만원입니다.', tag: '가정', notes: N(21) });
-  stacked(s, [{ v: 40, color: NAVY, short: '제품 기부 40%' }, { v: 30, color: '3B4A73', short: '후원금 30%' }, { v: 15, color: ORANGE, short: '재능 15%', dark: true }, { v: 15, color: 'F2B79F', short: '봉사 15%', dark: true }], { x: ML, y: 2.25, w: CW, h: 0.5, labelSize: 11.5 });
+  stacked(s, [{ v: 40, color: NAVY, short: '제품 기부 40%' }, { v: 30, color: '3B4A73', short: '후원금 30%' }, { v: 15, color: ORANGE, short: '재능 15%', dark: true }, { v: 15, color: 'A9C6EE', short: '봉사 15%', dark: true }], { x: ML, y: 2.25, w: CW, h: 0.5, labelSize: 11.5 });
   tableFrom(s, tbl('B', 21), { x: ML, y: 3.0, w: CW, colW: [2.2, 1.4, 1.4, 1.4, 5.333], rowH: 0.45, align: ['left', 'right', 'right', 'right', 'left'], boldFirst: true, emphRows: [5], fontSize: 12, headSize: 10.5 });
   tx(s, G('환원 각주'), ML, 5.95, CW, 0.9, { fontSize: 10, color: C.text2 }, '환원 각주');
 
