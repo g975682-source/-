@@ -1275,7 +1275,11 @@ function showMain(){
   $('#bFight').onclick=()=>{SFX.click();showMoves();};
   $('#bSwitch').onclick=()=>{SFX.click();showSwitch(false);};
   if(canMega)$('#bMega').onclick=()=>{SFX.click();megaToggle=!megaToggle;showMain();};
-  $('#bRun').onclick=()=>{if(confirm('정말 항복할까요?')){pendingResolve&&pendingResolve({type:'forfeit'});}};
+  let armed=false;
+  $('#bRun').onclick=()=>{
+    if(!armed){armed=true;$('#bRun').textContent='정말 항복? 한 번 더 누르세요';setTimeout(()=>{armed=false;const b=$('#bRun');if(b)b.textContent='🏳 항복';},3000);return;}
+    pendingResolve&&pendingResolve({type:'forfeit'});
+  };
 }
 function showMoves(){
   const me=act(P),foe=act(E);
