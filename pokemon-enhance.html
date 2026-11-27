@@ -1124,11 +1124,20 @@ function initTitle(){
   window.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){if(!t.classList.contains('hide')){e.preventDefault();startGame();}}});
   const sv=$('#tSave');
   if(S.stats.tries>0||S.best>0){sv.hidden=false;sv.textContent=`이어하기 · 최고 +${S.best} · ₽ ${fmt(S.gold)}`;}
+  if(giftMsg){sv.hidden=false;sv.textContent='🎁 선물 도착! +₽ 1,000,000';}
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawTitle).catch(()=>{});
 }
 
 /* 시작 */
 load();
+let giftMsg=false;
+try{
+  if(!localStorage.getItem('pcn_gift_1m')){
+    localStorage.setItem('pcn_gift_1m','1');
+    S.gold+=1000000;giftMsg=true;
+    S.log.unshift({t:'🎁 선물 도착! <b>₽ 1,000,000</b>을 받았다.',c:'gold'});save();
+  }
+}catch(e){}
 if(!(S.hist.length&&S.lv===S.hist.length-1&&S.hist.every(id=>BY[id])&&S.types.length)){newMon();}
 S.hist.forEach(id=>S.dex[id]=1);
 if(!S.next||!S.next.length||!S.next.every(c=>BY[c.id]))refreshNext();
