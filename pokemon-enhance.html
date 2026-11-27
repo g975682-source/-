@@ -70,9 +70,14 @@ h2,h3{margin:0}
 .cell .sub{font-size:11px;color:var(--mute);margin-top:1px}
 .rate b{color:var(--ok)}
 .rate.low b{color:var(--warn)}.rate.vlow b{color:var(--bad)}
-.fails{display:flex;gap:6px;font-size:12px;margin-top:2px;flex-wrap:wrap}
-.fails i{font-style:normal;padding:1px 7px;border-radius:99px;background:#ffffff12}
-.fails .d{color:var(--warn)}.fails .x{color:var(--bad)}
+.rate{grid-column:1/-1}
+.rate b small{font-size:12px;color:var(--mute);font-weight:700;margin-left:6px}
+.obar{display:flex;height:10px;border-radius:99px;overflow:hidden;background:#ffffff14;margin:6px 0 8px}
+.obar i{display:block;height:100%}
+.fails{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;font-size:13px}
+.fails i{font-style:normal;text-align:center;padding:5px 2px;border-radius:10px;background:#ffffff0d;font-weight:800;font-variant-numeric:tabular-nums;border-bottom:3px solid var(--c)}
+.fails i em{display:block;font-style:normal;font-size:11px;color:var(--mute);font-weight:700}
+.fails i.z{opacity:.4}
 
 .arm{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .arm button{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:7px 4px;font-size:12px;font-weight:700;line-height:1.3}
@@ -178,11 +183,11 @@ h2,h3{margin:0}
     <div class="typeRow" id="typeRow"></div>
     <div class="cands" id="candRow"></div>
     <div class="info">
-      <div class="cell rate" id="rateCell"><small>성공 확률</small><b id="rate">-</b>
+      <div class="cell rate" id="rateCell"><small>강화 결과 확률</small><b id="rate">-</b>
+        <div class="obar" id="obar"></div>
         <div class="fails" id="fails"></div></div>
       <div class="cell"><small>강화 비용</small><b id="cost">-</b><div class="sub" id="costSub"></div></div>
       <div class="cell"><small>판매가</small><b id="price" style="color:var(--gold)">-</b><div class="sub" id="priceSub"></div></div>
-      <div class="cell"><small>보유 아이템</small><div id="invText" style="font-size:13px;font-weight:700;line-height:1.5">-</div></div>
     </div>
     <div class="arm" id="arm"></div>
     <div class="actions">
@@ -230,16 +235,18 @@ function failW(L){                      // [유지, 하락, 파괴]
   if(L<15)return[.6,.4,0];
   return[.4,.35,.25];
 }
+const GREAT=0.10;                       // 성공한 강화 중 대성공(+2단계)이 되는 비율
 const COST_BASE=15,COST_G=1.36;
 const baseCost=L=>COST_BASE*Math.pow(COST_G,L);
 
-/* 레벨 T까지 가는 평균 비용(파괴 시 처음부터)을 풀어서 판매가의 기준으로 삼는다 */
+/* 레벨 T까지 가는 평균 비용(파괴 시 처음부터, 대성공 포함)을 풀어서 판매가의 기준으로 삼는다 */
 function expectedCost(T){
   const n=T,A=[...Array(n)].map(()=>Array(n+1).fill(0));
   for(let L=0;L<n;L++){
-    const p=RATE[L]/100,[k,d,x]=failW(L),q=1-p;
+    const p=RATE[L]/100,[k,d,x]=failW(L),q=1-p,g=(L+2<=MAX)?GREAT:0;
     A[L][L]+=1;A[L][n]=baseCost(L);
-    if(L+1<n)A[L][L+1]-=p;
+    if(L+1<n)A[L][L+1]-=p*(1-g);
+    if(L+2<n)A[L][L+2]-=p*g;
     A[L][L]-=q*k;
     if(L>0)A[L][L-1]-=q*d;
     A[L][0]-=q*x;
@@ -358,7 +365,7 @@ const DEF=()=>({
   up:{luck:0,sell:0,save:0,start:0,shiny:0},
   autoUnlocked:false,auto:{target:10,sell:true},
   armed:{protect:true,lucky:false,sure:false},
-  stats:{tries:0,ok:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
+  stats:{tries:0,ok:0,great:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
   dex:{},log:[]
 });
 let S=DEF();
@@ -448,6 +455,11 @@ function rateOf(L,preview){
   if(S.armed.sure&&S.inv.sure>0)r=100;
   return Math.min(100,r);
 }
+/* 강화 한 번의 결과 확률: 대성공 / 성공 / 유지 / 하락 / 파괴 (합계 1) */
+function outcomeProbs(L){
+  const T=rateOf(L)/100,g=(L+2<=MAX)?T*GREAT:0,f=failW(L),q=1-T;
+  return{great:g,succ:T-g,keep:q*f[0],drop:q*f[1],lost:q*f[2]};
+}
 const upCost=(k,lv)=>Math.round(UPS[k].base*Math.pow(UPS[k].g,lv));
 const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
 const SHOP_ITEMS=[
@@ -485,24 +497,25 @@ function renderStage(force){
     setImg(img,curId());img.classList.toggle('shiny',S.shiny);
   }
 }
+const pct=x=>{const v=Math.round(x*1000)/10;return (v%1===0?v.toFixed(0):v.toFixed(1))+'%';};
 function render(){
   $('#gold').textContent=fmt(S.gold);
   $('#best').textContent=S.best;
   renderStage();
   const L=S.lv,atMax=L>=MAX;
   if(!atMax){
-    const r=rateOf(L);
-    $('#rate').textContent=r+'%';
+    const r=rateOf(L),P=outcomeProbs(L);
+    $('#rate').innerHTML=`성공 ${pct(P.great+P.succ)}<small>(대성공 포함)</small>`;
     $('#rateCell').className='cell rate'+(r<10?' vlow':r<35?' low':'');
-    const f=failW(L),q=1-r/100;
-    $('#fails').innerHTML=r>=100?'<i>실패 없음</i>':
-      `<i>유지 ${Math.round(f[0]*100)}%</i>`+(f[1]?`<i class="d">하락 ${Math.round(f[1]*100)}%</i>`:'')+(f[2]?`<i class="x">파괴 ${Math.round(f[2]*100)}%</i>`:'');
+    const OUT=[['great','대성공','#ffd23f'],['succ','성공','#4ade80'],['keep','유지','#94a3b8'],['drop','하락','#fb923c'],['lost','파괴','#f87171']];
+    $('#obar').innerHTML=OUT.map(([k,n,c])=>`<i style="width:${P[k]*100}%;background:${c}"></i>`).join('');
+    $('#fails').innerHTML=OUT.map(([k,n,c])=>`<i class="${P[k]<=0?'z':''}" style="--c:${c}"><em>${n}</em>${pct(P[k])}</i>`).join('');
     $('#cost').textContent='₽ '+fmt(costOf(L));
     $('#costSub').textContent=`+${L} → +${L+1}`;
     $('#btnEnh').disabled=busy||S.gold<costOf(L);
     $('#enhSub').textContent=`₽ ${fmt(costOf(L))}`;
   }else{
-    $('#rate').textContent='MAX';$('#rateCell').className='cell rate';$('#fails').innerHTML='';
+    $('#rate').textContent='MAX';$('#rateCell').className='cell rate';$('#fails').innerHTML='';$('#obar').innerHTML='';
     $('#cost').textContent='-';$('#costSub').textContent='더 이상 강화할 수 없다';
     $('#btnEnh').disabled=true;$('#enhSub').textContent='최고 단계';
   }
@@ -510,7 +523,6 @@ function render(){
   $('#priceSub').textContent=(S.shiny?'이로치 ×2.5 ':'')+(S.up.sell?`부적금화 +${S.up.sell*5}%`:'기본가');
   $('#btnSell').disabled=busy;
   $('#sellSub').textContent=`+₽ ${fmt(priceOf())}`;
-  $('#invText').innerHTML=`<div class="inv">${ico('protect',22)}기합의띠 <b>${S.inv.protect}</b></div><div class="inv">${ico('lucky',22)}잘-맞히기 <b>${S.inv.lucky}</b></div><div class="inv">${ico('sure',22)}이상한사탕 <b>${S.inv.sure}</b></div>`;
   const arm=[['protect','기합의띠'],['lucky','잘-맞히기'],['sure','이상한사탕']];
   $('#arm').innerHTML=arm.map(([k,n])=>`<button data-k="${k}" class="${S.armed[k]&&S.inv[k]>0?'on':''}" ${S.inv[k]<=0?'disabled':''}>${ico(k,28)}<span>${n}</span><b>${S.inv[k]}개 · ${S.armed[k]&&S.inv[k]>0?'사용 중':'꺼짐'}</b></button>`).join('');
   $('#autoBox').hidden=!S.autoUnlocked;
@@ -586,7 +598,7 @@ let resetArmed=false;
 function renderStats(){
   if(activeTab()!=='tab-stats')return;
   const st=S.stats,rate=st.tries?Math.round(st.ok/st.tries*1000)/10:0;
-  const rows=[['총 강화 시도',st.tries.toLocaleString()],['성공 / 성공률',`${st.ok.toLocaleString()} / ${rate}%`],['실패(유지)',st.fail.toLocaleString()],
+  const rows=[['총 강화 시도',st.tries.toLocaleString()],['성공 / 성공률',`${st.ok.toLocaleString()} / ${rate}%`],['대성공 (+2단계)',st.great.toLocaleString()],['실패(유지)',st.fail.toLocaleString()],
     ['하락',st.drop.toLocaleString()],['도망(파괴)',st.lost.toLocaleString()],['판매한 포켓몬',st.sold.toLocaleString()],
     ['최고 판매 레벨',st.top?'+'+st.top:'-'],['누적 판매 수익','₽ '+fmt(st.earned)],['누적 강화 지출','₽ '+fmt(st.spent)],['심부름 횟수',st.work.toLocaleString()]];
   $('#tab-stats').innerHTML=`<div class="stats">${rows.map(r=>`<div>${r[0]}</div><div>${r[1]}</div>`).join('')}</div>
@@ -628,7 +640,7 @@ async function enhance(){
   if(S.gold<c){log('골드가 부족합니다.','warn');return;}
   busy=true;
   const useLucky=S.armed.lucky&&S.inv.lucky>0,useSure=S.armed.sure&&S.inv.sure>0;
-  const rate=rateOf(L);
+  const P=outcomeProbs(L);
   S.gold-=c;S.stats.spent+=c;S.stats.tries++;
   if(useSure){S.inv.sure--;}else if(useLucky){S.inv.lucky--;}
   render();
@@ -638,26 +650,32 @@ async function enhance(){
   burst(tierOf(L).c,10,70);
   await sleep(650*speed);
   box.classList.remove('shake');
-  const ok=Math.random()*100<rate;
+  const x0=Math.random();
+  const res=x0<P.great?'great':x0<P.great+P.succ?'ok':x0<P.great+P.succ+P.keep?'keep':x0<P.great+P.succ+P.keep+P.drop?'drop':'lost';
   const oldName=nameOf(S.hist[L]);
-  if(ok){
-    const pick=weighted(S.next);
-    S.hist.push(pick.id);S.lv=L+1;S.stats.ok++;S.dex[pick.id]=1;
-    let msg=`${pick.r?'진화':'변이'} 성공! ${oldName} → <b>${nameOf(pick.id)}</b> (+${S.lv})`;
+  if(res==='ok'||res==='great'){
+    const steps=res==='great'?2:1,names=[];
+    for(let i=0;i<steps;i++){
+      const pick=weighted(S.next);
+      S.hist.push(pick.id);S.lv++;S.dex[pick.id]=1;names.push(`<b>${nameOf(pick.id)}</b>`);
+      if(i<steps-1)refreshNext();
+    }
+    S.stats.ok++;if(res==='great')S.stats.great++;
+    let msg=(res==='great'?'★ 대성공! +2단계! ':'성공! ')+`${oldName} → ${names.join(' → ')} (+${S.lv})`;
     if(S.lv>S.best){
-      S.best=S.lv;const bonus=Math.round(PRICE[S.lv]*.05);S.gold+=bonus;
+      let bonus=0;for(let v=S.best+1;v<=S.lv;v++)bonus+=Math.round(PRICE[v]*.05);
+      S.best=S.lv;S.gold+=bonus;
       msg+=` · 첫 달성 보너스 ₽${fmt(bonus)}`;
     }
     refreshNext();
-    log(msg,'ok');
-    S.lv>=20?SFX.big():SFX.ok();
-    flash(tierOf(S.lv).c);burst('#ffd23f',40,170);burst(tierOf(S.lv).c,20,120);
+    log(msg,res==='great'?'gold':'ok');
+    (S.lv>=20||res==='great')?SFX.big():SFX.ok();
+    flash(res==='great'?'#ffd23f':tierOf(S.lv).c);burst('#ffd23f',res==='great'?80:40,res==='great'?220:170);burst(tierOf(S.lv).c,20,120);
     renderStage(true);
     await monAnim([{transform:'scale(.3)',filter:'brightness(4)'},{transform:'scale(1.2)',offset:.6},{transform:'scale(1)',filter:'brightness(1)'}],{duration:520*speed,easing:'ease-out'});
   }else{
     S.stats.fail++;
-    const f=failW(L),x=Math.random();
-    let out=x<f[0]?'keep':x<f[0]+f[1]?'drop':'lost';
+    let out=res;
     let guarded=false;
     if(out!=='keep'&&S.armed.protect&&S.inv.protect>0){S.inv.protect--;out='keep';guarded=true;}
     if(out==='keep'){
