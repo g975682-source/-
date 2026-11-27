@@ -783,10 +783,12 @@ function outcomeProbs(L){
 }
 const upCost=(k,lv)=>Math.round(UPS[k].base*Math.pow(UPS[k].g,lv));
 const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
+/* 이상한사탕: 지금 최고 단계의 포켓몬 판매가의 5%를 기본으로, 가진 개수마다 2.2배 */
+const candyPrice=n=>nice(Math.max(shopScale()*30,PRICE[Math.max(1,S.best)]*.05)*Math.pow(2.2,n));
 const SHOP_ITEMS=[
   {k:'protect',ic:'protect',n:'기합의띠',d:'버텨내서 하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
   {k:'lucky',ic:'lucky',n:'잘-맞히기',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
-  {k:'sure',ic:'sure',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4},
+  {k:'sure',ic:'sure',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다. 가격이 매우 비싸고, 갖고 있는 개수가 늘수록 2.2배씩 더 비싸진다.',price:()=>candyPrice(S.inv.sure)},
   {k:'ball',ic:'ball',n:'몬스터볼',d:'보스전에서 이긴 뒤 던진다. 포획 확률 10%.',price:()=>Math.round(shopScale()*2)},
   {k:'master',ic:'master',n:'마스터볼',d:'보스전에서 이긴 뒤 던진다. 포획 확률 100%. 아주 비싸다.',price:()=>shopScale()*80}
 ];
