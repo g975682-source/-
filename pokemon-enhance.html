@@ -1124,25 +1124,42 @@ function initTitle(){
   window.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){if(!t.classList.contains('hide')){e.preventDefault();startGame();}}});
   const sv=$('#tSave');
   if(S.stats.tries>0||S.best>0){sv.hidden=false;sv.textContent=`이어하기 · 최고 +${S.best} · ₽ ${fmt(S.gold)}`;}
-  if(giftMsg){sv.hidden=false;sv.textContent='🎁 선물 도착! +₽ 1,000,000';}
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawTitle).catch(()=>{});
+}
+
+/* ---------- 계정 선물 ----------
+   내 계정의 비공개 저장소(data/users/<내 id>/grant)에 선물 문서가 있으면 한 번만 받는다. 다른 사람은 읽을 수 없다. */
+async function claimGrant(){
+  try{
+    if(!window.claude||!claude.use)return;
+    const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+    if(!db||!user)return;
+    const id=await user.id();if(!id)return;
+    const ref=db.collection('data/users/'+id).doc('grant');
+    const lease=await ref.acquire({holder:'claim-'+Math.random().toString(36).slice(2),ttlMs:8000});   // 탭·기기 동시 수령 방지
+    if(!lease.acquired)return;
+    const snap=await ref.get();
+    if(!snap.exists)return;
+    const d=snap.data()||{};
+    if(d.claimed||!(d.gold>0))return;
+    await ref.update({claimed:true,claimedAt:new Date().toISOString()});
+    let already=false;
+    try{already=!!localStorage.getItem('pcn_gift_1m');localStorage.removeItem('pcn_gift_1m');}catch(e){}   // 예전 방식으로 이미 받았다면 중복 지급하지 않는다
+    if(!already){S.gold+=d.gold;}
+    const msg=already?'🎁 선물이 내 계정 지급으로 전환되었습니다.':`🎁 선물 도착! <b>₽ ${fmt(d.gold)}</b>을 받았다.`;
+    S.log.unshift({t:msg,c:'gold'});save();render();renderLog();
+    const sv=$('#tSave');if(sv){sv.hidden=false;sv.textContent=already?'🎁 선물: 내 계정으로 전환됨':`🎁 선물 도착! +₽ ${fmt(d.gold)}`;}
+  }catch(e){}
 }
 
 /* 시작 */
 load();
-let giftMsg=false;
-try{
-  if(!localStorage.getItem('pcn_gift_1m')){
-    localStorage.setItem('pcn_gift_1m','1');
-    S.gold+=1000000;giftMsg=true;
-    S.log.unshift({t:'🎁 선물 도착! <b>₽ 1,000,000</b>을 받았다.',c:'gold'});save();
-  }
-}catch(e){}
+
 if(!(S.hist.length&&S.lv===S.hist.length-1&&S.hist.every(id=>BY[id])&&S.types.length)){newMon();}
 S.hist.forEach(id=>S.dex[id]=1);
 if(!S.next||!S.next.length||!S.next.every(c=>BY[c.id]))refreshNext();
 $('#autoRange').value=S.auto.target;$('#autoSell').checked=S.auto.sell;
-renderLog();render();loadSprites();initTitle();
+renderLog();render();loadSprites();initTitle();claimGrant();
 </script>
 </body>
 </html>
