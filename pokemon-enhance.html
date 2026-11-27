@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>포켓몬 강화왕</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#0c0f24; --bg2:#151a3c; --panel:#1a2048; --panel2:#232b5e; --line:#37408a;
+  --text:#eef0ff; --mute:#9aa3d6; --gold:#ffd23f; --ok:#4ade80; --bad:#f87171; --warn:#fb923c;
+  --aura:#9aa6c8;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);
+  font-family:"Pretendard","Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+body{background:radial-gradient(900px 500px at 50% -10%,#3a3f9a55,transparent),radial-gradient(700px 500px at 100% 100%,#c2410c33,transparent),var(--bg)}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+h2,h3{margin:0}
+#app{max-width:560px;margin:0 auto;padding-block:10px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:12px}
+
+/* HUD */
+.hud{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:10px 14px;position:relative}
+.gold{display:flex;align-items:baseline;gap:6px;flex:1;min-width:0}
+.gold .coin{color:var(--gold);font-weight:900;font-size:20px}
+.gold b{font-size:clamp(20px,6vw,28px);font-variant-numeric:tabular-nums;color:var(--gold);overflow-wrap:anywhere}
+.best{font-size:12px;color:var(--mute);text-align:right;line-height:1.3}
+.best b{color:var(--text);font-size:15px}
+.iconbtn{background:#ffffff14;border-radius:10px;padding:6px 10px}
+.float{position:absolute;left:44px;top:100%;margin-top:-4px;font-weight:800;font-size:18px;pointer-events:none;font-variant-numeric:tabular-nums;z-index:5;text-shadow:0 2px 6px #000}
+
+/* tabs */
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tabs button{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 4px;font-weight:700;font-size:14px;color:var(--mute)}
+.tabs button.on{background:linear-gradient(180deg,#ffd23f,#f59e0b);color:#2b1c00;border-color:#ffd23f}
+.tab{display:none;flex-direction:column;gap:12px}
+.tab.on{display:flex}
+
+/* stage */
+.stage{position:relative;height:310px;border-radius:20px;border:2px solid var(--line);overflow:hidden;
+  background:radial-gradient(circle at 50% 62%,color-mix(in srgb,var(--aura) 40%,transparent),transparent 55%),linear-gradient(180deg,#1b2155,#10143a)}
+.stage::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,#ffffff06 0 1px,transparent 1px 36px),repeating-linear-gradient(0deg,#ffffff06 0 1px,transparent 1px 36px)}
+.ped{position:absolute;left:50%;bottom:34px;width:230px;height:54px;margin-left:-115px;border-radius:50%;
+  background:radial-gradient(ellipse,color-mix(in srgb,var(--aura) 70%,#fff) 0,var(--aura) 35%,transparent 70%);opacity:.55;filter:blur(1px)}
+.aura{position:absolute;left:50%;bottom:50px;width:250px;height:250px;margin-left:-125px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--aura) 55%,transparent),transparent 68%);animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.12);opacity:.7}}
+.monbox{position:absolute;left:0;right:0;bottom:56px;display:flex;justify-content:center;align-items:flex-end;height:230px}
+.monbox img{image-rendering:pixelated;max-width:260px;max-height:230px;filter:drop-shadow(0 8px 6px #0007);animation:bob 2.2s ease-in-out infinite}
+.monbox img.shiny{filter:hue-rotate(150deg) saturate(1.4) drop-shadow(0 0 10px #ffe66d)}
+@keyframes bob{50%{transform:translateY(-8px)}}
+.lvbadge{position:absolute;left:12px;top:10px;background:#000a;border:2px solid var(--aura);color:#fff;font-weight:900;font-size:22px;border-radius:12px;padding:2px 12px;font-variant-numeric:tabular-nums}
+.tierbadge{position:absolute;right:12px;top:12px;font-size:12px;font-weight:800;color:#0b0b1a;background:var(--aura);border-radius:99px;padding:3px 10px}
+.shinytag{position:absolute;left:12px;top:56px;font-size:12px;font-weight:800;color:#ffe66d;background:#000a;border-radius:99px;padding:2px 9px;display:none}
+#fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.pt{position:absolute;width:8px;height:8px;border-radius:50%}
+.shake{animation:shake .12s linear infinite}
+@keyframes shake{25%{transform:translate(-4px,2px)}75%{transform:translate(4px,-2px)}}
+.flash{position:absolute;inset:0;pointer-events:none;opacity:0}
+
+.nameRow{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.nameRow h2{font-size:22px}
+.nameRow span{color:var(--mute);font-size:13px}
+
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cell{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;min-width:0}
+.cell small{display:block;color:var(--mute);font-size:11px;font-weight:700;letter-spacing:.3px}
+.cell b{font-size:17px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.cell .sub{font-size:11px;color:var(--mute);margin-top:1px}
+.rate b{color:var(--ok)}
+.rate.low b{color:var(--warn)}.rate.vlow b{color:var(--bad)}
+.fails{display:flex;gap:6px;font-size:12px;margin-top:2px;flex-wrap:wrap}
+.fails i{font-style:normal;padding:1px 7px;border-radius:99px;background:#ffffff12}
+.fails .d{color:var(--warn)}.fails .x{color:var(--bad)}
+
+.arm{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.arm button{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:7px 4px;font-size:12px;font-weight:700;line-height:1.3}
+.arm button b{display:block;font-size:11px;color:var(--mute);font-weight:600}
+.arm button.on{border-color:var(--gold);background:#ffd23f22}
+
+.actions{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.btn{border-radius:16px;padding:14px 10px;font-weight:900;font-size:17px;line-height:1.25;transition:transform .08s}
+.btn small{display:block;font-weight:700;font-size:12px;opacity:.85}
+.btn:active:not(:disabled){transform:translateY(3px)}
+.btn.enh{background:linear-gradient(180deg,#ffdd55,#f59e0b);color:#2b1c00;box-shadow:0 4px 0 #a16207}
+.btn.sell{background:linear-gradient(180deg,#34d399,#059669);color:#052e1f;box-shadow:0 4px 0 #047857}
+.btn.work{background:var(--panel2);border:1px solid var(--line);font-size:14px;padding:10px;box-shadow:none;font-weight:700}
+.autobox{background:var(--panel);border:1px dashed var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:13px}
+.autobox input[type=range]{flex:1;min-width:120px}
+.autobox label{display:flex;gap:5px;align-items:center}
+.autobox .btn{padding:8px 14px;font-size:14px;box-shadow:none}
+.log{list-style:none;margin:0;padding:10px 12px;background:#0007;border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;gap:3px;font-size:13px;min-height:130px}
+.log li{opacity:.9}.log li:first-child{opacity:1;font-weight:700}
+.log .ok{color:var(--ok)}.log .bad{color:var(--bad)}.log .warn{color:var(--warn)}.log .gold{color:var(--gold)}
+
+/* shop */
+.sec{font-size:12px;color:var(--mute);font-weight:800;letter-spacing:.6px;margin-top:4px}
+.item{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.item .ic{font-size:28px;text-align:center}
+.item h3{font-size:15px}
+.item p{margin:2px 0 0;font-size:12px;color:var(--mute);line-height:1.4}
+.item .own{font-size:11px;color:var(--gold);font-weight:700}
+.buy{background:linear-gradient(180deg,#ffdd55,#f59e0b);color:#2b1c00;font-weight:800;border-radius:10px;padding:8px 12px;font-size:13px;min-width:92px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.buy.max{background:#ffffff18;color:var(--mute)}
+.pips{display:flex;gap:2px;margin-top:4px}
+.pips i{width:7px;height:7px;border-radius:2px;background:#ffffff22}.pips i.f{background:var(--gold)}
+
+/* dex */
+.dex{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dx{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 2px 8px;text-align:center;min-width:0}
+.dx .im{height:62px;display:flex;align-items:flex-end;justify-content:center}
+.dx img{image-rendering:pixelated;max-width:56px;max-height:60px}
+.dx.lock img{filter:brightness(0) opacity(.5)}
+.dx b{display:block;font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dx small{font-size:10px;color:var(--mute)}
+.dx.cur{border-color:var(--gold)}
+
+.stats{display:grid;grid-template-columns:1fr auto;gap:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.stats div{padding:9px 14px;border-bottom:1px solid #ffffff10;font-size:14px;font-variant-numeric:tabular-nums}
+.stats div:nth-child(odd){color:var(--mute)}
+.stats div:nth-child(even){text-align:right;font-weight:700}
+.danger{background:#7f1d1d;border-radius:12px;padding:10px;font-weight:700}
+.note{color:var(--mute);font-size:12px;line-height:1.6}
+@media(max-width:380px){.dex{grid-template-columns:repeat(3,1fr)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hud">
+    <div class="gold"><span class="coin">₽</span><b id="gold">0</b></div>
+    <div class="best">최고 기록<br><b>+<span id="best">0</span></b></div>
+    <button class="iconbtn" id="btnSound" aria-label="소리">🔊</button>
+    <span class="float" id="gfloat"></span>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-t="main" class="on">강화</button>
+    <button data-t="shop">상점</button>
+    <button data-t="dex">도감</button>
+    <button data-t="stats">기록</button>
+  </nav>
+
+  <!-- 강화 -->
+  <section class="tab on" id="tab-main">
+    <div class="stage" id="stage">
+      <div class="aura"></div><div class="ped"></div>
+      <div class="lvbadge" id="lvBadge">+0</div>
+      <div class="tierbadge" id="tierBadge">일반</div>
+      <div class="shinytag" id="shinyTag">✨ 이로치 ×2.5</div>
+      <div class="monbox" id="monBox"><img id="mon" alt=""></div>
+      <div id="fx"></div>
+      <div class="flash" id="flash"></div>
+    </div>
+    <div class="nameRow"><h2 id="monName">-</h2><span id="nextName"></span></div>
+    <div class="info">
+      <div class="cell rate" id="rateCell"><small>성공 확률</small><b id="rate">-</b>
+        <div class="fails" id="fails"></div></div>
+      <div class="cell"><small>강화 비용</small><b id="cost">-</b><div class="sub" id="costSub"></div></div>
+      <div class="cell"><small>판매가</small><b id="price" style="color:var(--gold)">-</b><div class="sub" id="priceSub"></div></div>
+      <div class="cell"><small>보유 아이템</small><div id="invText" style="font-size:13px;font-weight:700;line-height:1.5">-</div></div>
+    </div>
+    <div class="arm" id="arm"></div>
+    <div class="actions">
+      <button class="btn enh" id="btnEnh">강화하기<small id="enhSub"></small></button>
+      <button class="btn sell" id="btnSell">판매하기<small id="sellSub"></small></button>
+    </div>
+    <div class="autobox" id="autoBox" hidden>
+      <b>자동 강화</b>
+      <label>목표 +<span id="autoT">10</span></label>
+      <input type="range" id="autoRange" min="1" max="30" value="10">
+      <label><input type="checkbox" id="autoSell" checked> 도달하면 판매</label>
+      <button class="btn enh" id="btnAuto">시작</button>
+    </div>
+    <button class="btn work" id="btnWork">포켓몬 센터 심부름 <small id="workSub"></small></button>
+    <ul class="log" id="log"></ul>
+  </section>
+
+  <!-- 상점 -->
+  <section class="tab" id="tab-shop"></section>
+
+  <!-- 도감 -->
+  <section class="tab" id="tab-dex"></section>
+
+  <!-- 기록 -->
+  <section class="tab" id="tab-stats"></section>
+</div>
+
+<script>
+'use strict';
+/* =========================================================
+   데이터
+========================================================= */
+const MONS=[
+ ['캐터피',10],['구구',16],['꼬렛',19],['피카츄',25],['이브이',133],['꼬부기',7],['파이리',4],['이상해씨',1],
+ ['괴력몬',68],['윈디',59],['갸라도스',130],['후딘',65],['팬텀',94],['잠만보',143],['라프라스',131],['루카리오',448],
+ ['한카리아스',445],['보만다',373],['마기라스',248],['메타그로스',376],['리자몽',6],['망나뇽',149],['뮤',151],
+ ['프리져',144],['썬더',145],['파이어',146],['루기아',249],['칠색조',250],['레쿠쟈',384],['뮤츠',150],['아르세우스',493]
+];
+const MAX=MONS.length-1;               // 30
+const RATE=[100,96,92,88,84,80,75,70,64,58,52,46,40,36,32,29,26,23,20,18,16,14,13,12,11,10,9,8,7,6]; // L→L+1 기본 확률(%)
+function failW(L){                      // [유지, 하락, 파괴]
+  if(L<8)return[1,0,0];
+  if(L<15)return[.6,.4,0];
+  return[.4,.35,.25];
+}
+const COST_BASE=15,COST_G=1.36;
+const baseCost=L=>COST_BASE*Math.pow(COST_G,L);
+
+/* 레벨 T까지 가는 평균 비용(파괴 시 처음부터)을 풀어서 판매가의 기준으로 삼는다 */
+function expectedCost(T){
+  const n=T,A=[...Array(n)].map(()=>Array(n+1).fill(0));
+  for(let L=0;L<n;L++){
+    const p=RATE[L]/100,[k,d,x]=failW(L),q=1-p;
+    A[L][L]+=1;A[L][n]=baseCost(L);
+    if(L+1<n)A[L][L+1]-=p;
+    A[L][L]-=q*k;
+    if(L>0)A[L][L-1]-=q*d;
+    A[L][0]-=q*x;
+  }
+  for(let i=0;i<n;i++){
+    let m=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[m][i]))m=r;
+    [A[i],A[m]]=[A[m],A[i]];
+    for(let r=0;r<n;r++){if(r===i)continue;const f=A[r][i]/A[i][i];for(let c=i;c<=n;c++)A[r][c]-=f*A[i][c];}
+  }
+  return A[0][n]/A[0][0];
+}
+function nice(n){if(n<100)return Math.round(n);const d=Math.pow(10,Math.floor(Math.log10(n))-2);return Math.round(n/d)*d;}
+const PRICE=[8];
+for(let T=1;T<=MAX;T++)PRICE[T]=nice(expectedCost(T)*(1.2+1.2*Math.exp(-T/5)));
+
+const TIERS=[
+  {from:0,n:'일반',c:'#9aa6c8'},{from:5,n:'고급',c:'#4ade80'},{from:10,n:'희귀',c:'#38bdf8'},
+  {from:15,n:'영웅',c:'#c084fc'},{from:20,n:'전설',c:'#fb923c'},{from:25,n:'신화',c:'#f43f5e'},{from:30,n:'초월',c:'#ffd23f'}
+];
+const tierOf=L=>{let t=TIERS[0];TIERS.forEach(x=>{if(L>=x.from)t=x;});return t;};
+
+const UPS={
+  luck:{ic:'🔨',n:'강화 장인',d:'강화 성공 확률 +1%p (레벨당)',max:15,base:300,g:2.1},
+  sell:{ic:'🤝',n:'흥정 달인',d:'판매가 +5% (레벨당)',max:20,base:300,g:2.0},
+  save:{ic:'🧾',n:'절약 비법',d:'강화 비용 -3% (레벨당)',max:15,base:400,g:2.15},
+  start:{ic:'🥚',n:'부화 장치',d:'새 포켓몬이 +1 레벨 높게 시작',max:8,base:2000,g:3.0},
+  shiny:{ic:'✨',n:'이로치 부적',d:'이로치(판매가 ×2.5) 등장 확률 +2%p',max:10,base:1500,g:2.2}
+};
+const AUTO_PRICE=3000;
+
+/* =========================================================
+   유틸
+========================================================= */
+const $=s=>document.querySelector(s);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function fmt(n){
+  n=Math.floor(n);
+  if(n<10000)return n.toLocaleString('ko-KR');
+  const U=['','만','억','조','경'];const parts=[];
+  let i=0;while(n>0){parts.push(n%10000);n=Math.floor(n/10000);i++;}
+  let out='',shown=0;
+  for(let k=parts.length-1;k>=0&&shown<2;k--){
+    if(parts[k]===0&&shown===0)continue;
+    if(parts[k]>0){out+=(out?' ':'')+parts[k].toLocaleString('ko-KR')+U[k];shown++;}
+  }
+  return out;
+}
+function jo(w,k){
+  const c=w.charCodeAt(w.length-1),b=c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28!==0;
+  return w+({은:['은','는'],이:['이','가'],을:['을','를']})[k][b?0:1];
+}
+function ph(name){
+  const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='48' r='40' fill='#6366f1' stroke='#fff' stroke-width='4'/><text x='48' y='58' font-size='26' font-weight='700' text-anchor='middle' fill='#fff' font-family='sans-serif'>${name.slice(0,2)}</text></svg>`;
+  return 'data:image/svg+xml;utf8,'+encodeURIComponent(svg);
+}
+const EMB={};
+const PA='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+function sprUrls(L){
+  const [n,id]=MONS[L],l=[];
+  if(EMB[id])l.push(EMB[id]);
+  else l.push(PA+'versions/generation-v/black-white/animated/'+id+'.gif',PA+id+'.png');
+  return l;
+}
+function setImg(img,L){
+  const urls=sprUrls(L);let i=0;
+  const fit=()=>{
+    const w=img.naturalWidth||96,h=img.naturalHeight||96;
+    const k=Math.min(3,230/Math.max(w,h));
+    img.style.width=Math.round(w*k)+'px';img.style.height=Math.round(h*k)+'px';
+  };
+  img.onload=fit;
+  img.onerror=()=>{i++;if(i<urls.length)img.src=urls[i];else{img.onerror=null;img.src=ph(MONS[L][0]);}};
+  img.src=urls[0];
+}
+
+/* 소리 */
+let muted=false,AC=null;
+function beep(f,d=.1,type='square',vol=.04,slide=null,delay=0){
+  if(muted)return;
+  try{
+    AC=AC||new(window.AudioContext||window.webkitAudioContext)();
+    const t=AC.currentTime+delay,o=AC.createOscillator(),g=AC.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t);
+    if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+d);
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+.02);
+  }catch(e){}
+}
+const SFX={
+  click(){beep(620,.04,'square',.025);},
+  charge(){beep(200,.6,'sawtooth',.03,700);},
+  ok(){[523,659,784,1046].forEach((f,i)=>beep(f,.16,'square',.045,null,i*.08));},
+  big(){[392,523,659,784,1046,1318].forEach((f,i)=>beep(f,.2,'square',.05,null,i*.09));},
+  fail(){beep(300,.25,'triangle',.05,140);},
+  drop(){beep(400,.3,'sawtooth',.05,90);},
+  boom(){beep(180,.7,'sawtooth',.07,30);beep(90,.5,'square',.05,30,.05);},
+  coin(){beep(988,.07,'square',.04);beep(1319,.18,'square',.04,null,.07);},
+  buy(){beep(700,.08,'triangle',.05);beep(950,.12,'triangle',.05,null,.07);}
+};
+
+/* =========================================================
+   상태
+========================================================= */
+const DEF=()=>({
+  gold:200,lv:0,shiny:false,best:0,
+  inv:{protect:1,lucky:0,sure:0},
+  up:{luck:0,sell:0,save:0,start:0,shiny:0},
+  autoUnlocked:false,auto:{target:10,sell:true},
+  armed:{protect:true,lucky:false,sure:false},
+  stats:{tries:0,ok:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
+  dex:{0:1},log:[]
+});
+let S=DEF();
+function load(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('pcn_enhance_v1')||'null');
+    if(raw){
+      const d=DEF();
+      S=Object.assign(d,raw,{inv:Object.assign(d.inv,raw.inv),up:Object.assign(d.up,raw.up),armed:Object.assign(d.armed,raw.armed),
+        auto:Object.assign(d.auto,raw.auto),stats:Object.assign(d.stats,raw.stats)});
+      if(!(S.lv>=0&&S.lv<=MAX))S.lv=0;
+    }
+  }catch(e){}
+}
+function save(){try{localStorage.setItem('pcn_enhance_v1',JSON.stringify(S));}catch(e){}}
+
+/* 계산 */
+const shinyChance=()=>.02+.02*S.up.shiny;
+const costOf=L=>Math.max(1,Math.round(baseCost(L)*(1-.03*S.up.save)));
+const priceOf=()=>Math.round(PRICE[S.lv]*(1+.05*S.up.sell)*(S.shiny?2.5:1));
+function rateOf(L,preview){
+  let r=RATE[L]+S.up.luck;
+  if(S.armed.lucky&&S.inv.lucky>0)r+=10;
+  if(S.armed.sure&&S.inv.sure>0)r=100;
+  return Math.min(100,r);
+}
+const upCost=(k,lv)=>Math.round(UPS[k].base*Math.pow(UPS[k].g,lv));
+const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
+const SHOP_ITEMS=[
+  {k:'protect',ic:'🛡️',n:'방어 부적',d:'하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
+  {k:'lucky',ic:'🍀',n:'행운의 가루',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
+  {k:'sure',ic:'⭐',n:'확정 강화권',d:'다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
+];
+
+/* =========================================================
+   렌더링
+========================================================= */
+let busy=false,spriteKey='';
+function log(t,c){S.log.unshift({t,c:c||''});S.log.length=Math.min(S.log.length,40);renderLog();}
+function renderLog(){
+  $('#log').innerHTML=S.log.slice(0,7).map(x=>`<li class="${x.c}">${x.t}</li>`).join('')||'<li>포켓몬을 강화해서 팔아보세요!</li>';
+}
+function setAura(){const t=tierOf(S.lv);$('#stage').style.setProperty('--aura',t.c);}
+function renderStage(force){
+  const t=tierOf(S.lv),key=S.lv+'|'+S.shiny;
+  setAura();
+  $('#lvBadge').textContent='+'+S.lv;
+  const tb=$('#tierBadge');tb.textContent=t.n;tb.style.background=t.c;
+  $('#shinyTag').style.display=S.shiny?'block':'none';
+  $('#monName').textContent=(S.shiny?'✨ ':'')+MONS[S.lv][0];
+  $('#nextName').textContent=S.lv<MAX?`다음 진화: ${MONS[S.lv+1][0]}`:'최종 단계!';
+  if(force||key!==spriteKey){
+    spriteKey=key;const img=$('#mon');
+    setImg(img,S.lv);img.classList.toggle('shiny',S.shiny);
+  }
+}
+function render(){
+  $('#gold').textContent=fmt(S.gold);
+  $('#best').textContent=S.best;
+  renderStage();
+  const L=S.lv,atMax=L>=MAX;
+  if(!atMax){
+    const r=rateOf(L);
+    $('#rate').textContent=r+'%';
+    $('#rateCell').className='cell rate'+(r<10?' vlow':r<35?' low':'');
+    const f=failW(L),q=1-r/100;
+    $('#fails').innerHTML=r>=100?'<i>실패 없음</i>':
+      `<i>유지 ${Math.round(f[0]*100)}%</i>`+(f[1]?`<i class="d">하락 ${Math.round(f[1]*100)}%</i>`:'')+(f[2]?`<i class="x">파괴 ${Math.round(f[2]*100)}%</i>`:'');
+    $('#cost').textContent='₽ '+fmt(costOf(L));
+    $('#costSub').textContent=`다음: ${MONS[L+1][0]}`;
+    $('#btnEnh').disabled=busy||S.gold<costOf(L);
+    $('#enhSub').textContent=`₽ ${fmt(costOf(L))}`;
+  }else{
+    $('#rate').textContent='MAX';$('#rateCell').className='cell rate';$('#fails').innerHTML='';
+    $('#cost').textContent='-';$('#costSub').textContent='더 이상 강화할 수 없다';
+    $('#btnEnh').disabled=true;$('#enhSub').textContent='최고 단계';
+  }
+  $('#price').textContent='₽ '+fmt(priceOf());
+  $('#priceSub').textContent=(S.shiny?'이로치 ×2.5 ':'')+(S.up.sell?`흥정 +${S.up.sell*5}%`:'기본가');
+  $('#btnSell').disabled=busy;
+  $('#sellSub').textContent=`+₽ ${fmt(priceOf())}`;
+  $('#invText').innerHTML=`🛡️ 방어 부적 ${S.inv.protect}<br>🍀 행운의 가루 ${S.inv.lucky}<br>⭐ 확정 강화권 ${S.inv.sure}`;
+  const arm=[['protect','🛡️ 방어 부적'],['lucky','🍀 행운의 가루'],['sure','⭐ 확정 강화권']];
+  $('#arm').innerHTML=arm.map(([k,n])=>`<button data-k="${k}" class="${S.armed[k]&&S.inv[k]>0?'on':''}" ${S.inv[k]<=0?'disabled':''}>${n}<b>${S.inv[k]}개 · ${S.armed[k]&&S.inv[k]>0?'사용 중':'꺼짐'}</b></button>`).join('');
+  $('#autoBox').hidden=!S.autoUnlocked;
+  $('#autoT').textContent=$('#autoRange').value;
+  $('#workSub').textContent=`+₽ ${fmt(workPay())} · 대기 ${(workCd/1000).toFixed(1)}초`;
+  renderShop();renderDex();renderStats();
+}
+function activeTab(){return document.querySelector('.tab.on').id;}
+
+function renderShop(){
+  if(activeTab()!=='tab-shop')return;
+  const el=$('#tab-shop');
+  let h='<div class="sec">소모품</div>';
+  SHOP_ITEMS.forEach(it=>{const p=it.price();
+    h+=`<div class="item"><div class="ic">${it.ic}</div><div><h3>${it.n}</h3><p>${it.d}</p><div class="own">보유 ${S.inv[it.k]}개</div></div>
+      <button class="buy" data-buy="${it.k}" ${S.gold<p?'disabled':''}>₽ ${fmt(p)}</button></div>`;});
+  h+='<div class="sec">영구 강화</div>';
+  Object.entries(UPS).forEach(([k,u])=>{
+    const lv=S.up[k],mx=lv>=u.max,p=upCost(k,lv);
+    h+=`<div class="item"><div class="ic">${u.ic}</div><div><h3>${u.n} <span class="own">Lv.${lv}/${u.max}</span></h3><p>${u.d}</p>
+      <div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'f':''}"></i>`).join('')}</div></div>
+      <button class="buy${mx?' max':''}" data-up="${k}" ${mx||S.gold<p?'disabled':''}>${mx?'MAX':'₽ '+fmt(p)}</button></div>`;});
+  h+='<div class="sec">기능</div>';
+  h+=`<div class="item"><div class="ic">🤖</div><div><h3>자동 강화 ${S.autoUnlocked?'<span class="own">해금됨</span>':''}</h3><p>목표 레벨까지 알아서 강화하고, 도달하면 판매까지 반복한다.</p></div>
+      <button class="buy${S.autoUnlocked?' max':''}" data-auto="1" ${S.autoUnlocked||S.gold<AUTO_PRICE?'disabled':''}>${S.autoUnlocked?'보유':'₽ '+fmt(AUTO_PRICE)}</button></div>`;
+  el.innerHTML=h;
+}
+function renderDex(){
+  if(activeTab()!=='tab-dex')return;
+  const found=Object.keys(S.dex).length;
+  $('#tab-dex').innerHTML=`<div class="note">발견한 포켓몬 <b style="color:var(--gold)">${found}</b> / ${MONS.length} · 이로치 ${S.stats.shinies}마리 만남</div>
+   <div class="dex">${MONS.map((m,i)=>{const ok=S.dex[i];
+     return `<div class="dx${ok?'':' lock'}${i===S.lv?' cur':''}"><div class="im"><img src="${sprUrls(i)[0]}" alt="" data-l="${i}"></div><b>${ok?m[0]:'???'}</b><small>+${i}</small></div>`;}).join('')}</div>`;
+  $('#tab-dex').querySelectorAll('img').forEach(im=>{
+    const L=+im.dataset.l,urls=sprUrls(L);let i=0;
+    im.onerror=()=>{i++;if(i<urls.length)im.src=urls[i];else{im.onerror=null;im.src=ph(MONS[L][0]);}};
+  });
+}
+let resetArmed=false;
+function renderStats(){
+  if(activeTab()!=='tab-stats')return;
+  const st=S.stats,rate=st.tries?Math.round(st.ok/st.tries*1000)/10:0;
+  const rows=[['총 강화 시도',st.tries.toLocaleString()],['성공 / 성공률',`${st.ok.toLocaleString()} / ${rate}%`],['실패(유지)',st.fail.toLocaleString()],
+    ['하락',st.drop.toLocaleString()],['도망(파괴)',st.lost.toLocaleString()],['판매한 포켓몬',st.sold.toLocaleString()],
+    ['최고 판매 레벨',st.top?'+'+st.top:'-'],['누적 판매 수익','₽ '+fmt(st.earned)],['누적 강화 지출','₽ '+fmt(st.spent)],['심부름 횟수',st.work.toLocaleString()]];
+  $('#tab-stats').innerHTML=`<div class="stats">${rows.map(r=>`<div>${r[0]}</div><div>${r[1]}</div>`).join('')}</div>
+    <button class="btn danger" id="btnReset">${resetArmed?'정말 삭제할까요? 한 번 더 누르세요':'데이터 초기화'}</button>
+    <div class="note">진행 상황은 이 브라우저에 자동 저장됩니다. 판매가는 해당 레벨까지 가는 평균 강화 비용을 기준으로 정해져 있고, 높은 레벨일수록 파괴 위험이 큽니다. 상점의 영구 강화로 기대 수익을 끌어올리세요.</div>`;
+}
+
+/* =========================================================
+   연출
+========================================================= */
+function burst(color,n=26,spread=140){
+  const fx=$('#fx'),r=$('#stage').getBoundingClientRect(),cx=r.width/2,cy=r.height-120;
+  for(let i=0;i<n;i++){
+    const p=document.createElement('span');p.className='pt';p.style.background=color;p.style.left=cx+'px';p.style.top=cy+'px';
+    fx.appendChild(p);
+    const a=rnd(0,Math.PI*2),d=rnd(40,spread);
+    p.animate([{transform:'translate(0,0) scale(1)',opacity:1},{transform:`translate(${Math.cos(a)*d}px,${Math.sin(a)*d-30}px) scale(.2)`,opacity:0}],
+      {duration:rnd(500,900),easing:'ease-out'}).finished.then(()=>p.remove(),()=>p.remove());
+  }
+}
+function flash(color){
+  const f=$('#flash');f.style.background=color;
+  f.animate([{opacity:.75},{opacity:0}],{duration:500});
+}
+function goldFloat(txt,color){
+  const g=$('#gfloat');g.textContent=txt;g.style.color=color;
+  g.animate([{transform:'translateY(6px)',opacity:0},{transform:'translateY(0)',opacity:1,offset:.2},{transform:'translateY(-18px)',opacity:0}],{duration:1100});
+}
+const monAnim=(kf,opt)=>$('#monBox').animate(kf,opt).finished.catch(()=>{});
+
+/* =========================================================
+   액션
+========================================================= */
+function enter(){ // 새 포켓몬 등장
+  S.lv=Math.min(MAX,S.up.start);
+  S.shiny=Math.random()<shinyChance();
+  if(S.shiny)S.stats.shinies++;
+  S.dex[S.lv]=1;
+}
+let speed=1;
+async function enhance(){
+  if(busy||S.lv>=MAX)return;
+  const L=S.lv,c=costOf(L);
+  if(S.gold<c){log('골드가 부족합니다.','warn');return;}
+  busy=true;
+  const useLucky=S.armed.lucky&&S.inv.lucky>0,useSure=S.armed.sure&&S.inv.sure>0;
+  const rate=rateOf(L);
+  S.gold-=c;S.stats.spent+=c;S.stats.tries++;
+  if(useSure){S.inv.sure--;}else if(useLucky){S.inv.lucky--;}
+  render();
+  /* 충전 연출 */
+  SFX.charge();
+  const box=$('#monBox');box.classList.add('shake');
+  burst(tierOf(L).c,10,70);
+  await sleep(650*speed);
+  box.classList.remove('shake');
+  const ok=Math.random()*100<rate;
+  const oldName=MONS[L][0];
+  if(ok){
+    S.lv=L+1;S.stats.ok++;S.dex[S.lv]=1;
+    let msg=`성공! ${oldName} → <b>${MONS[S.lv][0]}</b> (+${S.lv})`;
+    if(S.lv>S.best){
+      S.best=S.lv;const bonus=Math.round(PRICE[S.lv]*.05);S.gold+=bonus;
+      msg+=` · 첫 달성 보너스 ₽${fmt(bonus)}`;
+    }
+    log(msg,'ok');
+    S.lv>=20?SFX.big():SFX.ok();
+    flash(tierOf(S.lv).c);burst('#ffd23f',40,170);burst(tierOf(S.lv).c,20,120);
+    renderStage(true);
+    await monAnim([{transform:'scale(.3)',filter:'brightness(4)'},{transform:'scale(1.2)',offset:.6},{transform:'scale(1)',filter:'brightness(1)'}],{duration:520*speed,easing:'ease-out'});
+  }else{
+    S.stats.fail++;
+    const f=failW(L),x=Math.random();
+    let out=x<f[0]?'keep':x<f[0]+f[1]?'drop':'lost';
+    let guarded=false;
+    if(out!=='keep'&&S.armed.protect&&S.inv.protect>0){S.inv.protect--;out='keep';guarded=true;}
+    if(out==='keep'){
+      log(guarded?`실패… 하지만 <b>방어 부적</b>이 ${MONS[L][0]}을(를) 지켜줬다!`:`실패… 변화 없음 (${MONS[L][0]} +${L})`,guarded?'warn':'');
+      SFX.fail();flash('#64748b');burst('#94a3b8',14,90);
+      await monAnim([{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(-5px)'},{transform:'none'}],{duration:300});
+    }else if(out==='drop'){
+      S.stats.drop++;S.lv=L-1;
+      log(`실패… ${oldName}이(가) 약해졌다. ${MONS[S.lv][0]} (+${S.lv})으로 하락`,'bad');
+      SFX.drop();flash('#dc2626');burst('#ef4444',22,110);
+      renderStage(true);
+      await monAnim([{transform:'translateY(-30px) scale(1.1)',opacity:.4},{transform:'none',opacity:1}],{duration:400});
+    }else{
+      S.stats.lost++;
+      log(`💥 ${jo(oldName,'이')} 도망쳐 버렸다!! (+${L})`,'bad');
+      SFX.boom();flash('#7f1d1d');burst('#ef4444',44,190);
+      await monAnim([{transform:'translateX(0)',opacity:1},{transform:'translateX(140%) rotate(25deg)',opacity:0}],{duration:600,easing:'ease-in'});
+      enter();renderStage(true);
+      await monAnim([{transform:'scale(.2)',opacity:0},{transform:'none',opacity:1}],{duration:350});
+      log(`새 포켓몬 <b>${MONS[S.lv][0]}</b>${S.shiny?' ✨이로치!':''} 이(가) 나타났다.`);
+    }
+  }
+  if(S.inv.lucky<=0)S.armed.lucky=false;if(S.inv.sure<=0)S.armed.sure=false;
+  save();busy=false;render();
+}
+function sell(){
+  if(busy)return;
+  const p=priceOf(),name=MONS[S.lv][0],L=S.lv;
+  S.gold+=p;S.stats.earned+=p;S.stats.sold++;S.stats.top=Math.max(S.stats.top,L);
+  log(`${S.shiny?'✨':''}${name} (+${L}) 판매! <b>+₽ ${fmt(p)}</b>`,'gold');
+  SFX.coin();goldFloat('+'+fmt(p),'var(--ok)');burst('#ffd23f',18,100);
+  enter();renderStage(true);save();render();
+  monAnim([{transform:'scale(.2)',opacity:0},{transform:'none',opacity:1}],{duration:350});
+}
+let workCd=0,workTimer=null;
+const workPay=()=>Math.round(15+S.best*10+PRICE[Math.max(0,S.best-6)]*.01);
+function work(){
+  if(workCd>0)return;
+  const p=workPay();S.gold+=p;S.stats.work++;SFX.coin();goldFloat('+'+fmt(p),'var(--gold)');
+  workCd=1500;save();render();
+  clearInterval(workTimer);
+  workTimer=setInterval(()=>{workCd=Math.max(0,workCd-100);$('#btnWork').disabled=workCd>0;$('#workSub').textContent=`+₽ ${fmt(workPay())} · 대기 ${(workCd/1000).toFixed(1)}초`;if(workCd<=0)clearInterval(workTimer);},100);
+  $('#btnWork').disabled=true;
+}
+
+/* 자동 강화 */
+let autoOn=false;
+async function autoLoop(){
+  if(autoOn)return;autoOn=true;speed=.4;
+  $('#btnAuto').textContent='정지';
+  const target=()=>+$('#autoRange').value;
+  while(autoOn){
+    if(busy){await sleep(80);continue;}
+    if(S.lv>=target()||S.lv>=MAX){
+      if($('#autoSell').checked){sell();await sleep(500);continue;}
+      log('자동 강화: 목표 레벨에 도달했습니다.','ok');break;
+    }
+    if(S.gold<costOf(S.lv)){log('자동 강화 중지: 골드가 부족합니다.','warn');break;}
+    await enhance();await sleep(220);
+  }
+  autoOn=false;speed=1;$('#btnAuto').textContent='시작';
+}
+
+/* =========================================================
+   이벤트
+========================================================= */
+$('#tabs').onclick=e=>{
+  const b=e.target.closest('button');if(!b)return;
+  SFX.click();
+  document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id==='tab-'+b.dataset.t));
+  resetArmed=false;render();
+};
+$('#btnEnh').onclick=()=>enhance();
+$('#btnSell').onclick=()=>sell();
+$('#btnWork').onclick=()=>work();
+$('#arm').onclick=e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;
+  const k=b.dataset.k;S.armed[k]=!S.armed[k];
+  if(k==='sure'&&S.armed.sure)S.armed.lucky=false;
+  if(k==='lucky'&&S.armed.lucky)S.armed.sure=false;
+  SFX.click();save();render();
+};
+$('#autoRange').oninput=()=>{$('#autoT').textContent=$('#autoRange').value;S.auto.target=+$('#autoRange').value;save();};
+$('#autoSell').onchange=()=>{S.auto.sell=$('#autoSell').checked;save();};
+$('#btnAuto').onclick=()=>{if(autoOn){autoOn=false;}else autoLoop();};
+$('#tab-shop').onclick=e=>{
+  const b=e.target.closest('button');if(!b||b.disabled)return;
+  if(b.dataset.buy){
+    const it=SHOP_ITEMS.find(x=>x.k===b.dataset.buy),p=it.price();
+    if(S.gold<p)return;S.gold-=p;S.inv[it.k]++;
+    log(`${it.n} 구매!`,'gold');
+  }else if(b.dataset.up){
+    const k=b.dataset.up,u=UPS[k],p=upCost(k,S.up[k]);
+    if(S.gold<p||S.up[k]>=u.max)return;S.gold-=p;S.up[k]++;
+    log(`${u.n} Lv.${S.up[k]} 달성!`,'gold');
+  }else if(b.dataset.auto){
+    if(S.gold<AUTO_PRICE)return;S.gold-=AUTO_PRICE;S.autoUnlocked=true;log('자동 강화를 해금했다!','gold');
+  }
+  SFX.buy();save();render();
+};
+$('#tab-stats').onclick=e=>{
+  if(!e.target.closest('#btnReset'))return;
+  if(!resetArmed){resetArmed=true;renderStats();setTimeout(()=>{resetArmed=false;renderStats();},3000);return;}
+  autoOn=false;S=DEF();enter();S.log=[];save();resetArmed=false;spriteKey='';render();renderLog();
+};
+$('#btnSound').onclick=()=>{muted=!muted;$('#btnSound').textContent=muted?'🔇':'🔊';};
+
+/* 시작 */
+load();
+if(S.lv===0&&S.up.start>0&&!S.stats.tries)S.lv=S.up.start;
+$('#autoRange').value=S.auto.target;$('#autoSell').checked=S.auto.sell;
+S.dex[S.lv]=1;
+renderLog();render();
+</script>
+</body>
+</html>
