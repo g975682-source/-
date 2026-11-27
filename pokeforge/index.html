@@ -371,6 +371,19 @@ html,body{height:100%;overflow:hidden}
   #bBody.battle .bt-side{flex:1 1 0;justify-content:center}
 }
 @media(max-height:460px){#boss{gap:4px;font-size:12px}.bt-boss img{max-height:120px}.pm img{width:34px;height:34px}.stances button{padding:6px 2px}}
+/* ---------- 목숨 / 트레이너 습격 ---------- */
+.lives{display:flex;flex-direction:column;align-items:center;line-height:1.1;font-size:15px;color:#ff5d73;letter-spacing:1px;white-space:nowrap}
+.lives small{font-size:10px;color:var(--mute);letter-spacing:0;font-weight:700}
+.lives.hot small{color:#fbbf24;animation:blink2 .8s steps(2,jump-none) infinite}
+@keyframes blink2{50%{opacity:.25}}
+#warn{position:fixed;left:50%;top:30vh;transform:translateX(-50%);z-index:95;width:min(92vw,560px);
+  background:linear-gradient(180deg,#9a3412,#7c2d12);border:2px solid #fbbf24;border-radius:14px;padding:12px 16px;color:#fff;font-weight:700;font-size:14px;line-height:1.5;
+  box-shadow:0 10px 30px #000a;animation:warnIn .35s ease-out;cursor:pointer}
+#warn[hidden]{display:none}
+#warn b{color:#fde68a}
+@keyframes warnIn{from{transform:translate(-50%,-30px);opacity:0}}
+.rwrap{align-items:center;text-align:center}
+@media(max-width:430px){.hud{gap:5px;padding:4px 8px}.hud .btn.work{min-width:0;padding:3px 6px}.hud .gold b{font-size:clamp(15px,5vw,19px)}.hud .gold .coin{font-size:14px}.hud .best{font-size:9px}.hud .best b{font-size:12px}.hud .iconbtn{padding:3px 7px}.lives{font-size:12px;letter-spacing:0}.lives small{font-size:9px}}
 @media(max-width:380px){.dex{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -392,10 +405,12 @@ html,body{height:100%;overflow:hidden}
   <div class="bossbar"><b id="bTitle">보스전</b><button class="iconbtn" id="bClose" aria-label="닫기">✕</button></div>
   <div id="bBody"></div>
 </div>
+<div id="warn" hidden role="alert"></div>
 <div id="app">
   <div class="top">
     <header class="hud">
       <div class="gold"><span class="coin">₽</span><b id="gold">0</b></div>
+      <div class="lives" id="lives" title="목숨 / 트레이너 습격까지"></div>
       <div class="best">최고<br><b>+<span id="best">0</span></b></div>
       <button class="btn work" id="btnWork"><span>심부름</span><small id="workSub"></small></button>
       <button class="iconbtn" id="btnSound" aria-label="소리">🔊</button>
@@ -647,11 +662,12 @@ const SFX={
 const DEF=()=>({
   gold:200,lv:0,shiny:false,best:0,
   hist:[],types:[],next:[],bag:[],
+  lives:3,raid:{count:0,n:0,wins:0,pending:false},
   inv:{protect:1,lucky:0,sure:0,ball:0,master:0},
   up:{luck:0,sell:0,save:0,start:0,shiny:0,box:0},
   autoUnlocked:false,auto:{target:10,sell:true},
   armed:{protect:true,lucky:false,sure:false},
-  stats:{boss:0,bossWin:0,stored:0,tries:0,ok:0,great:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
+  stats:{raidWin:0,raidLose:0,gameover:0,boss:0,bossWin:0,stored:0,tries:0,ok:0,great:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
   dex:{},log:[]
 });
 let S=DEF();
@@ -662,7 +678,8 @@ function load(){
     if(raw){
       const d=DEF();
       S=Object.assign(d,raw,{inv:Object.assign(d.inv,raw.inv),up:Object.assign(d.up,raw.up),armed:Object.assign(d.armed,raw.armed),
-        auto:Object.assign(d.auto,raw.auto),stats:Object.assign(d.stats,raw.stats)});
+        auto:Object.assign(d.auto,raw.auto),stats:Object.assign(d.stats,raw.stats),raid:Object.assign(d.raid,raw.raid)});
+      if(!(S.lives>=0&&S.lives<=3))S.lives=3;
       if(old){S.hist=[];S.dex={};}   /* 예전 저장본은 포켓몬 목록이 달라서 돈·아이템만 이어받는다 */
     }
   }catch(e){}
@@ -859,7 +876,7 @@ function render(){
   $('#autoBox').hidden=!S.autoUnlocked;
   $('#autoT').textContent=$('#autoRange').value;
   $('#workSub').textContent=workCd>0?`${(workCd/1000).toFixed(1)}초`:`+₽${fmt(workPay())}`;
-  renderShop();renderBoss();renderBag();renderDex();renderStats();
+  renderLives();renderShop();renderBoss();renderBag();renderDex();renderStats();
 }
 function activeTab(){return document.querySelector('.tab.on').id;}
 
@@ -941,7 +958,7 @@ function renderStats(){
     ['최고 판매 레벨',st.top?'+'+st.top:'-'],['누적 판매 수익','₽ '+fmt(st.earned)],['누적 강화 지출','₽ '+fmt(st.spent)],['심부름 횟수',st.work.toLocaleString()]];
   $('#tab-stats').innerHTML=`<div class="stats">${rows.map(r=>`<div>${r[0]}</div><div>${r[1]}</div>`).join('')}</div>
     <button class="btn danger" id="btnReset">${resetArmed?'정말 삭제할까요? 한 번 더 누르세요':'데이터 초기화'}</button>
-    <div class="note">진행 상황은 이 브라우저에 자동 저장됩니다. 판매가는 해당 레벨까지 가는 평균 강화 비용을 기준으로 정해져 있고, 높은 레벨일수록 파괴 위험이 큽니다. 상점의 지닌 물건으로 기대 수익을 끌어올리세요.</div>`;
+    <div class="note"><b>목숨·트레이너 습격</b> 목숨은 3개입니다. 판매·보관·도망(파괴)이 합쳐서 3번 일어날 때마다 트레이너가 도전해 오고, 2번째에 미리 경고가 뜹니다. 이기면 돈을 받고, 지면 목숨이 1개 줄며, 목숨이 0이 되면 GAME OVER(골드 절반 손실)입니다. 습격 5번 승리마다 목숨 +1(최대 3). 습격 기록: 승 ${st.raidWin} · 패 ${st.raidLose} · 게임오버 ${st.gameover}<br><br>진행 상황은 이 브라우저에 자동 저장됩니다. 판매가는 해당 레벨까지 가는 평균 강화 비용을 기준으로 정해져 있고, 높은 레벨일수록 파괴 위험이 큽니다. 상점의 지닌 물건으로 기대 수익을 끌어올리세요.</div>`;
 }
 
 /* =========================================================
@@ -1031,7 +1048,7 @@ async function enhance(){
       log(`💥 ${jo(oldName,'이')} 도망쳐 버렸다!! (+${L})`,'bad');
       SFX.boom();flash('#7f1d1d');burst('#ef4444',44,190);
       await monAnim([{transform:'translateX(0)',opacity:1},{transform:'translateX(140%) rotate(25deg)',opacity:0}],{duration:600,easing:'ease-in'});
-      enter();renderStage(true);
+      enter();renderStage(true);noteAction();
       await monAnim([{transform:'scale(.2)',opacity:0},{transform:'none',opacity:1}],{duration:350});
       log(`새 포켓몬 <b>${nameOf(curId())}</b>${S.shiny?' ✨이로치!':''} ${S.lv?'(+'+S.lv+') ':''}이(가) 나타났다.`);
     }
@@ -1042,6 +1059,7 @@ async function enhance(){
   }
   if(S.inv.lucky<=0)S.armed.lucky=false;if(S.inv.sure<=0)S.armed.sure=false;
   save();busy=false;render();
+  maybeRaid();
 }
 function store(){
   if(busy)return;
@@ -1051,8 +1069,9 @@ function store(){
   const ps=passivesOf(id,lv,sh).map(p=>passText(p)).join(' / ');
   log(`${sh?'✨':''}${jo(name,'을')} 가방에 보관했다 (+${lv}). 패시브: ${ps}`,'gold');
   SFX.buy();burst('#ffd23f',24,120);
-  enter();renderStage(true);save();render();
+  enter();renderStage(true);noteAction();save();render();
   monAnim([{transform:'scale(.2)',opacity:0},{transform:'none',opacity:1}],{duration:350});
+  maybeRaid();
 }
 function bagPrice(b){return Math.round(PRICE[b.lv]*(1+.05*S.up.sell)*(1+PT().sell/100)*(b.shiny?2.5:1));}
 function sellBag(i){
@@ -1061,7 +1080,8 @@ function sellBag(i){
   S.gold+=p;S.stats.earned+=p;S.stats.sold++;S.stats.top=Math.max(S.stats.top,b.lv);
   S.bag.splice(i,1);
   log(`가방의 ${b.shiny?'✨':''}${nameOf(b.id)} (+${b.lv}) 판매! <b>+₽ ${fmt(p)}</b>`,'gold');
-  SFX.coin();goldFloat('+'+fmt(p),'var(--ok)');save();render();
+  SFX.coin();goldFloat('+'+fmt(p),'var(--ok)');noteAction();save();render();
+  maybeRaid();
 }
 function renderBag(){
   if(activeTab()!=='tab-bag')return;
@@ -1098,8 +1118,9 @@ function sell(){
   S.gold+=p;S.stats.earned+=p;S.stats.sold++;S.stats.top=Math.max(S.stats.top,L);
   log(`${S.shiny?'✨':''}${name} (+${L}) 판매! <b>+₽ ${fmt(p)}</b>`,'gold');
   SFX.coin();goldFloat('+'+fmt(p),'var(--ok)');burst('#ffd23f',18,100);
-  enter();renderStage(true);save();render();
+  enter();renderStage(true);noteAction();save();render();
   monAnim([{transform:'scale(.2)',opacity:0},{transform:'none',opacity:1}],{duration:350});
+  maybeRaid();
 }
 let workCd=0,workTimer=null;
 const workPay=()=>Math.round((15+S.best*10+PRICE[Math.max(0,S.best-6)]*.01)*(1+PT().work/100));
@@ -1119,7 +1140,7 @@ async function autoLoop(){
   $('#btnAuto').textContent='정지';
   const target=()=>+$('#autoRange').value;
   while(autoOn){
-    if(busy){await sleep(80);continue;}
+    if(busy||BS&&!$('#boss').hidden||S.raid.pending){await sleep(150);continue;}
     if(S.lv>=target()||S.lv>=MAX){
       if($('#autoSell').checked){sell();await sleep(500);continue;}
       log('자동 강화: 목표 레벨에 도달했습니다.','ok');break;
@@ -1242,7 +1263,7 @@ function startGame(){
   const t=$('#title');if(!t||t.classList.contains('hide'))return;
   t.classList.add('hide');document.body.classList.remove('intro');
   SFX.ok();
-  setTimeout(()=>{t.style.display='none';},700);
+  setTimeout(()=>{t.style.display='none';maybeRaid();},800);
 }
 function initTitle(){
   const t=$('#title');if(!t)return;
@@ -1343,14 +1364,18 @@ function renderBoss(){
 }
 
 let BS=null,bBusy=false;
+const raidFinal=()=>BS&&BS.mode==='raid'&&['rwin','rlose','gameover'].includes(BS.view);
 function bossOpen(id){
   if(!bossUnlocked()||caughtIds().includes(id))return;
-  BS={id,boss:mkBoss(id),sel:[],view:'party',round:1,party:[],log:[]};
+  BS={mode:'boss',id,boss:mkBoss(id),sel:[],view:'party',round:1,party:[],log:[]};
   $('#boss').hidden=false;document.body.style.overflow='hidden';renderBossView();
 }
 function bossClose(){
   if(bBusy)return;
-  $('#boss').hidden=true;document.body.style.overflow='';BS=null;save();render();
+  if(BS&&BS.mode==='raid'&&!raidFinal())return;   // 습격은 도망칠 수 없다
+  const wasGameOver=BS&&BS.view==='gameover';
+  $('#boss').hidden=true;document.body.style.overflow='';$('#bClose').style.display='';BS=null;save();render();renderStage(true);
+  setTimeout(maybeRaid,300);
 }
 function candidates(){   // 출전 후보: 지금 포켓몬 + 가방
   const l=[{id:curId(),lv:S.lv,shiny:S.shiny,src:'now'}];
@@ -1359,12 +1384,16 @@ function candidates(){   // 출전 후보: 지금 포켓몬 + 가방
 }
 function renderBossView(){
   const body=$('#bBody');if(!BS)return;
-  const b=BS.boss,bd=BY[b.id],rc=rarOf(b.id);
+  const b=BS.boss,bd=BY[b.id],rc=rarOf(b.id),raid=BS.mode==='raid',dn=b.label||bd.n;
   $('#boss').style.setProperty('--bc',rc.c);
+  $('#bClose').style.display=(raid&&!raidFinal())?'none':'';
   if(BS.view==='party'){
-    $('#bTitle').textContent='보스전 — 출전 포켓몬 선택';body.className='';
-    const cs=candidates(),ok=BS.sel.length>0&&S.gold>=bossFee()&&S.bag.length<slots();
-    let h=`<div class="bsum"><b>${bd.n} <span class="chip" style="background:${rc.bg||rc.c};color:#1b1f4b;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800">${rc.n}</span></b>
+    $('#bTitle').textContent=raid?`트레이너 습격 ${S.raid.n}번째 — 출전 선택`:'보스전 — 출전 포켓몬 선택';body.className='';
+    const cs=candidates(),ok=raid?BS.sel.length>0:(BS.sel.length>0&&S.gold>=bossFee()&&S.bag.length<slots());
+    let h=raid?`<div class="bsum"><b>⚔ ${dn}이(가) 승부를 걸어왔다!</b>
+      <div class="row"><span>에이스 ${bd.n}</span><span>${typeChips(bd.t)}</span><span>이기면 ₽ ${fmt(raidReward(S.raid.n))}</span><span style="color:#ff5d73">지면 목숨 −1 (남은 목숨 ${S.lives})</span></div>
+      <div class="note">3마리까지 고르세요. ▲는 상대에게 유리한 타입, ▼는 불리한 타입입니다. 이 승부는 피할 수 없습니다.</div></div>
+      <div class="bplist">`:`<div class="bsum"><b>${bd.n} <span class="chip" style="background:${rc.bg||rc.c};color:#1b1f4b;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800">${rc.n}</span></b>
       <div class="row"><span>${typeChips(bd.t)}</span><span>종족값 ${bd.bst}</span><span>입장료 ₽ ${fmt(bossFee())}</span></div>
       <div class="note">3마리까지 고르세요. ▲는 보스에게 유리한 타입, ▼는 불리한 타입입니다. 질 때는 입장료만 잃습니다.${S.bag.length>=slots()?' <b style="color:var(--warn)">가방에 빈 칸이 있어야 도전할 수 있습니다.</b>':''}</div></div>
       <div class="bplist">`;
@@ -1373,17 +1402,17 @@ function renderBossView(){
       h+=`<div class="pc${sel?' sel':''}" data-pc="${i}"><img data-id="${c.id}" alt=""><div><b>${c.shiny?'✨ ':''}${nameOf(c.id)}${c.src==='now'?' <small>(지금)</small>':''}</b><small>+${c.lv} · <span style="color:${rarOf(c.id).c}">${rarOf(c.id).n}</span></small><small>공격 ${Math.round(m.atk)} ${arrow(mult)} · 체력 ${m.max}</small></div></div>`;
     });
     h+=`</div><div class="actions" style="grid-template-columns:1fr 1.4fr;flex:none"><button class="btn sm" id="bAuto" style="background:var(--panel2)">추천 3마리 자동 선택</button>
-      <button class="btn enh" id="bStart" ${ok?'':'disabled'}>전투 시작<small>₽ ${fmt(bossFee())} · ${BS.sel.length}/3마리</small></button></div>`;
+      <button class="btn enh" id="bStart" ${ok?'':'disabled'}>전투 시작<small>${raid?'':'₽ '+fmt(bossFee())+' · '}${BS.sel.length}/3마리</small></button></div>`;
     body.innerHTML=h;
     body.querySelectorAll('img[data-id]').forEach(im=>chain(im,+im.dataset.id));
     return;
   }
   if(BS.view==='battle'){
-    $('#bTitle').textContent=`보스전 — 라운드 ${BS.round}`;body.className='battle';
+    $('#bTitle').textContent=`${raid?'트레이너 습격':'보스전'} — 라운드 ${BS.round}`;body.className='battle';
     const special=BS.round%3===0;
     body.innerHTML=`<div class="bt-boss"><div class="bimg"><img id="bImg" data-id="${b.id}" alt=""></div>
-        <div class="nm"><h2>${bd.n}</h2>${typeChips(bd.t)}</div><div class="bhp"><i id="bHp" style="width:${b.hp/b.max*100}%"></i></div>
-        <div class="bwarn" id="bWarn">${special?'⚠ 보스가 힘을 모으고 있다! 이번 라운드는 전체 공격!':''}</div></div>
+        <div class="nm"><h2>${dn}</h2>${typeChips(bd.t)}</div>${raid?`<div class="note">에이스 ${bd.n}</div>`:''}<div class="bhp"><i id="bHp" style="width:${b.hp/b.max*100}%"></i></div>
+        <div class="bwarn" id="bWarn">${special?`⚠ ${raid?'상대가':'보스가'} 힘을 모으고 있다! 이번 라운드는 전체 공격!`:''}</div></div>
       <div class="bt-side"><div class="bparty" id="bParty"></div>
         <div class="stances"><button class="st-all" data-st="all">전력 공격<small>공격 ×1.35 · 피해 ×1.35</small></button><button class="st-bal" data-st="bal">균형<small>기본</small></button><button class="st-def" data-st="def">방어 태세<small>공격 ×0.55 · 피해 ×0.45</small></button></div>
         <ul class="log" id="bLog"></ul></div>`;
@@ -1400,6 +1429,21 @@ function renderBossView(){
       <button class="btn sm" id="bGive" style="background:var(--panel2)">${BS.done?'닫기':'포기하고 돌아가기'}</button>`;
     chain($('#bImg'),b.id);return;
   }
+  if(BS.view==='rwin'){
+    $('#bTitle').textContent='트레이너 습격 — 승리!';body.className='';
+    body.innerHTML=`<div class="bsum rwrap"><b style="font-size:20px">🎉 ${dn}에게 이겼다!</b><div class="note">${BS.msg}</div></div>
+      <button class="btn enh" id="bGive">돌아가기</button>`;return;
+  }
+  if(BS.view==='rlose'){
+    $('#bTitle').textContent='트레이너 습격 — 패배';body.className='';
+    body.innerHTML=`<div class="bsum rwrap"><b style="font-size:20px">💔 ${dn}에게 졌다…</b><div class="note">${BS.msg}</div></div>
+      <button class="btn enh" id="bGive">돌아가기</button>`;return;
+  }
+  if(BS.view==='gameover'){
+    $('#bTitle').textContent='GAME OVER';body.className='';
+    body.innerHTML=`<div class="bsum rwrap"><b style="font-size:24px;color:#ff5d73">GAME OVER</b><div class="note">${BS.msg}</div></div>
+      <button class="btn enh" id="bGive">다시 시작</button>`;return;
+  }
   if(BS.view==='lose'){
     $('#bTitle').textContent='보스전 — 패배';body.className='';
     body.innerHTML=`<div class="bsum" style="align-items:center;text-align:center"><b style="font-size:20px">눈앞이 깜깜해졌다…</b><div class="note">${bd.n}에게 졌다. 입장료 ₽ ${fmt(bossFee())}을 잃었다. 파티를 다시 짜서 도전해 보자.</div></div>
@@ -1415,10 +1459,14 @@ function renderBLog(){const el=$('#bLog');if(el)el.innerHTML=BS.log.slice(0,3).m
 function blog(t){BS.log.unshift(t);renderBLog();}
 
 function bossStart(){
-  if(S.gold<bossFee()||!BS.sel.length||S.bag.length>=slots())return;
-  S.gold-=bossFee();S.stats.boss++;S.stats.spent+=bossFee();
+  const raid=BS.mode==='raid';
+  if(!BS.sel.length)return;
+  if(!raid){
+    if(S.gold<bossFee()||S.bag.length>=slots())return;
+    S.gold-=bossFee();S.stats.boss++;S.stats.spent+=bossFee();
+  }
   const cs=candidates();
-  BS.party=BS.sel.map(i=>mkMember(cs[i]));BS.boss=mkBoss(BS.id);BS.round=1;BS.log=['⚔ 보스전 시작!'];BS.view='battle';
+  BS.party=BS.sel.map(i=>mkMember(cs[i]));if(!raid)BS.boss=mkBoss(BS.id);BS.round=1;BS.log=[raid?'⚔ 트레이너 습격 시작!':'⚔ 보스전 시작!'];BS.view='battle';
   save();render();SFX.charge();renderBossView();
 }
 async function bossAct(stance){
@@ -1442,8 +1490,9 @@ async function bossAct(stance){
     renderParty();
   }
   await sleep(300);
-  if(won){S.stats.bossWin++;SFX.big();BS.view='catch';BS.msg='';save();bBusy=false;renderBossView();return;}
-  if(lost){SFX.fail();BS.view='lose';bBusy=false;renderBossView();return;}
+  if(BS.mode==='raid'){if(won)raidWin();else if(lost)raidLose();if(won||lost){bBusy=false;renderBossView();return;}}
+  else if(won){S.stats.bossWin++;SFX.big();BS.view='catch';BS.msg='';save();bBusy=false;renderBossView();return;}
+  else if(lost){SFX.fail();BS.view='lose';bBusy=false;renderBossView();return;}
   BS.round++;bBusy=false;renderBossView();
 }
 function bossCatch(kind){
@@ -1488,6 +1537,89 @@ $('#bBody').onclick=e=>{
   if(t.id==='bGive')return bossClose();
   if(t.id==='bRetry'){BS.view='party';BS.boss=mkBoss(BS.id);BS.round=1;renderBossView();return;}
 };
+
+/* =========================================================
+   목숨 3개 + 트레이너 습격
+   · 판매 / 보관 / 도망(파괴)이 합쳐서 3번 일어날 때마다 트레이너가 도전해 온다.
+   · 2번째에 미리 경고가 뜬다 (다음 행동에서 습격).
+   · 이기면 돈, 지면 목숨 −1. 목숨이 0이 되면 GAME OVER (골드 절반, 지금 포켓몬 도망, 목숨 회복).
+   · 습격 승리 5번마다 목숨 +1 (최대 3). 난이도는 습격 횟수와 내 파티 수준에 맞춰 조금씩 오른다.
+========================================================= */
+const TRAINER_NAMES=['민수','지우','한솔','다은','서준','하린','도윤','유나','태양','보라','현우','아라','나연','시우','가온'];
+const trainerTitle=n=>n<=3?'꼬마 트레이너':n<=6?'에이스 트레이너':n<=10?'엘리트 트레이너':n<=15?'사천왕':'챔피언';
+const raidReward=n=>Math.max(300,Math.round(PRICE[Math.max(1,S.best)]*Math.min(1.5,.12+.04*n)));
+const raidDiff=n=>Math.min(2,.95+.055*n);                  // 상대 공격 배율
+const raidRounds=n=>Math.min(11,4.6+.3*n);                              // 내 파티가 상대를 쓰러뜨리는 데 걸리는 대략의 라운드
+function renderLives(){
+  const el=$('#lives');if(!el)return;
+  el.innerHTML=`${'♥'.repeat(S.lives)}<span style="opacity:.3">${'♥'.repeat(3-S.lives)}</span><small>${S.raid.count>=2?'⚠ 다음 행동에서 습격':'습격 '+S.raid.count+'/3'}</small>`;
+  el.classList.toggle('hot',S.raid.count>=2);
+}
+let warnTimer=null;
+function warnToast(html,ms){
+  const w=$('#warn');w.innerHTML=html;w.hidden=false;
+  clearTimeout(warnTimer);warnTimer=setTimeout(()=>{w.hidden=true;},ms||6000);
+}
+$('#warn').onclick=()=>{$('#warn').hidden=true;};
+function noteAction(){   // 판매 / 보관 / 도망 한 번
+  S.raid.count++;
+  if(S.raid.count===2){
+    log('⚠ 트레이너가 다가오고 있다… 다음 판매·보관·도망 뒤에 도전해 온다!','bad');
+    warnToast('⚠ <b>주의!</b> 트레이너가 다가오고 있다…<br>한 번 더 <b>판매·보관·도망(파괴)</b>이 일어나면 트레이너가 도전해 온다! (남은 목숨 '+S.lives+')',6500);
+    beep(300,.15,'square',.05,150);beep(300,.15,'square',.05,150,.2);
+  }
+  if(S.raid.count>=3){S.raid.count=0;S.raid.pending=true;}
+  save();renderLives();
+}
+function maybeRaid(){
+  if(!S.raid.pending||busy||BS&&!$('#boss').hidden)return;
+  if(!$('#title').classList.contains('hide'))return;
+  S.raid.pending=false;startRaid();
+}
+function makeTrainer(n,members){            // members: 추천 파티 (mkMember 결과)
+  const avgAtk=members.reduce((a,m)=>a+m.atk,0)/members.length,avgBst=members.reduce((a,m)=>a+BY[m.id].bst,0)/members.length;
+  let pool=DEX.filter(x=>!specialKind(x)&&x.bst>=avgBst*.9&&x.bst<=avgBst*1.15+10);
+  if(!pool.length)pool=DEX.filter(x=>!specialKind(x));
+  const ace=pool[Math.floor(Math.random()*pool.length)];
+  const label=trainerTitle(n)+' '+TRAINER_NAMES[Math.floor(Math.random()*TRAINER_NAMES.length)];
+  const hp=Math.round(avgAtk*BP*3*raidRounds(n));
+  return{id:ace.id,name:label,label,types:ace.t,atk:avgAtk*raidDiff(n),max:hp,hp,bst:ace.bst};
+}
+function recommended(boss){
+  const cs=candidates();
+  return cs.map((c,i)=>{const m=mkMember(c);return{i,m,v:m.atk*(boss?bestMult(m.types,boss.types):1)+m.max*.15};}).sort((a,b)=>b.v-a.v).slice(0,3);
+}
+function startRaid(){
+  S.raid.n++;
+  const base=recommended(null),boss=makeTrainer(S.raid.n,base.map(x=>x.m));
+  const sel=recommended(boss).map(x=>x.i);
+  BS={mode:'raid',id:boss.id,boss,sel,view:'party',round:1,party:[],log:[]};
+  S.stats.raidTotal=(S.stats.raidTotal||0)+1;
+  $('#warn').hidden=true;
+  $('#boss').hidden=false;document.body.style.overflow='hidden';SFX.boom();renderBossView();
+}
+function raidWin(){
+  const n=S.raid.n,gold=raidReward(n);
+  S.gold+=gold;S.stats.raidWin++;S.raid.wins++;
+  let extra='';
+  if(S.raid.wins%5===0&&S.lives<3){S.lives++;extra=` 승리 ${S.raid.wins}번째! 목숨이 하나 회복되었다. (♥ ${S.lives})`;}
+  BS.view='rwin';BS.msg=`보상으로 <b>₽ ${fmt(gold)}</b>을 받았다!${extra}<br>다음 습격은 조금 더 강해진다.`;
+  log(`⚔ 트레이너 습격 승리! <b>+₽ ${fmt(gold)}</b>`,'gold');SFX.big();goldFloat('+'+fmt(gold),'var(--ok)');save();renderLives();
+}
+function raidLose(){
+  S.stats.raidLose++;S.lives--;SFX.fail();
+  if(S.lives<=0){
+    const half=Math.floor(S.gold/2);S.gold-=half;
+    BS.view='gameover';
+    BS.msg=`목숨을 모두 잃었다…<br>골드의 절반(₽ ${fmt(half)})을 잃고, 지금 데리고 있던 포켓몬은 도망쳤다. 목숨 3개로 다시 시작한다.`;
+    log('💀 GAME OVER — 골드 절반을 잃고 목숨이 회복되었다.','bad');
+    S.stats.gameover++;newMon();S.lives=3;S.raid={count:0,n:0,wins:0,pending:false};
+  }else{
+    BS.view='rlose';BS.msg=`목숨이 하나 줄었다. 남은 목숨 ${'♥'.repeat(S.lives)}`;
+    log(`💔 트레이너에게 졌다. 남은 목숨 ${S.lives}`,'bad');
+  }
+  save();renderLives();
+}
 
 /* 시작 */
 load();
