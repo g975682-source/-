@@ -314,6 +314,63 @@ html,body{height:100%;overflow:hidden}
   .cell.rate{padding:.3em .6em}
   .log{max-height:calc(2 * 1.35em + .8em)}
 }
+/* ---------- 보스전 ---------- */
+.tabs{grid-template-columns:repeat(6,1fr)}
+.tabs button{font-size:12px}
+.trophy{border-color:#ffe66d;background:linear-gradient(180deg,#2a2550,var(--panel))}
+.lockbtn{background:#ffffff14;color:var(--mute);box-shadow:none}
+.bosslist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.bc{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:8px;text-align:center;cursor:pointer;min-width:0;display:flex;flex-direction:column;gap:3px;align-items:center}
+.bc img{width:72px;height:72px;image-rendering:pixelated;object-fit:contain}
+.bc b{font-size:14px}.bc small{color:var(--mute);font-size:11px}
+.bc.done{border-color:#ffe66d;background:linear-gradient(180deg,#2a2550,var(--panel))}
+.bc.lock{opacity:.5;cursor:not-allowed}
+.bc .tp{display:flex;gap:3px;flex-wrap:wrap;justify-content:center}
+.bsum{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.bsum .row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.bsum .row span{display:flex;gap:5px;align-items:center;font-weight:700}
+#boss{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;gap:8px;padding:calc(8px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));
+  background:radial-gradient(900px 500px at 50% -10%,#6d28d955,transparent),radial-gradient(700px 500px at 100% 100%,#c2410c33,transparent),var(--bg);font-size:14px}
+#boss[hidden]{display:none}
+.bossbar{display:flex;justify-content:space-between;align-items:center;flex:none}
+.bossbar b{font-size:17px}
+#bBody{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:auto;max-width:1100px;width:100%;margin:0 auto}
+#bBody.battle{overflow:hidden}
+.bt-boss{position:relative;flex:1 1 0;min-height:110px;border-radius:16px;border:2px solid var(--line);background:radial-gradient(circle at 50% 60%,color-mix(in srgb,var(--bc,#a78bfa) 40%,transparent),transparent 60%),linear-gradient(180deg,#1b2155,#10143a);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:8px;overflow:hidden}
+.bt-boss .bimg{flex:1;min-height:0;display:flex;align-items:flex-end;justify-content:center;width:100%}
+.bt-boss img{height:100%;max-height:200px;aspect-ratio:1;image-rendering:pixelated;object-fit:contain;filter:drop-shadow(0 6px 4px #0007)}
+.bt-boss .nm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
+.bt-boss h2{font-size:18px}
+.bhp{width:100%;height:12px;background:#0007;border-radius:99px;overflow:hidden;border:1px solid #0008;margin-top:4px}
+.bhp i{display:block;height:100%;width:100%;background:#ef4444;transition:width .5s}
+.bwarn{min-height:1.4em;font-weight:800;color:#fbbf24;font-size:13px;text-align:center}
+.bt-side{display:flex;flex-direction:column;gap:8px;flex:none;min-height:0}
+.bparty{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pm{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:6px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;text-align:center}
+.pm img{width:48px;height:48px;image-rendering:pixelated;object-fit:contain}
+.pm b{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.pm small{font-size:10px;color:var(--mute)}
+.pm.ko{opacity:.35;filter:grayscale(1)}
+.pm .mhp{width:100%;height:7px;background:#0007;border-radius:99px;overflow:hidden}
+.pm .mhp i{display:block;height:100%;background:#4ade80;transition:width .4s}
+.stances{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.stances button{border-radius:12px;padding:10px 4px;font-weight:800;font-size:14px;line-height:1.25}
+.stances small{display:block;font-weight:600;font-size:11px;opacity:.85}
+.st-all{background:linear-gradient(180deg,#f0453a,#b3201b)}.st-bal{background:linear-gradient(180deg,#3b82f6,#1d4ed8)}.st-def{background:linear-gradient(180deg,#22c55e,#15803d)}
+.bplist{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.pc{background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:8px;display:flex;gap:8px;align-items:center;cursor:pointer;min-width:0}
+.pc img{width:52px;height:52px;image-rendering:pixelated;object-fit:contain;flex:none}
+.pc b{font-size:13px;display:block}.pc small{font-size:11px;color:var(--mute);display:block}
+.pc.sel{border-color:var(--gold);background:#ffd23f22}
+.pc .adv.up{color:#4ade80}.pc .adv.dn{color:#fb923c}
+.ballbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ballbtns .btn{display:flex;flex-direction:column;align-items:center;gap:4px}
+@media (orientation:landscape),((hover:hover) and (pointer:fine) and (min-width:640px)){
+  #bBody.battle{flex-direction:row}
+  #bBody.battle .bt-boss{flex:1.1 1 0}
+  #bBody.battle .bt-side{flex:1 1 0;justify-content:center}
+}
+@media(max-height:460px){#boss{gap:4px;font-size:12px}.bt-boss img{max-height:120px}.pm img{width:34px;height:34px}.stances button{padding:6px 2px}}
 @media(max-width:380px){.dex{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -331,6 +388,10 @@ html,body{height:100%;overflow:hidden}
   <div class="tbot"><div class="tsave" id="tSave" hidden></div><canvas id="startCv" aria-label="PRESS START"></canvas>
     <div class="tfoot">TAP / ENTER · 비공식 팬 게임</div></div>
 </div>
+<div id="boss" hidden>
+  <div class="bossbar"><b id="bTitle">보스전</b><button class="iconbtn" id="bClose" aria-label="닫기">✕</button></div>
+  <div id="bBody"></div>
+</div>
 <div id="app">
   <div class="top">
     <header class="hud">
@@ -343,6 +404,7 @@ html,body{height:100%;overflow:hidden}
     <nav class="tabs" id="tabs">
       <button data-t="main" class="on">강화</button>
       <button data-t="shop">상점</button>
+      <button data-t="boss">보스전</button>
       <button data-t="bag">가방</button>
       <button data-t="dex">도감</button>
       <button data-t="stats">기록</button>
@@ -391,6 +453,9 @@ html,body{height:100%;overflow:hidden}
 
   <!-- 상점 -->
   <section class="tab" id="tab-shop"></section>
+
+  <!-- 가방 -->
+  <section class="tab" id="tab-boss"></section>
 
   <!-- 가방 -->
   <section class="tab" id="tab-bag"></section>
@@ -466,7 +531,7 @@ const SPECIAL={
   '울트라비스트':{c:'#a3e635',minLv:20},
   '전설':       {c:'#facc15',minLv:22},
   '환상':       {c:'#f9a8d4',minLv:24},
-  '초전설':     {c:'#ffffff',minLv:26,bg:'linear-gradient(90deg,#ff8a8a,#ffd23f,#7dffb0,#6ec6ff,#c084fc)'}
+  '초전설':     {c:'#ffffff',minLv:999,bossOnly:true,bg:'linear-gradient(90deg,#ff8a8a,#ffd23f,#7dffb0,#6ec6ff,#c084fc)'}
 };
 const TIER_MINLV={'일반':0,'고급':0,'희귀':3,'영웅':7,'에이스':12,'챔피언':16};
 const UB=new Set([793,794,795,796,797,798,799,803,804,805,806]);                                   // 울트라비스트
@@ -484,8 +549,8 @@ const rarCache={};
 function rarOf(id){
   if(rarCache[id])return rarCache[id];
   const d=BY[id],k=specialKind(d);let r;
-  if(k){const x=SPECIAL[k];r={n:k,c:x.c,bg:x.bg||null,minLv:x.minLv,special:true};}
-  else{let t=RARITY[0];RARITY.forEach(x=>{if(d.sc>=x.min)t=x;});r={n:t.n,c:t.c,bg:null,minLv:TIER_MINLV[t.n],special:false};}
+  if(k){const x=SPECIAL[k];r={n:k,c:x.c,bg:x.bg||null,minLv:x.minLv,special:true,bossOnly:!!x.bossOnly};}
+  else{let t=RARITY[0];RARITY.forEach(x=>{if(d.sc>=x.min)t=x;});r={n:t.n,c:t.c,bg:null,minLv:TIER_MINLV[t.n],special:false,bossOnly:false};}
   return rarCache[id]=r;
 }
 const lateFrom=d=>rarOf(d.id).minLv;
@@ -533,7 +598,7 @@ function ph(name){
 const PA='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 let SPR=null;   // {도감번호: data URI} — 같은 폴더의 pokemon-sprites.json을 읽을 수 있으면 사용, 아니면 온라인 이미지
 function sprUrls(id){const l=[];if(SPR&&SPR[id])l.push(SPR[id]);l.push(PA+id+'.png');return l;}
-const ICONS={"box":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTH/lDqcSjr/1jr////eWjpKUlKlpcV7e4TezvdcMgHRAAAAAXRSTlMAQObYZgAAAH5JREFUGNNjYKALEBQUROEqKSkhCTACuUpqAnC+kAtIIBEurRLqBOSnCeDgCymB1aclwvlg83DyhcH8tDRDKF/cSL0cyE0uhPHLKyLK0szLYXzG6aWh5eXllXD7l86IAHJXwB0sFTlz1apVjQj/dAG5HQJI/u3o6BDEEx60AwCJgyJdBXcpkgAAAABJRU5ErkJggg==","protect": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTHec0r/pVJaWlq9MTH/hIT/5lLvUlKioIChAAAAAXRSTlMAQObYZgAAAJpJREFUeNq1z00KwjAQBeAJ5ADz0HiAeoISD9BioW4rzBWyLy6ydqHk2DbGxule3yLhY2B+6AdBt6FpOH8DNkYI/PGRl0cOq60/ETlBulPJuV3Kk6nexc4Jf23iLCCX6tgByB2YVHqZtPAQVgwpQW0cAvZEtd/lmYu2rX5PHm+sbWNc7bLHOBeVVXpfy/kaeK8GQq4NSAUA/SUvylQblEtgBucAAAAASUVORK5CYII=", "lucky": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTGclJylUpTm1ub/////5vdzMWOtY5zOc73vtd7OCWA+AAAAAXRSTlMAQObYZgAAAK9JREFUGNNjYKARMBRE4TIqKaEICDmpJgkgSavMDA1SRJL2aA2dCeczl3dphEbMVIJpsJi1uCx0VfMiKJ+9vHPZwgwEv2LW4qosyeaZJlC+8MxlC1c1Ns90hGoXF5+VJbmiEibNUDxr+arGGVYwaeaZy0DSzTBpxllpWdNnWLYzIPgrJ89sRuKvmmlc2d4Md23nzMnGEu0I3wkbGxsXtyN51tjYXNAAKTAKBQtoFQ0ArjYz15lpWTkAAAAASUVORK5CYII=", "sure": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAGFBMVEX///8xMTGcvf9SY8XW7/9jc9Z7lO8pOpz93GUvAAAAAXRSTlMAQObYZgAAAJdJREFUeNq1zzEPgjAQBeAaBteeRN0vpcyIpLtRd0W6W8K5QpT27zu1tLu+7cvLJffY37LiqTe3tD4+E2eihKiFtzAFD9RE9kDBO8TuJYfg+1lL6ivPtbkYpAnCuSlOSCMLJouy54u1RWq9M5iVpkH5do+6bLq2CnZ4zWu1PNd9aIJo7XZ+jCxK7gRPptcuMYMmNQP2q3wBuUYaI2s3qXwAAAAASUVORK5CYII=", "luck": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAD1BMVEX///9KQkoxMTGEe4RjWmNFjH2LAAAAAXRSTlMAQObYZgAAAJZJREFUGBm1wdF1wyAMQNGHJpAwAwg5ExgvYGD/mZoT3Db97sm9/J8Kf0hSnixYZHcgWnNe9uIgtg/lJc0LqsXZWUpHLMvoLI9Tq7nMziLjsKBO5WYRUM15ky3zK8dlnviW25yBJhZpLSpJlWUbAaSuLOXgads7S+lAaqez1A5s4+D2KE6ep3OTK8c1gx9hZsGbiOAjvgDEbxB3GbSm2AAAAABJRU5ErkJggg==", "sell": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAHlBMVEX////vMSkxMTG1jCnerSH/ziG9GRlzWgD/96X/70J1F/WZAAAAAXRSTlMAQObYZgAAAJBJREFUGNNjYKANEBRA4TIyMKIICICEkAATRAwOVNUSkPlK6gpsSHwmk5AihgSEAcqhU90VkPgarZEhCmxwPpNFR+gUJAOYWjumhiDzOyJnBiPxlSOmznRiSIC7UDV0ZqgTG8hTMH7kFCM2BriTVULBxsP56qGhzgpA/TA+U0mIEQMoAGAGKikpgMIELYxoAgBx1Rbk2ARNxgAAAABJRU5ErkJggg==", "save": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJFBMVEX///8xMTF7lCGcjFLmUlL3Y2N7Skr/jGv///+1WlrO5q3v/9Y0TZ2TAAAAAXRSTlMAQObYZgAAAINJREFUGNNjYKANYBRA5Quh8AUFjQWRBBhdHQ1dHBF8kbCJhtNcEArSS9PSUl0SEPz20FAXNyT9mS4u0xKQzLfKnLkYxTW7VqG6R5oA33qVATJXePfqxcju7V61a/dGJH7Vil3dhUj86R27lk9E8Dktw8sjLZFDY4rLJNQASROkTTwAAHHhH/SoEAwmAAAAAElFTkSuQmCC", "start": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///9KY1IxMTFrhHOEnIzO5tZac2OtxbXe9+YjyYtyAAAAAXRSTlMAQObYZgAAAJ1JREFUeNq90MEKwjAMBuBuT6AiPZdtUK8lxRdYtryC11GJZ4e0veqT28Ma0Lvm9pG/Can6WzVd96F+0kbY9h4dGqF9BnecxEPKzOyr2wfmfcCl2iLddYAoBnDBj3G3xSNzieNa247y7JE2N+MVU3EyNe6RGSiLA8N5pNf2XC8aAG9r3TaUXQhCZWdAJKE6lXmXVVhupXQwXz/zq3oDN4Uj4YLLZ7AAAAAASUVORK5CYII=", "shiny": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTFSe+Ypc5Q6zvf//9ac9/ec/2tanPfwm5yOAAAAAXRSTlMAQObYZgAAAHxJREFUeNqtz7EVgzAQA1AdE1iGEErMJn4k3iBkAZ57qtTpPDYluh51/6TmcFfIoLQZSQ8RQFLPQCcDY3QGLDobLGk9BDqP/Lp5yT91v60U8v3Zc5B13WrN0r+q9rC+rEI8jpKF9jzGqyZjCsPlqS1/mPy+NP9pI5yJ23IC/N8OuCAOA54AAAAASUVORK5CYII=", "auto": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJ1BMVEX///8xMTHe3nP//5RCUkKtva2ElITFxd6EhJzm5v9re2u9zr2lpb2QdLFgAAAAAXRSTlMAQObYZgAAAMtJREFUeNq10b0KwjAQB/AEioNT/jZ00KniE/QJEmj9CI7iXpAg8QWkOPoIguAWiN1dXLr6YEqvCn0ADw7y43J3w7E/Bfpvnokf+VS0ybggzyALeMXitPt/LA5bF9ioM79s4GoPCHJkkI3z/fVDcompxPIkOxdeYgcJ33mO6KkgXVAtB4XRiWLcGEHtk02cKha0p3qdNKM0z20IVF/JwyOx1nlTtl7ANFtrNSpasNa42x0YbmTjMdSfVlSa5uc0By/yN/RZ9Mzxhzu8AUoCKSl2P3ciAAAAAElFTkSuQmCC"};
+const ICONS={"master":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAKlBMVEX///8xMTG1Ove1AJTmIcVzMc5rMcX/xf/OQv/ezvdKUlKlpcV7e4T///9QT2M9AAAAAXRSTlMAQObYZgAAAJ9JREFUGNNjYKALEBQUROIxCiopKQkKwPkiLkpKKi6GcOkSlw4l9xJnmAJmFycUvoiLkZKSi4uzAYzvrKkJ1O8MM0DYaNKkSUouxjC+qBKIH2ycCOWLKYFAaCiML5WktQrIDVsI469afXtpaNYqGJ/x1Nq7q1atWgOzn3Hu6dtA7my4ByTvnJk5c+ZGhP92Arm7BZC8v3v3bkHc4UFDAACipC3HuouENAAAAABJRU5ErkJggg==","ball":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTH/lDqcSjr/1jr////eWjpKUlKlpcV7e4TezvdcMgHRAAAAAXRSTlMAQObYZgAAAH5JREFUGNNjYKALEBQUROEqKSkhCTACuUpqAnC+kAtIIBEurRLqBOSnCeDgCymB1aclwvlg83DyhcH8tDRDKF/cSL0cyE0uhPHLKyLK0szLYXzG6aWh5eXllXD7l86IAHJXwB0sFTlz1apVjQj/dAG5HQJI/u3o6BDEEx60AwCJgyJdBXcpkgAAAABJRU5ErkJggg==","box":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTH/lDqcSjr/1jr////eWjpKUlKlpcV7e4TezvdcMgHRAAAAAXRSTlMAQObYZgAAAH5JREFUGNNjYKALEBQUROEqKSkhCTACuUpqAnC+kAtIIBEurRLqBOSnCeDgCymB1aclwvlg83DyhcH8tDRDKF/cSL0cyE0uhPHLKyLK0szLYXzG6aWh5eXllXD7l86IAHJXwB0sFTlz1apVjQj/dAG5HQJI/u3o6BDEEx60AwCJgyJdBXcpkgAAAABJRU5ErkJggg==","protect": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTHec0r/pVJaWlq9MTH/hIT/5lLvUlKioIChAAAAAXRSTlMAQObYZgAAAJpJREFUeNq1z00KwjAQBeAJ5ADz0HiAeoISD9BioW4rzBWyLy6ydqHk2DbGxule3yLhY2B+6AdBt6FpOH8DNkYI/PGRl0cOq60/ETlBulPJuV3Kk6nexc4Jf23iLCCX6tgByB2YVHqZtPAQVgwpQW0cAvZEtd/lmYu2rX5PHm+sbWNc7bLHOBeVVXpfy/kaeK8GQq4NSAUA/SUvylQblEtgBucAAAAASUVORK5CYII=", "lucky": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTGclJylUpTm1ub/////5vdzMWOtY5zOc73vtd7OCWA+AAAAAXRSTlMAQObYZgAAAK9JREFUGNNjYKARMBRE4TIqKaEICDmpJgkgSavMDA1SRJL2aA2dCeczl3dphEbMVIJpsJi1uCx0VfMiKJ+9vHPZwgwEv2LW4qosyeaZJlC+8MxlC1c1Ns90hGoXF5+VJbmiEibNUDxr+arGGVYwaeaZy0DSzTBpxllpWdNnWLYzIPgrJ89sRuKvmmlc2d4Md23nzMnGEu0I3wkbGxsXtyN51tjYXNAAKTAKBQtoFQ0ArjYz15lpWTkAAAAASUVORK5CYII=", "sure": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAGFBMVEX///8xMTGcvf9SY8XW7/9jc9Z7lO8pOpz93GUvAAAAAXRSTlMAQObYZgAAAJdJREFUeNq1zzEPgjAQBeAaBteeRN0vpcyIpLtRd0W6W8K5QpT27zu1tLu+7cvLJffY37LiqTe3tD4+E2eihKiFtzAFD9RE9kDBO8TuJYfg+1lL6ivPtbkYpAnCuSlOSCMLJouy54u1RWq9M5iVpkH5do+6bLq2CnZ4zWu1PNd9aIJo7XZ+jCxK7gRPptcuMYMmNQP2q3wBuUYaI2s3qXwAAAAASUVORK5CYII=", "luck": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAD1BMVEX///9KQkoxMTGEe4RjWmNFjH2LAAAAAXRSTlMAQObYZgAAAJZJREFUGBm1wdF1wyAMQNGHJpAwAwg5ExgvYGD/mZoT3Db97sm9/J8Kf0hSnixYZHcgWnNe9uIgtg/lJc0LqsXZWUpHLMvoLI9Tq7nMziLjsKBO5WYRUM15ky3zK8dlnviW25yBJhZpLSpJlWUbAaSuLOXgads7S+lAaqez1A5s4+D2KE6ep3OTK8c1gx9hZsGbiOAjvgDEbxB3GbSm2AAAAABJRU5ErkJggg==", "sell": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAHlBMVEX////vMSkxMTG1jCnerSH/ziG9GRlzWgD/96X/70J1F/WZAAAAAXRSTlMAQObYZgAAAJBJREFUGNNjYKANEBRA4TIyMKIICICEkAATRAwOVNUSkPlK6gpsSHwmk5AihgSEAcqhU90VkPgarZEhCmxwPpNFR+gUJAOYWjumhiDzOyJnBiPxlSOmznRiSIC7UDV0ZqgTG8hTMH7kFCM2BriTVULBxsP56qGhzgpA/TA+U0mIEQMoAGAGKikpgMIELYxoAgBx1Rbk2ARNxgAAAABJRU5ErkJggg==", "save": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJFBMVEX///8xMTF7lCGcjFLmUlL3Y2N7Skr/jGv///+1WlrO5q3v/9Y0TZ2TAAAAAXRSTlMAQObYZgAAAINJREFUGNNjYKANYBRA5Quh8AUFjQWRBBhdHQ1dHBF8kbCJhtNcEArSS9PSUl0SEPz20FAXNyT9mS4u0xKQzLfKnLkYxTW7VqG6R5oA33qVATJXePfqxcju7V61a/dGJH7Vil3dhUj86R27lk9E8Dktw8sjLZFDY4rLJNQASROkTTwAAHHhH/SoEAwmAAAAAElFTkSuQmCC", "start": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///9KY1IxMTFrhHOEnIzO5tZac2OtxbXe9+YjyYtyAAAAAXRSTlMAQObYZgAAAJ1JREFUeNq90MEKwjAMBuBuT6AiPZdtUK8lxRdYtryC11GJZ4e0veqT28Ma0Lvm9pG/Can6WzVd96F+0kbY9h4dGqF9BnecxEPKzOyr2wfmfcCl2iLddYAoBnDBj3G3xSNzieNa247y7JE2N+MVU3EyNe6RGSiLA8N5pNf2XC8aAG9r3TaUXQhCZWdAJKE6lXmXVVhupXQwXz/zq3oDN4Uj4YLLZ7AAAAAASUVORK5CYII=", "shiny": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTFSe+Ypc5Q6zvf//9ac9/ec/2tanPfwm5yOAAAAAXRSTlMAQObYZgAAAHxJREFUeNqtz7EVgzAQA1AdE1iGEErMJn4k3iBkAZ57qtTpPDYluh51/6TmcFfIoLQZSQ8RQFLPQCcDY3QGLDobLGk9BDqP/Lp5yT91v60U8v3Zc5B13WrN0r+q9rC+rEI8jpKF9jzGqyZjCsPlqS1/mPy+NP9pI5yJ23IC/N8OuCAOA54AAAAASUVORK5CYII=", "auto": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJ1BMVEX///8xMTHe3nP//5RCUkKtva2ElITFxd6EhJzm5v9re2u9zr2lpb2QdLFgAAAAAXRSTlMAQObYZgAAAMtJREFUeNq10b0KwjAQB/AEioNT/jZ00KniE/QJEmj9CI7iXpAg8QWkOPoIguAWiN1dXLr6YEqvCn0ADw7y43J3w7E/Bfpvnokf+VS0ybggzyALeMXitPt/LA5bF9ioM79s4GoPCHJkkI3z/fVDcompxPIkOxdeYgcJ33mO6KkgXVAtB4XRiWLcGEHtk02cKha0p3qdNKM0z20IVF/JwyOx1nlTtl7ANFtrNSpasNa42x0YbmTjMdSfVlSa5uc0By/yN/RZ9Mzxhzu8AUoCKSl2P3ciAAAAAElFTkSuQmCC"};
 const ico=(k,sz)=>`<img class="ico" src="${ICONS[k]}" alt="" style="width:${sz||24}px;height:${sz||24}px">`;
 const nameOf=id=>BY[id].n;
 function chain(img,id){
@@ -582,11 +647,11 @@ const SFX={
 const DEF=()=>({
   gold:200,lv:0,shiny:false,best:0,
   hist:[],types:[],next:[],bag:[],
-  inv:{protect:1,lucky:0,sure:0},
+  inv:{protect:1,lucky:0,sure:0,ball:0,master:0},
   up:{luck:0,sell:0,save:0,start:0,shiny:0,box:0},
   autoUnlocked:false,auto:{target:10,sell:true},
   armed:{protect:true,lucky:false,sure:false},
-  stats:{stored:0,tries:0,ok:0,great:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
+  stats:{boss:0,bossWin:0,stored:0,tries:0,ok:0,great:0,fail:0,drop:0,lost:0,sold:0,earned:0,spent:0,shinies:0,work:0,top:0},
   dex:{},log:[]
 });
 let S=DEF();
@@ -721,8 +786,12 @@ const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
 const SHOP_ITEMS=[
   {k:'protect',ic:'protect',n:'기합의띠',d:'버텨내서 하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
   {k:'lucky',ic:'lucky',n:'잘-맞히기',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
-  {k:'sure',ic:'sure',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
+  {k:'sure',ic:'sure',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4},
+  {k:'ball',ic:'ball',n:'몬스터볼',d:'보스전에서 이긴 뒤 던진다. 포획 확률 10%.',price:()=>Math.round(shopScale()*2)},
+  {k:'master',ic:'master',n:'마스터볼',d:'보스전에서 이긴 뒤 던진다. 포획 확률 100%. 아주 비싸다.',price:()=>shopScale()*80}
 ];
+const BALL_RATE={ball:.10,master:1};
+const bossFee=()=>Math.max(1000,nice(shopScale()*8));
 
 /* =========================================================
    렌더링
@@ -788,7 +857,7 @@ function render(){
   $('#autoBox').hidden=!S.autoUnlocked;
   $('#autoT').textContent=$('#autoRange').value;
   $('#workSub').textContent=workCd>0?`${(workCd/1000).toFixed(1)}초`:`+₽${fmt(workPay())}`;
-  renderShop();renderBag();renderDex();renderStats();
+  renderShop();renderBoss();renderBag();renderDex();renderStats();
 }
 function activeTab(){return document.querySelector('.tab.on').id;}
 
@@ -825,7 +894,7 @@ function renderDex(){
         <li><b>일반 포켓몬 등급</b> 일반 0~19점 · 고급 20~49 · 희귀 50~55 · 영웅 56~66 · 에이스 67~77 · 챔피언 78~</li>
         <li><b>특수 등급</b> 패러독스 · 울트라비스트 · 전설(준전설 포함) · 환상 · 초전설(표지 전설). 실제 분류에 따라 붙고, 점수와 상관없이 항상 이 등급입니다.</li>
         <li><b>진화 순서</b> 같은 계열 타입 안에서 이 점수가 높은 포켓몬 쪽으로 진화합니다.</li>
-        <li><b>등장 단계</b> 높은 등급일수록 강화 후반에만 나옵니다. 희귀 +3 · 영웅 +7 · 에이스 +12 · 챔피언 +16 · 패러독스 +16 · 울트라비스트 +20 · 전설 +22 · 환상 +24 · 초전설 +26 이후. (파괴는 +15부터 생깁니다.)</li></ul></details>
+        <li><b>등장 단계</b> 높은 등급일수록 강화 후반에만 나옵니다. 희귀 +3 · 영웅 +7 · 에이스 +12 · 챔피언 +16 · 패러독스 +16 · 울트라비스트 +20 · 전설 +22 · 환상 +24 이후. (파괴는 +15부터 생깁니다.) <b>초전설은 강화로 나오지 않고</b> 보스전에서 이기고 볼로 포획해야 합니다.</li></ul></details>
       <div class="dexctl"><input id="dexQ" type="search" placeholder="이름 또는 번호 검색" autocomplete="off">
       <select id="dexT"><option value="0">모든 타입</option>${TYPE_KO.map((n,i)=>i?`<option value="${i}">${n}</option>`:'').join('')}</select>
       <label><input type="checkbox" id="dexOnly"> 발견만</label></div>
@@ -841,7 +910,7 @@ function dexInfo(){
   if(!d||!S.dex[d.id]){el.innerHTML=d?'<div class="note">아직 만나지 못한 포켓몬입니다. 강화로 진화시켜 발견해 보세요.</div>':'';return;}
   const pre=d.par?BY[d.par]:null,kids=(d.kids||[]).map(i=>BY[i]);
   el.innerHTML=`<div class="dinfo"><b>#${String(d.id).padStart(4,'0')} ${d.n}</b><div class="trow">${typeChips(d.t)}</div>
-    <div class="note">희귀도 <b style="color:${rarOf(d.id).c}">${rarOf(d.id).n}</b> (종합 ${d.sc}점) · 종족값 합계 ${d.bst} · 실전 평가 ${battleText(d)}${lateFrom(d)?` · +${lateFrom(d)} 이후 등장`:''}<br>
+    <div class="note">희귀도 <b style="color:${rarOf(d.id).c}">${rarOf(d.id).n}</b> (종합 ${d.sc}점) · 종족값 합계 ${d.bst} · 실전 평가 ${battleText(d)}${rarOf(d.id).bossOnly?' · <b>보스전에서만 포획 가능</b>':(lateFrom(d)?` · +${lateFrom(d)} 이후 등장`:'')}<br>
     진화: ${pre?pre.n:'(없음)'} → <b>${d.n}</b> → ${kids.length?kids.map(k=>k.n).join(' / '):'(없음)'}</div></div>`;
 }
 function buildDexList(){
@@ -985,7 +1054,7 @@ function store(){
 }
 function bagPrice(b){return Math.round(PRICE[b.lv]*(1+.05*S.up.sell)*(1+PT().sell/100)*(b.shiny?2.5:1));}
 function sellBag(i){
-  const b=S.bag[i];if(!b)return;
+  const b=S.bag[i];if(!b||b.locked)return;
   const p=bagPrice(b);
   S.gold+=p;S.stats.earned+=p;S.stats.sold++;S.stats.top=Math.max(S.stats.top,b.lv);
   S.bag.splice(i,1);
@@ -1012,9 +1081,9 @@ function renderBag(){
     </ul></details></div><div class="bag">`;
   S.bag.forEach((b,i)=>{
     const ps=passivesOf(b.id,b.lv,b.shiny);
-    h+=`<div class="bagcard${b.shiny?' sh':''}"><div class="bh"><img data-id="${b.id}" alt=""><div><b>${b.shiny?'✨ ':''}${nameOf(b.id)}</b><small>+${b.lv} · <span style="color:${rarOf(b.id).c}">${rarOf(b.id).n}</span> · 효과 ×${rd(passMul(b.lv,b.shiny))}</small></div></div>
+    h+=`<div class="bagcard${b.shiny?' sh':''}${b.locked?' trophy':''}"><div class="bh"><img data-id="${b.id}" alt=""><div><b>${b.shiny?'✨ ':''}${nameOf(b.id)}</b><small>+${b.lv} · <span style="color:${rarOf(b.id).c}">${rarOf(b.id).n}</span> · 효과 ×${rd(passMul(b.lv,b.shiny))}</small></div></div>
       <ul class="bp">${ps.map(p=>`<li><span class="an">${p.name}</span>${passText(p)}</li>`).join('')}</ul>
-      <button class="btn sell sm" data-sellbag="${i}">판매 +₽ ${fmt(bagPrice(b))}</button></div>`;
+      ${b.locked?'<button class="btn sm lockbtn" disabled>🔒 포획 보상 · 판매 불가</button>':`<button class="btn sell sm" data-sellbag="${i}">판매 +₽ ${fmt(bagPrice(b))}</button>`}</div>`;
   });
   for(let i=S.bag.length;i<n;i++)h+='<div class="bagcard empty">빈 칸</div>';
   h+='</div>';
@@ -1207,6 +1276,216 @@ async function claimGrant(){
     const sv=$('#tSave');if(sv){sv.hidden=false;sv.textContent=already?'🎁 선물: 내 계정으로 전환됨':`🎁 선물 도착! +₽ ${fmt(d.gold)}`;}
   }catch(e){}
 }
+
+/* =========================================================
+   보스전 — 초전설 25종과 싸워 이기면 포획 기회가 1번 생긴다
+   파티: 가방 + 지금 포켓몬 중 최대 3마리. 한 라운드마다 태세(전력/균형/방어)를 고른다.
+   가방 패시브: 성공 확률→공격력, 대성공 비율→급소 확률, 하락·파괴 완화→받는 피해 감소
+========================================================= */
+const BOSS_UNLOCK=20, BP=0.5, BA=0.9, BOSS_HP=11.5, CATCH_LV=28;
+const TCH={1:{h:[6,9],z:[8]},10:{d:[12,15,7,9],h:[10,11,6,16]},11:{d:[10,5,6],h:[11,12,16]},13:{d:[11,3],h:[13,12,16],z:[5]},
+  12:{d:[11,5,6],h:[10,12,4,3,7,16,9]},15:{d:[12,5,3,16],h:[10,11,15,9]},2:{d:[1,15,6,17,9],h:[4,3,14,7,18],z:[8]},
+  4:{d:[12,18],h:[4,5,6,8],z:[9]},5:{d:[10,13,4,6,9],h:[12,7],z:[3]},3:{d:[12,2,7],h:[13,6,9]},14:{d:[2,4],h:[14,9],z:[17]},
+  7:{d:[12,14,17],h:[10,2,4,3,8,9,18]},6:{d:[10,15,3,7],h:[2,5,9]},8:{d:[14,8],h:[17],z:[1]},16:{d:[16],h:[9],z:[18]},
+  17:{d:[14,8],h:[2,17,18]},9:{d:[15,6,18],h:[10,11,13,9]},18:{d:[2,16,17],h:[10,4,9]}};
+function tMult(a,defTypes){let m=1;const c=TCH[a]||{};for(const t of defTypes){if(c.z&&c.z.includes(t)){m*=0;continue;}if(c.d&&c.d.includes(t))m*=2;if(c.h&&c.h.includes(t))m*=.5;}return m;}
+const bestMult=(atk,def)=>Math.max(.25,...atk.map(a=>tMult(a,def)));
+const STANCE={all:{a:1.35,t:1.35},bal:{a:1,t:1},def:{a:.55,t:.45}};
+function mkMember(e){
+  const d=BY[e.id];
+  return{id:e.id,name:d.n,types:d.t,lv:e.lv,shiny:!!e.shiny,atk:d.bst*(.55+e.lv*.025)*(e.shiny?1.1:1),max:Math.round(d.bst*(2.2+e.lv*.06)),hp:Math.round(d.bst*(2.2+e.lv*.06))};
+}
+function mkBoss(id){const d=BY[id];return{id,name:d.n,types:d.t,atk:d.bst,max:Math.round(d.bst*BOSS_HP),hp:Math.round(d.bst*BOSS_HP),bst:d.bst};}
+/* 한 라운드를 계산한다 (화면과 시뮬레이션이 같이 쓴다) */
+function bossRound(st,stance,rnd){
+  const SC=STANCE[stance],pt=PT(),crit=.06+pt.great/100*1.5,dr=Math.min(.3,pt.keep/200),rb=1+pt.rate/100,ev=[];
+  const alive=()=>st.party.filter(m=>m.hp>0);
+  let total=0;
+  for(const m of alive()){
+    const mult=bestMult(m.types,st.boss.types),c=rnd()<crit;
+    const dmg=Math.round(m.atk*BP*mult*SC.a*rb*(.9+rnd()*.2)*(c?1.5:1));
+    total+=dmg;ev.push({t:'hit',m,dmg,mult,crit:c});
+  }
+  st.boss.hp=Math.max(0,st.boss.hp-total);
+  if(st.boss.hp<=0){ev.push({t:'win'});return ev;}
+  const special=st.round%3===0,al=alive();
+  const targets=special?al:[al[Math.floor(rnd()*al.length)]];
+  for(const m of targets){
+    const mult=bestMult(st.boss.types,m.types);
+    let dmg=st.boss.atk*BA*mult*SC.t*(1-dr)*(.9+rnd()*.2);if(special)dmg*=.8;
+    dmg=Math.round(dmg);m.hp=Math.max(0,m.hp-dmg);ev.push({t:'boss',m,dmg,mult,special});
+  }
+  if(!alive().length)ev.push({t:'lose'});
+  return ev;
+}
+const caughtIds=()=>S.bag.filter(b=>b.locked).map(b=>b.id);
+const bossUnlocked=()=>S.best>=BOSS_UNLOCK;
+const arrow=m=>m>1?'<span class="adv up">▲</span>':m<1?'<span class="adv dn">▼</span>':'';
+
+function renderBoss(){
+  if(activeTab()!=='tab-boss')return;
+  const got=new Set(caughtIds()),ids=[...BOX_LEGEND].sort((a,b)=>a-b);
+  const bp=SHOP_ITEMS.find(x=>x.k==='ball').price(),mp=SHOP_ITEMS.find(x=>x.k==='master').price();
+  let h=`<div class="bsum"><b>보스전 — 초전설 ${got.size} / ${ids.length}종 포획</b>
+    <div class="note">초전설은 강화로 나오지 않습니다. 보스전에서 이긴 뒤 <b>잡을 기회 1번</b>이 주어지고, <b>몬스터볼 10% · 마스터볼 100%</b>입니다. 잡은 초전설은 가방에 영구 보관되며(판매 불가) 강력한 패시브를 줍니다.</div>
+    <div class="row"><span>${ico('ball',22)} 몬스터볼 ${S.inv.ball}개 <small class="note">₽ ${fmt(bp)}</small></span><span>${ico('master',22)} 마스터볼 ${S.inv.master}개 <small class="note">₽ ${fmt(mp)}</small></span><span>입장료 ₽ ${fmt(bossFee())}</span></div>
+    ${bossUnlocked()?'':`<div class="note" style="color:var(--warn)">🔒 강화 +${BOSS_UNLOCK}을 달성하면 보스전이 열립니다. (최고 기록 +${S.best})</div>`}
+  </div><div class="bosslist">`;
+  ids.forEach(id=>{
+    const d=BY[id],done=got.has(id),lock=!bossUnlocked();
+    h+=`<div class="bc${done?' done':''}${lock?' lock':''}" data-boss="${id}"><img data-id="${id}" alt=""><b>${d.n}</b><div class="tp">${typeChips(d.t)}</div><small>종족값 ${d.bst}</small><small>${done?'✔ 포획 완료':lock?'잠김':'도전 가능'}</small></div>`;
+  });
+  h+='</div>';
+  $('#tab-boss').innerHTML=h;
+  $('#tab-boss').querySelectorAll('img[data-id]').forEach(im=>chain(im,+im.dataset.id));
+}
+
+let BS=null,bBusy=false;
+function bossOpen(id){
+  if(!bossUnlocked()||caughtIds().includes(id))return;
+  BS={id,boss:mkBoss(id),sel:[],view:'party',round:1,party:[],log:[]};
+  $('#boss').hidden=false;document.body.style.overflow='hidden';renderBossView();
+}
+function bossClose(){
+  if(bBusy)return;
+  $('#boss').hidden=true;document.body.style.overflow='';BS=null;save();render();
+}
+function candidates(){   // 출전 후보: 지금 포켓몬 + 가방
+  const l=[{id:curId(),lv:S.lv,shiny:S.shiny,src:'now'}];
+  S.bag.forEach((b,i)=>l.push({id:b.id,lv:b.lv,shiny:b.shiny,src:'bag'+i}));
+  return l;
+}
+function renderBossView(){
+  const body=$('#bBody');if(!BS)return;
+  const b=BS.boss,bd=BY[b.id],rc=rarOf(b.id);
+  $('#boss').style.setProperty('--bc',rc.c);
+  if(BS.view==='party'){
+    $('#bTitle').textContent='보스전 — 출전 포켓몬 선택';body.className='';
+    const cs=candidates(),ok=BS.sel.length>0&&S.gold>=bossFee()&&S.bag.length<slots();
+    let h=`<div class="bsum"><b>${bd.n} <span class="chip" style="background:${rc.bg||rc.c};color:#1b1f4b;padding:1px 8px;border-radius:99px;font-size:11px;font-weight:800">${rc.n}</span></b>
+      <div class="row"><span>${typeChips(bd.t)}</span><span>종족값 ${bd.bst}</span><span>입장료 ₽ ${fmt(bossFee())}</span></div>
+      <div class="note">3마리까지 고르세요. ▲는 보스에게 유리한 타입, ▼는 불리한 타입입니다. 질 때는 입장료만 잃습니다.${S.bag.length>=slots()?' <b style="color:var(--warn)">가방에 빈 칸이 있어야 도전할 수 있습니다.</b>':''}</div></div>
+      <div class="bplist">`;
+    cs.forEach((c,i)=>{
+      const m=mkMember(c),mult=bestMult(m.types,b.types),sel=BS.sel.includes(i);
+      h+=`<div class="pc${sel?' sel':''}" data-pc="${i}"><img data-id="${c.id}" alt=""><div><b>${c.shiny?'✨ ':''}${nameOf(c.id)}${c.src==='now'?' <small>(지금)</small>':''}</b><small>+${c.lv} · <span style="color:${rarOf(c.id).c}">${rarOf(c.id).n}</span></small><small>공격 ${Math.round(m.atk)} ${arrow(mult)} · 체력 ${m.max}</small></div></div>`;
+    });
+    h+=`</div><div class="actions" style="grid-template-columns:1fr 1.4fr;flex:none"><button class="btn sm" id="bAuto" style="background:var(--panel2)">추천 3마리 자동 선택</button>
+      <button class="btn enh" id="bStart" ${ok?'':'disabled'}>전투 시작<small>₽ ${fmt(bossFee())} · ${BS.sel.length}/3마리</small></button></div>`;
+    body.innerHTML=h;
+    body.querySelectorAll('img[data-id]').forEach(im=>chain(im,+im.dataset.id));
+    return;
+  }
+  if(BS.view==='battle'){
+    $('#bTitle').textContent=`보스전 — 라운드 ${BS.round}`;body.className='battle';
+    const special=BS.round%3===0;
+    body.innerHTML=`<div class="bt-boss"><div class="bimg"><img id="bImg" data-id="${b.id}" alt=""></div>
+        <div class="nm"><h2>${bd.n}</h2>${typeChips(bd.t)}</div><div class="bhp"><i id="bHp" style="width:${b.hp/b.max*100}%"></i></div>
+        <div class="bwarn" id="bWarn">${special?'⚠ 보스가 힘을 모으고 있다! 이번 라운드는 전체 공격!':''}</div></div>
+      <div class="bt-side"><div class="bparty" id="bParty"></div>
+        <div class="stances"><button class="st-all" data-st="all">전력 공격<small>공격 ×1.35 · 피해 ×1.35</small></button><button class="st-bal" data-st="bal">균형<small>기본</small></button><button class="st-def" data-st="def">방어 태세<small>공격 ×0.55 · 피해 ×0.45</small></button></div>
+        <ul class="log" id="bLog"></ul></div>`;
+    chain($('#bImg'),b.id);renderParty();renderBLog();return;
+  }
+  if(BS.view==='catch'){
+    $('#bTitle').textContent='보스전 — 승리! 포획 기회 1번';body.className='';
+    const bp=SHOP_ITEMS.find(x=>x.k==='ball').price(),mp=SHOP_ITEMS.find(x=>x.k==='master').price();
+    body.innerHTML=`<div class="bsum" style="align-items:center;text-align:center"><div class="bimg" style="height:140px"><img id="bImg" data-id="${b.id}" alt="" style="height:140px;image-rendering:pixelated;filter:drop-shadow(0 0 12px ${rc.c})"></div>
+      <b style="font-size:18px">${bd.n}</b><div class="note">${BS.msg||'쓰러뜨렸다! 볼을 던져 잡아 보자. 기회는 단 한 번이다.'}</div></div>
+      <div class="ballbtns"><button class="btn enh" id="bBall" ${S.inv.ball>0&&!BS.done?'':'disabled'}>${ico('ball',28)}몬스터볼 던지기<small>보유 ${S.inv.ball}개 · 확률 10%</small></button>
+      <button class="btn store" id="bMaster" ${S.inv.master>0&&!BS.done?'':'disabled'}>${ico('master',28)}마스터볼 던지기<small>보유 ${S.inv.master}개 · 확률 100%</small></button></div>
+      ${BS.done?'':`<div class="ballbtns"><button class="btn sm" id="bBuyBall" style="background:var(--panel2)" ${S.gold>=bp?'':'disabled'}>몬스터볼 구매 ₽ ${fmt(bp)}</button><button class="btn sm" id="bBuyMaster" style="background:var(--panel2)" ${S.gold>=mp?'':'disabled'}>마스터볼 구매 ₽ ${fmt(mp)}</button></div>`}
+      <button class="btn sm" id="bGive" style="background:var(--panel2)">${BS.done?'닫기':'포기하고 돌아가기'}</button>`;
+    chain($('#bImg'),b.id);return;
+  }
+  if(BS.view==='lose'){
+    $('#bTitle').textContent='보스전 — 패배';body.className='';
+    body.innerHTML=`<div class="bsum" style="align-items:center;text-align:center"><b style="font-size:20px">눈앞이 깜깜해졌다…</b><div class="note">${bd.n}에게 졌다. 입장료 ₽ ${fmt(bossFee())}을 잃었다. 파티를 다시 짜서 도전해 보자.</div></div>
+      <div class="actions" style="grid-template-columns:1fr 1fr;flex:none"><button class="btn enh" id="bRetry">다시 도전</button><button class="btn sm" id="bGive" style="background:var(--panel2)">돌아가기</button></div>`;
+  }
+}
+function renderParty(){
+  const el=$('#bParty');if(!el)return;
+  el.innerHTML=BS.party.map(m=>`<div class="pm${m.hp<=0?' ko':''}"><img data-id="${m.id}" alt=""><b>${m.name}</b><div class="mhp"><i style="width:${m.hp/m.max*100}%"></i></div><small>${m.hp}/${m.max}</small></div>`).join('');
+  el.querySelectorAll('img[data-id]').forEach(im=>chain(im,+im.dataset.id));
+}
+function renderBLog(){const el=$('#bLog');if(el)el.innerHTML=BS.log.slice(0,3).map(t=>`<li>${t}</li>`).join('');}
+function blog(t){BS.log.unshift(t);renderBLog();}
+
+function bossStart(){
+  if(S.gold<bossFee()||!BS.sel.length||S.bag.length>=slots())return;
+  S.gold-=bossFee();S.stats.boss++;S.stats.spent+=bossFee();
+  const cs=candidates();
+  BS.party=BS.sel.map(i=>mkMember(cs[i]));BS.boss=mkBoss(BS.id);BS.round=1;BS.log=['⚔ 보스전 시작!'];BS.view='battle';
+  save();render();SFX.charge();renderBossView();
+}
+async function bossAct(stance){
+  if(bBusy||!BS||BS.view!=='battle')return;
+  bBusy=true;
+  const ev=bossRound(BS,stance,Math.random);
+  const bImg=$('#bImg');
+  let won=false,lost=false;
+  for(const e of ev){
+    if(e.t==='hit'){
+      blog(`${e.m.name}의 공격! ${e.dmg.toLocaleString()} 피해${e.mult>1?' (효과 굉장!)':e.mult<1?' (별로…)':''}${e.crit?' 급소!':''}`);
+      if(bImg)bImg.animate([{transform:'translateX(0)',filter:'brightness(1)'},{transform:'translateX(-8px)',filter:'brightness(2.2)'},{transform:'translateX(6px)'},{transform:'none',filter:'brightness(1)'}],{duration:260});
+      beep(220,.08,'sawtooth',.04,80);
+      await sleep(260);
+    }else if(e.t==='boss'){
+      blog(`${BS.boss.name}의 ${e.special?'전체 공격':'공격'}! ${e.m.name}에게 ${e.dmg.toLocaleString()} 피해${e.m.hp<=0?' — 쓰러졌다!':''}`);
+      beep(e.special?120:180,.14,'square',.05,60);
+      await sleep(320);
+    }else if(e.t==='win')won=true;else if(e.t==='lose')lost=true;
+    const hpEl=$('#bHp');if(hpEl)hpEl.style.width=(BS.boss.hp/BS.boss.max*100)+'%';
+    renderParty();
+  }
+  await sleep(300);
+  if(won){S.stats.bossWin++;SFX.big();BS.view='catch';BS.msg='';save();bBusy=false;renderBossView();return;}
+  if(lost){SFX.fail();BS.view='lose';bBusy=false;renderBossView();return;}
+  BS.round++;bBusy=false;renderBossView();
+}
+function bossCatch(kind){
+  if(!BS||BS.done||S.inv[kind]<=0)return;
+  if(S.bag.length>=slots()){BS.msg='가방에 빈 칸이 없어 잡을 수 없다. 포기하고 가방을 정리한 뒤 다시 도전하자.';renderBossView();return;}
+  S.inv[kind]--;BS.done=true;
+  const ok=Math.random()<BALL_RATE[kind];
+  if(ok){
+    S.bag.push({id:BS.id,lv:CATCH_LV,shiny:false,locked:true});S.dex[BS.id]=1;S.stats.stored++;
+    BS.msg=`🎉 신난다! <b>${BS.boss.name}</b>을(를) 잡았다! 가방에 영구 보관됩니다. (+${CATCH_LV} 효과)`;
+    log(`🎉 보스전 승리! <b>${BS.boss.name}</b> 포획 성공!`,'gold');SFX.big();
+  }else{
+    BS.msg=`${kind==='master'?'마스터볼도':'볼이'} 빠져나왔다… ${BS.boss.name}은(는) 도망쳤다. 기회는 끝났다.`;
+    log(`${BS.boss.name}을(를) 놓쳤다…`,'bad');SFX.boom();
+  }
+  save();render();renderBossView();
+}
+function bossBuy(kind){
+  const it=SHOP_ITEMS.find(x=>x.k===kind),p=it.price();
+  if(S.gold<p)return;S.gold-=p;S.inv[kind]++;SFX.buy();save();render();renderBossView();
+}
+$('#bClose').onclick=bossClose;
+$('#tab-boss').onclick=e=>{const c=e.target.closest('[data-boss]');if(c)bossOpen(+c.dataset.boss);};
+$('#bBody').onclick=e=>{
+  const t=e.target.closest('button,[data-pc]');if(!t||!BS)return;
+  if(t.dataset.pc!==undefined){
+    const i=+t.dataset.pc,at=BS.sel.indexOf(i);
+    if(at>=0)BS.sel.splice(at,1);else if(BS.sel.length<3)BS.sel.push(i);
+    SFX.click();renderBossView();return;
+  }
+  if(t.id==='bAuto'){
+    const cs=candidates(),b=BS.boss;
+    BS.sel=cs.map((c,i)=>{const m=mkMember(c);return{i,v:m.atk*bestMult(m.types,b.types)+m.max*.15};}).sort((x,y)=>y.v-x.v).slice(0,3).map(x=>x.i);
+    SFX.click();renderBossView();return;
+  }
+  if(t.id==='bStart')return bossStart();
+  if(t.dataset.st)return bossAct(t.dataset.st);
+  if(t.id==='bBall')return bossCatch('ball');
+  if(t.id==='bMaster')return bossCatch('master');
+  if(t.id==='bBuyBall')return bossBuy('ball');
+  if(t.id==='bBuyMaster')return bossBuy('master');
+  if(t.id==='bGive')return bossClose();
+  if(t.id==='bRetry'){BS.view='party';BS.boss=mkBoss(BS.id);BS.round=1;renderBossView();return;}
+};
 
 /* 시작 */
 load();
