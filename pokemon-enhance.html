@@ -96,7 +96,7 @@ h2,h3{margin:0}
 
 /* shop */
 .sec{font-size:12px;color:var(--mute);font-weight:800;letter-spacing:.6px;margin-top:4px}
-.item{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.item{display:grid;grid-template-columns:56px 1fr auto;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 12px}
 .item .ic{font-size:28px;text-align:center}
 .item h3{font-size:15px}
 .item p{margin:2px 0 0;font-size:12px;color:var(--mute);line-height:1.4}
@@ -138,6 +138,11 @@ h2,h3{margin:0}
 .dinfo{background:var(--panel2);border:1px solid var(--gold);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
 .dx{cursor:pointer;content-visibility:auto;contain-intrinsic-size:110px}
 .dx img{width:56px;height:56px;object-fit:contain}
+.ico{image-rendering:pixelated;vertical-align:middle;flex:none}
+.item .ic{display:flex;align-items:center;justify-content:center;background:#ffffff0d;border-radius:12px;width:56px;height:56px}
+.inv{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;line-height:1.7}
+.inv b{margin-left:auto;color:var(--gold)}
+.arm button{display:flex;flex-direction:column;align-items:center;gap:1px}
 @media(max-width:380px){.dex{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -257,11 +262,11 @@ const TIERS=[
 const tierOf=L=>{let t=TIERS[0];TIERS.forEach(x=>{if(L>=x.from)t=x;});return t;};
 
 const UPS={
-  luck:{ic:'🥋',n:'달인의띠',d:'숙련된 트레이너의 띠. 강화 성공 확률 +1%p (레벨당)',max:15,base:300,g:2.1},
-  sell:{ic:'🪙',n:'부적금화',d:'지닌 포켓몬이 이기면 상금이 늘어난다. 판매가 +5% (레벨당)',max:20,base:300,g:2.0},
-  save:{ic:'🍖',n:'먹다남은음식',d:'조금씩 회복해 지출을 아낀다. 강화 비용 -3% (레벨당)',max:15,base:400,g:2.15},
-  start:{ic:'💎',n:'진화의돌',d:'새 포켓몬이 +1 레벨 높게 시작한다 (레벨당)',max:8,base:2000,g:3.0},
-  shiny:{ic:'✨',n:'반짝부적',d:'이로치(판매가 ×2.5) 등장 확률 +2%p (레벨당)',max:10,base:1500,g:2.2}
+  luck:{ic:'luck',n:'달인의띠',d:'숙련된 트레이너의 띠. 강화 성공 확률 +1%p (레벨당)',max:15,base:300,g:2.1},
+  sell:{ic:'sell',n:'부적금화',d:'지닌 포켓몬이 이기면 상금이 늘어난다. 판매가 +5% (레벨당)',max:20,base:300,g:2.0},
+  save:{ic:'save',n:'먹다남은음식',d:'조금씩 회복해 지출을 아낀다. 강화 비용 -3% (레벨당)',max:15,base:400,g:2.15},
+  start:{ic:'start',n:'달의돌',d:'신비한 힘으로 새 포켓몬이 +1 레벨 높게 시작한다 (레벨당)',max:8,base:2000,g:3.0},
+  shiny:{ic:'shiny',n:'빛나는부적',d:'이로치(판매가 ×2.5) 등장 확률 +2%p (레벨당)',max:10,base:1500,g:2.2}
 };
 const AUTO_PRICE=3000;
 
@@ -294,6 +299,8 @@ function ph(name){
 const PA='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
 let SPR=null;   // {도감번호: data URI} — 같은 폴더의 pokemon-sprites.json을 읽을 수 있으면 사용, 아니면 온라인 이미지
 function sprUrls(id){const l=[];if(SPR&&SPR[id])l.push(SPR[id]);l.push(PA+id+'.png');return l;}
+const ICONS={"protect": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTHec0r/pVJaWlq9MTH/hIT/5lLvUlKioIChAAAAAXRSTlMAQObYZgAAAJpJREFUeNq1z00KwjAQBeAJ5ADz0HiAeoISD9BioW4rzBWyLy6ydqHk2DbGxule3yLhY2B+6AdBt6FpOH8DNkYI/PGRl0cOq60/ETlBulPJuV3Kk6nexc4Jf23iLCCX6tgByB2YVHqZtPAQVgwpQW0cAvZEtd/lmYu2rX5PHm+sbWNc7bLHOBeVVXpfy/kaeK8GQq4NSAUA/SUvylQblEtgBucAAAAASUVORK5CYII=", "lucky": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAIVBMVEX///8xMTGclJylUpTm1ub/////5vdzMWOtY5zOc73vtd7OCWA+AAAAAXRSTlMAQObYZgAAAK9JREFUGNNjYKARMBRE4TIqKaEICDmpJgkgSavMDA1SRJL2aA2dCeczl3dphEbMVIJpsJi1uCx0VfMiKJ+9vHPZwgwEv2LW4qosyeaZJlC+8MxlC1c1Ns90hGoXF5+VJbmiEibNUDxr+arGGVYwaeaZy0DSzTBpxllpWdNnWLYzIPgrJ89sRuKvmmlc2d4Md23nzMnGEu0I3wkbGxsXtyN51tjYXNAAKTAKBQtoFQ0ArjYz15lpWTkAAAAASUVORK5CYII=", "sure": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAGFBMVEX///8xMTGcvf9SY8XW7/9jc9Z7lO8pOpz93GUvAAAAAXRSTlMAQObYZgAAAJdJREFUeNq1zzEPgjAQBeAaBteeRN0vpcyIpLtRd0W6W8K5QpT27zu1tLu+7cvLJffY37LiqTe3tD4+E2eihKiFtzAFD9RE9kDBO8TuJYfg+1lL6ivPtbkYpAnCuSlOSCMLJouy54u1RWq9M5iVpkH5do+6bLq2CnZ4zWu1PNd9aIJo7XZ+jCxK7gRPptcuMYMmNQP2q3wBuUYaI2s3qXwAAAAASUVORK5CYII=", "luck": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAD1BMVEX///9KQkoxMTGEe4RjWmNFjH2LAAAAAXRSTlMAQObYZgAAAJZJREFUGBm1wdF1wyAMQNGHJpAwAwg5ExgvYGD/mZoT3Db97sm9/J8Kf0hSnixYZHcgWnNe9uIgtg/lJc0LqsXZWUpHLMvoLI9Tq7nMziLjsKBO5WYRUM15ky3zK8dlnviW25yBJhZpLSpJlWUbAaSuLOXgads7S+lAaqez1A5s4+D2KE6ep3OTK8c1gx9hZsGbiOAjvgDEbxB3GbSm2AAAAABJRU5ErkJggg==", "sell": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAHlBMVEX////vMSkxMTG1jCnerSH/ziG9GRlzWgD/96X/70J1F/WZAAAAAXRSTlMAQObYZgAAAJBJREFUGNNjYKANEBRA4TIyMKIICICEkAATRAwOVNUSkPlK6gpsSHwmk5AihgSEAcqhU90VkPgarZEhCmxwPpNFR+gUJAOYWjumhiDzOyJnBiPxlSOmznRiSIC7UDV0ZqgTG8hTMH7kFCM2BriTVULBxsP56qGhzgpA/TA+U0mIEQMoAGAGKikpgMIELYxoAgBx1Rbk2ARNxgAAAABJRU5ErkJggg==", "save": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJFBMVEX///8xMTF7lCGcjFLmUlL3Y2N7Skr/jGv///+1WlrO5q3v/9Y0TZ2TAAAAAXRSTlMAQObYZgAAAINJREFUGNNjYKANYBRA5Quh8AUFjQWRBBhdHQ1dHBF8kbCJhtNcEArSS9PSUl0SEPz20FAXNyT9mS4u0xKQzLfKnLkYxTW7VqG6R5oA33qVATJXePfqxcju7V61a/dGJH7Vil3dhUj86R27lk9E8Dktw8sjLZFDY4rLJNQASROkTTwAAHHhH/SoEAwmAAAAAElFTkSuQmCC", "start": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///9KY1IxMTFrhHOEnIzO5tZac2OtxbXe9+YjyYtyAAAAAXRSTlMAQObYZgAAAJ1JREFUeNq90MEKwjAMBuBuT6AiPZdtUK8lxRdYtryC11GJZ4e0veqT28Ma0Lvm9pG/Can6WzVd96F+0kbY9h4dGqF9BnecxEPKzOyr2wfmfcCl2iLddYAoBnDBj3G3xSNzieNa247y7JE2N+MVU3EyNe6RGSiLA8N5pNf2XC8aAG9r3TaUXQhCZWdAJKE6lXmXVVhupXQwXz/zq3oDN4Uj4YLLZ7AAAAAASUVORK5CYII=", "shiny": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAG1BMVEX///8xMTFSe+Ypc5Q6zvf//9ac9/ec/2tanPfwm5yOAAAAAXRSTlMAQObYZgAAAHxJREFUeNqtz7EVgzAQA1AdE1iGEErMJn4k3iBkAZ57qtTpPDYluh51/6TmcFfIoLQZSQ8RQFLPQCcDY3QGLDobLGk9BDqP/Lp5yT91v60U8v3Zc5B13WrN0r+q9rC+rEI8jpKF9jzGqyZjCsPlqS1/mPy+NP9pI5yJ23IC/N8OuCAOA54AAAAASUVORK5CYII=", "auto": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeBAMAAADJHrORAAAAA3NCSVQFBQUYJt5DAAAAJ1BMVEX///8xMTHe3nP//5RCUkKtva2ElITFxd6EhJzm5v9re2u9zr2lpb2QdLFgAAAAAXRSTlMAQObYZgAAAMtJREFUeNq10b0KwjAQB/AEioNT/jZ00KniE/QJEmj9CI7iXpAg8QWkOPoIguAWiN1dXLr6YEqvCn0ADw7y43J3w7E/Bfpvnokf+VS0ybggzyALeMXitPt/LA5bF9ioM79s4GoPCHJkkI3z/fVDcompxPIkOxdeYgcJ33mO6KkgXVAtB4XRiWLcGEHtk02cKha0p3qdNKM0z20IVF/JwyOx1nlTtl7ANFtrNSpasNa42x0YbmTjMdSfVlSa5uc0By/yN/RZ9Mzxhzu8AUoCKSl2P3ciAAAAAElFTkSuQmCC"};
+const ico=(k,sz)=>`<img class="ico" src="${ICONS[k]}" alt="" style="width:${sz||24}px;height:${sz||24}px">`;
 const nameOf=id=>BY[id].n;
 function chain(img,id){
   const urls=sprUrls(id);let i=0;
@@ -415,7 +422,7 @@ const curMon=()=>BY[curId()];
 function refreshNext(){
   S.next=S.lv<MAX?candsFor(curMon(),S.lv,S.types,S.hist):[];
 }
-function newMon(startLv){     /* 새 포켓몬 등장 (시작 레벨은 진화의돌 레벨만큼) */
+function newMon(startLv){     /* 새 포켓몬 등장 (시작 레벨은 달의돌 레벨만큼) */
   const st=STARTERS[Math.floor(Math.random()*STARTERS.length)];
   S.types=st.t.slice();S.hist=[st.id];
   const n=startLv===undefined?S.up.start:startLv;
@@ -444,9 +451,9 @@ function rateOf(L,preview){
 const upCost=(k,lv)=>Math.round(UPS[k].base*Math.pow(UPS[k].g,lv));
 const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
 const SHOP_ITEMS=[
-  {k:'protect',ic:'🎗️',n:'기합의띠',d:'버텨내서 하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
-  {k:'lucky',ic:'🎯',n:'엑스정확',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
-  {k:'sure',ic:'🍬',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
+  {k:'protect',ic:'protect',n:'기합의띠',d:'버텨내서 하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
+  {k:'lucky',ic:'lucky',n:'잘-맞히기',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
+  {k:'sure',ic:'sure',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
 ];
 
 /* =========================================================
@@ -503,9 +510,9 @@ function render(){
   $('#priceSub').textContent=(S.shiny?'이로치 ×2.5 ':'')+(S.up.sell?`부적금화 +${S.up.sell*5}%`:'기본가');
   $('#btnSell').disabled=busy;
   $('#sellSub').textContent=`+₽ ${fmt(priceOf())}`;
-  $('#invText').innerHTML=`🎗️ 기합의띠 ${S.inv.protect}<br>🎯 엑스정확 ${S.inv.lucky}<br>🍬 이상한사탕 ${S.inv.sure}`;
-  const arm=[['protect','🎗️ 기합의띠'],['lucky','🎯 엑스정확'],['sure','🍬 이상한사탕']];
-  $('#arm').innerHTML=arm.map(([k,n])=>`<button data-k="${k}" class="${S.armed[k]&&S.inv[k]>0?'on':''}" ${S.inv[k]<=0?'disabled':''}>${n}<b>${S.inv[k]}개 · ${S.armed[k]&&S.inv[k]>0?'사용 중':'꺼짐'}</b></button>`).join('');
+  $('#invText').innerHTML=`<div class="inv">${ico('protect',22)}기합의띠 <b>${S.inv.protect}</b></div><div class="inv">${ico('lucky',22)}잘-맞히기 <b>${S.inv.lucky}</b></div><div class="inv">${ico('sure',22)}이상한사탕 <b>${S.inv.sure}</b></div>`;
+  const arm=[['protect','기합의띠'],['lucky','잘-맞히기'],['sure','이상한사탕']];
+  $('#arm').innerHTML=arm.map(([k,n])=>`<button data-k="${k}" class="${S.armed[k]&&S.inv[k]>0?'on':''}" ${S.inv[k]<=0?'disabled':''}>${ico(k,28)}<span>${n}</span><b>${S.inv[k]}개 · ${S.armed[k]&&S.inv[k]>0?'사용 중':'꺼짐'}</b></button>`).join('');
   $('#autoBox').hidden=!S.autoUnlocked;
   $('#autoT').textContent=$('#autoRange').value;
   $('#workSub').textContent=`+₽ ${fmt(workPay())} · 대기 ${(workCd/1000).toFixed(1)}초`;
@@ -518,16 +525,16 @@ function renderShop(){
   const el=$('#tab-shop');
   let h='<div class="sec">도구 (1회용)</div>';
   SHOP_ITEMS.forEach(it=>{const p=it.price();
-    h+=`<div class="item"><div class="ic">${it.ic}</div><div><h3>${it.n}</h3><p>${it.d}</p><div class="own">보유 ${S.inv[it.k]}개</div></div>
+    h+=`<div class="item"><div class="ic">${ico(it.ic,44)}</div><div><h3>${it.n}</h3><p>${it.d}</p><div class="own">보유 ${S.inv[it.k]}개</div></div>
       <button class="buy" data-buy="${it.k}" ${S.gold<p?'disabled':''}>₽ ${fmt(p)}</button></div>`;});
   h+='<div class="sec">지닌 물건 (영구)</div>';
   Object.entries(UPS).forEach(([k,u])=>{
     const lv=S.up[k],mx=lv>=u.max,p=upCost(k,lv);
-    h+=`<div class="item"><div class="ic">${u.ic}</div><div><h3>${u.n} <span class="own">Lv.${lv}/${u.max}</span></h3><p>${u.d}</p>
+    h+=`<div class="item"><div class="ic">${ico(u.ic,44)}</div><div><h3>${u.n} <span class="own">Lv.${lv}/${u.max}</span></h3><p>${u.d}</p>
       <div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'f':''}"></i>`).join('')}</div></div>
       <button class="buy${mx?' max':''}" data-up="${k}" ${mx||S.gold<p?'disabled':''}>${mx?'MAX':'₽ '+fmt(p)}</button></div>`;});
   h+='<div class="sec">기기</div>';
-  h+=`<div class="item"><div class="ic">📱</div><div><h3>포켓기어 ${S.autoUnlocked?'<span class="own">해금됨</span>':''}</h3><p>자동 강화 기능이 들어 있다. 목표 레벨까지 알아서 강화하고, 도달하면 판매까지 반복한다.</p></div>
+  h+=`<div class="item"><div class="ic">${ico('auto',44)}</div><div><h3>학습장치 ${S.autoUnlocked?'<span class="own">해금됨</span>':''}</h3><p>자동 강화 기능이 들어 있다. 목표 레벨까지 알아서 강화하고, 도달하면 판매까지 반복한다.</p></div>
       <button class="buy${S.autoUnlocked?' max':''}" data-auto="1" ${S.autoUnlocked||S.gold<AUTO_PRICE?'disabled':''}>${S.autoUnlocked?'보유':'₽ '+fmt(AUTO_PRICE)}</button></div>`;
   el.innerHTML=h;
 }
@@ -748,7 +755,7 @@ $('#tab-shop').onclick=e=>{
     if(S.gold<p||S.up[k]>=u.max)return;S.gold-=p;S.up[k]++;
     log(`${u.n} Lv.${S.up[k]} 획득!`,'gold');
   }else if(b.dataset.auto){
-    if(S.gold<AUTO_PRICE)return;S.gold-=AUTO_PRICE;S.autoUnlocked=true;log('포켓기어를 손에 넣었다! 자동 강화를 쓸 수 있다.','gold');
+    if(S.gold<AUTO_PRICE)return;S.gold-=AUTO_PRICE;S.autoUnlocked=true;log('학습장치를 손에 넣었다! 자동 강화를 쓸 수 있다.','gold');
   }
   SFX.buy();save();render();
 };
