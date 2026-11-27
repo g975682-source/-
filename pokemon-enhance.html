@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>포켓몬 강화왕</title>
+<title>PokeForge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap">
 <style>
 :root{
   color-scheme:dark;
@@ -170,11 +171,45 @@ h2,h3{margin:0}
 .bp li{background:#ffffff0d;border-radius:8px;padding:4px 8px;line-height:1.35}
 .bp .an{display:block;color:#c4b5fd;font-weight:800}
 @media(max-width:380px){.bag{grid-template-columns:1fr}}
+/* ---------- 메인(타이틀) 화면 ---------- */
+body.intro{overflow:hidden}
+#title{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:max(18px,env(safe-area-inset-top,0px)) 16px max(22px,env(safe-area-inset-bottom,0px));cursor:pointer;overflow:hidden;
+  background:linear-gradient(#2f7fe0,#8fd0ff 55%,#6cc04a);transition:opacity .6s,visibility .6s;user-select:none;-webkit-user-select:none}
+#title.hide{opacity:0;visibility:hidden;pointer-events:none}
+#title .tbg{position:absolute;inset:-3%;background:url(pokeforge-title.webp) center 42%/cover no-repeat;image-rendering:pixelated;animation:kb 26s ease-in-out infinite alternate}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.07) translate(-1%,1%)}}
+@media(orientation:portrait){#title .tbg{background-position:70% 46%}}
+#title .tshade{position:absolute;inset:0;background:linear-gradient(180deg,#0a1a5a40 0%,transparent 28%,transparent 55%,#06103a99 100%)}
+#title .tlogo{position:relative;margin-top:clamp(28px,10vh,110px);display:flex;flex-direction:column;align-items:center;gap:6px}
+#title canvas{image-rendering:pixelated;display:block;max-width:100%}
+#logoCv{filter:drop-shadow(0 6px 0 #0a1a5a55)}
+#title .sub{font-family:'DotGothic16','Noto Sans KR',sans-serif;font-size:clamp(17px,4.6vw,24px);letter-spacing:.12em;color:#fff;
+  text-shadow:2px 0 #1b1f4b,-2px 0 #1b1f4b,0 2px #1b1f4b,0 -2px #1b1f4b,2px 2px #1b1f4b,-2px -2px #1b1f4b,2px -2px #1b1f4b,-2px 2px #1b1f4b,0 4px #0a1a5a88}
+#title .tbot{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px}
+#startCv{animation:blink 1.1s steps(2,jump-none) infinite}
+@keyframes blink{50%{opacity:.15}}
+#title .tsave{font-family:'DotGothic16','Noto Sans KR',sans-serif;font-size:14px;color:#fff;background:#0a1a5acc;border:2px solid #fff;padding:4px 12px;
+  box-shadow:3px 3px 0 #0a1a5a}
+#title .tfoot{font-family:'DotGothic16','Noto Sans KR',sans-serif;font-size:11px;color:#dbe8ff;text-shadow:1px 1px 0 #0a1a5a}
+.spark{position:absolute;width:4px;height:4px;background:#fff;box-shadow:4px 0 #fff,-4px 0 #fff,0 4px #fff,0 -4px #fff,0 0 8px 2px #fff8;animation:tw 2.2s steps(4,jump-none) infinite}
+@keyframes tw{0%,100%{transform:scale(.4);opacity:0}50%{transform:scale(1);opacity:1}}
 @media(max-width:380px){.dex{grid-template-columns:repeat(3,1fr)}}
 @media(prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
 </head>
-<body>
+<body class="intro">
+<div id="title" role="button" tabindex="0" aria-label="게임 시작">
+  <div class="tbg"></div><div class="tshade"></div>
+  <span class="spark" style="left:22%;top:20%;animation-delay:.2s"></span>
+  <span class="spark" style="left:78%;top:14%;animation-delay:1.1s"></span>
+  <span class="spark" style="left:62%;top:30%;animation-delay:.7s"></span>
+  <span class="spark" style="left:12%;top:36%;animation-delay:1.6s"></span>
+  <span class="spark" style="left:88%;top:34%;animation-delay:.4s"></span>
+  <div class="tlogo"><canvas id="logoCv" aria-label="PokeForge"></canvas><div class="sub">포켓몬 강화왕</div></div>
+  <div class="tbot"><div class="tsave" id="tSave" hidden></div><canvas id="startCv" aria-label="PRESS START"></canvas>
+    <div class="tfoot">TAP / ENTER · 비공식 팬 게임</div></div>
+</div>
 <div id="app">
   <header class="hud">
     <div class="gold"><span class="coin">₽</span><b id="gold">0</b></div>
@@ -896,13 +931,90 @@ $('#tab-stats').onclick=e=>{
 };
 $('#btnSound').onclick=()=>{muted=!muted;$('#btnSound').textContent=muted?'🔇':'🔊';};
 
+/* =========================================================
+   메인(타이틀) 화면 — 도트 글꼴을 직접 그린다 (5×7 비트맵, 영문 대소문자 일부)
+========================================================= */
+const GLY={
+  P:['####.','#...#','#...#','####.','#....','#....','#....'],
+  R:['####.','#...#','#...#','####.','#.#..','#..#.','#...#'],
+  E:['#####','#....','#....','####.','#....','#....','#####'],
+  S:['.####','#....','#....','.###.','....#','....#','####.'],
+  A:['.###.','#...#','#...#','#####','#...#','#...#','#...#'],
+  T:['#####','..#..','..#..','..#..','..#..','..#..','..#..'],
+  F:['#####','#....','#....','####.','#....','#....','#....'],
+  o:['.....','.....','.###.','#...#','#...#','#...#','.###.'],
+  k:['#....','#....','#..#.','#.#..','##...','#.#..','#..#.'],
+  e:['.....','.....','.###.','#...#','#####','#....','.###.'],
+  r:['.....','.....','#.##.','##..#','#....','#....','#....'],
+  g:['.....','.....','.###.','#...#','#...#','#...#','.####','....#','.###.'],
+  ' ':['...','...','...','...','...','...','...']
+};
+function pxBitmap(text){
+  const H=9,cols=[];
+  [...text].forEach((ch,i)=>{
+    const g=GLY[ch];const w=g[0].length;
+    for(let x=0;x<w;x++){const col=[];for(let y=0;y<H;y++)col.push(g[y]&&g[y][x]==='#'?1:0);cols.push(col);}
+    if(i<text.length-1)cols.push(new Array(H).fill(0));
+  });
+  return {w:cols.length,h:H,at:(x,y)=>x>=0&&y>=0&&x<cols.length&&y<H&&cols[x][y]===1};
+}
+function drawPx(cv,text,scale,style){
+  const bm=pxBitmap(text),pad=3,W=bm.w+pad*2,H=bm.h+pad*2+1;
+  cv.width=W*scale;cv.height=H*scale;cv.style.width=cv.width+'px';cv.style.height=cv.height+'px';
+  const c=cv.getContext('2d');c.imageSmoothingEnabled=false;c.clearRect(0,0,cv.width,cv.height);
+  const R=(x,y,col)=>{c.fillStyle=col;c.fillRect((x+pad)*scale,(y+pad)*scale,scale,scale);};
+  const on=(x,y)=>bm.at(x,y);
+  const near=(x,y)=>{for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(on(x+dx,y+dy))return true;return false;};
+  /* 그림자(아래·오른쪽으로 밀림) → 외곽선(1칸) → 글자 순서로 칠한다 */
+  for(let y=-2;y<bm.h+3;y++)for(let x=-2;x<bm.w+3;x++)if(near(x-1,y-2))R(x,y,'rgba(10,26,90,.38)');
+  for(let y=-1;y<bm.h+1;y++)for(let x=-1;x<bm.w+1;x++)if(near(x,y))R(x,y,style.outline);
+  const rows=style.rows;
+  for(let y=0;y<bm.h;y++)for(let x=0;x<bm.w;x++){
+    if(!on(x,y))continue;
+    let col=rows?rows[Math.min(y,rows.length-1)]:style.fill;
+    if(style.bevel){
+      if(!on(x,y-1))col=style.hi;
+      else if(!on(x,y+1))col=style.lo;
+    }
+    R(x,y,col);
+  }
+}
+const LOGO_STYLE={outline:'#1b1f4b',bevel:true,hi:'#fff6b8',lo:'#b8450f',
+  rows:['#ffe566','#ffe566','#ffd93b','#ffd23b','#ffbf2d','#ffa924','#ff9420','#f07a1a','#e0661a']};
+const START_STYLE={outline:'#1b1f4b',fill:'#ffffff',bevel:false};
+function drawTitle(){
+  const t=$('#title');if(!t)return;
+  const avail=Math.min(window.innerWidth-24,640);
+  const lw=pxBitmap('PokeForge').w+6;
+  const ls=Math.max(3,Math.min(12,Math.floor(avail/lw)));
+  drawPx($('#logoCv'),'PokeForge',ls,LOGO_STYLE);
+  const sw=pxBitmap('PRESS START').w+6;
+  const ss=Math.max(2,Math.min(6,Math.floor(Math.min(avail,420)/sw)));
+  drawPx($('#startCv'),'PRESS START',ss,START_STYLE);
+}
+function startGame(){
+  const t=$('#title');if(!t||t.classList.contains('hide'))return;
+  t.classList.add('hide');document.body.classList.remove('intro');
+  SFX.ok();
+  setTimeout(()=>{t.style.display='none';},700);
+}
+function initTitle(){
+  const t=$('#title');if(!t)return;
+  drawTitle();window.addEventListener('resize',drawTitle);
+  t.addEventListener('click',startGame);
+  window.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){if(!t.classList.contains('hide')){e.preventDefault();startGame();}}});
+  const sv=$('#tSave');
+  if(S.stats.tries>0||S.best>0){sv.hidden=false;sv.textContent=`이어하기 · 최고 +${S.best} · ₽ ${fmt(S.gold)}`;}
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(drawTitle).catch(()=>{});
+}
+
 /* 시작 */
 load();
 if(!(S.hist.length&&S.lv===S.hist.length-1&&S.hist.every(id=>BY[id])&&S.types.length)){newMon();}
 S.hist.forEach(id=>S.dex[id]=1);
 if(!S.next||!S.next.length||!S.next.every(c=>BY[c.id]))refreshNext();
 $('#autoRange').value=S.auto.target;$('#autoSell').checked=S.auto.sell;
-renderLog();render();loadSprites();
+renderLog();render();loadSprites();initTitle();
 </script>
 </body>
 </html>
