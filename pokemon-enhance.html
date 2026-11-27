@@ -237,11 +237,11 @@ const TIERS=[
 const tierOf=L=>{let t=TIERS[0];TIERS.forEach(x=>{if(L>=x.from)t=x;});return t;};
 
 const UPS={
-  luck:{ic:'🔨',n:'강화 장인',d:'강화 성공 확률 +1%p (레벨당)',max:15,base:300,g:2.1},
-  sell:{ic:'🤝',n:'흥정 달인',d:'판매가 +5% (레벨당)',max:20,base:300,g:2.0},
-  save:{ic:'🧾',n:'절약 비법',d:'강화 비용 -3% (레벨당)',max:15,base:400,g:2.15},
-  start:{ic:'🥚',n:'부화 장치',d:'새 포켓몬이 +1 레벨 높게 시작',max:8,base:2000,g:3.0},
-  shiny:{ic:'✨',n:'이로치 부적',d:'이로치(판매가 ×2.5) 등장 확률 +2%p',max:10,base:1500,g:2.2}
+  luck:{ic:'🥋',n:'달인의띠',d:'숙련된 트레이너의 띠. 강화 성공 확률 +1%p (레벨당)',max:15,base:300,g:2.1},
+  sell:{ic:'🪙',n:'부적금화',d:'지닌 포켓몬이 이기면 상금이 늘어난다. 판매가 +5% (레벨당)',max:20,base:300,g:2.0},
+  save:{ic:'🍖',n:'먹다남은음식',d:'조금씩 회복해 지출을 아낀다. 강화 비용 -3% (레벨당)',max:15,base:400,g:2.15},
+  start:{ic:'💎',n:'진화의돌',d:'새 포켓몬이 +1 레벨 높게 시작한다 (레벨당)',max:8,base:2000,g:3.0},
+  shiny:{ic:'✨',n:'반짝부적',d:'이로치(판매가 ×2.5) 등장 확률 +2%p (레벨당)',max:10,base:1500,g:2.2}
 };
 const AUTO_PRICE=3000;
 
@@ -355,9 +355,9 @@ function rateOf(L,preview){
 const upCost=(k,lv)=>Math.round(UPS[k].base*Math.pow(UPS[k].g,lv));
 const shopScale=()=>Math.max(60,nice(PRICE[Math.max(1,S.best-3)]*.12));
 const SHOP_ITEMS=[
-  {k:'protect',ic:'🛡️',n:'방어 부적',d:'하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
-  {k:'lucky',ic:'🍀',n:'행운의 가루',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
-  {k:'sure',ic:'⭐',n:'확정 강화권',d:'다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
+  {k:'protect',ic:'🎗️',n:'기합의띠',d:'버텨내서 하락·파괴를 1번 막아준다. 막아야 할 때만 사용된다.',price:()=>shopScale()},
+  {k:'lucky',ic:'🎯',n:'엑스정확',d:'다음 강화의 성공 확률 +10%p.',price:()=>Math.round(shopScale()*.6)},
+  {k:'sure',ic:'🍬',n:'이상한사탕',d:'먹이면 다음 강화가 100% 성공한다.',price:()=>shopScale()*4}
 ];
 
 /* =========================================================
@@ -404,11 +404,11 @@ function render(){
     $('#btnEnh').disabled=true;$('#enhSub').textContent='최고 단계';
   }
   $('#price').textContent='₽ '+fmt(priceOf());
-  $('#priceSub').textContent=(S.shiny?'이로치 ×2.5 ':'')+(S.up.sell?`흥정 +${S.up.sell*5}%`:'기본가');
+  $('#priceSub').textContent=(S.shiny?'이로치 ×2.5 ':'')+(S.up.sell?`부적금화 +${S.up.sell*5}%`:'기본가');
   $('#btnSell').disabled=busy;
   $('#sellSub').textContent=`+₽ ${fmt(priceOf())}`;
-  $('#invText').innerHTML=`🛡️ 방어 부적 ${S.inv.protect}<br>🍀 행운의 가루 ${S.inv.lucky}<br>⭐ 확정 강화권 ${S.inv.sure}`;
-  const arm=[['protect','🛡️ 방어 부적'],['lucky','🍀 행운의 가루'],['sure','⭐ 확정 강화권']];
+  $('#invText').innerHTML=`🎗️ 기합의띠 ${S.inv.protect}<br>🎯 엑스정확 ${S.inv.lucky}<br>🍬 이상한사탕 ${S.inv.sure}`;
+  const arm=[['protect','🎗️ 기합의띠'],['lucky','🎯 엑스정확'],['sure','🍬 이상한사탕']];
   $('#arm').innerHTML=arm.map(([k,n])=>`<button data-k="${k}" class="${S.armed[k]&&S.inv[k]>0?'on':''}" ${S.inv[k]<=0?'disabled':''}>${n}<b>${S.inv[k]}개 · ${S.armed[k]&&S.inv[k]>0?'사용 중':'꺼짐'}</b></button>`).join('');
   $('#autoBox').hidden=!S.autoUnlocked;
   $('#autoT').textContent=$('#autoRange').value;
@@ -420,18 +420,18 @@ function activeTab(){return document.querySelector('.tab.on').id;}
 function renderShop(){
   if(activeTab()!=='tab-shop')return;
   const el=$('#tab-shop');
-  let h='<div class="sec">소모품</div>';
+  let h='<div class="sec">도구 (1회용)</div>';
   SHOP_ITEMS.forEach(it=>{const p=it.price();
     h+=`<div class="item"><div class="ic">${it.ic}</div><div><h3>${it.n}</h3><p>${it.d}</p><div class="own">보유 ${S.inv[it.k]}개</div></div>
       <button class="buy" data-buy="${it.k}" ${S.gold<p?'disabled':''}>₽ ${fmt(p)}</button></div>`;});
-  h+='<div class="sec">영구 강화</div>';
+  h+='<div class="sec">지닌 물건 (영구)</div>';
   Object.entries(UPS).forEach(([k,u])=>{
     const lv=S.up[k],mx=lv>=u.max,p=upCost(k,lv);
     h+=`<div class="item"><div class="ic">${u.ic}</div><div><h3>${u.n} <span class="own">Lv.${lv}/${u.max}</span></h3><p>${u.d}</p>
       <div class="pips">${Array.from({length:u.max},(_,i)=>`<i class="${i<lv?'f':''}"></i>`).join('')}</div></div>
       <button class="buy${mx?' max':''}" data-up="${k}" ${mx||S.gold<p?'disabled':''}>${mx?'MAX':'₽ '+fmt(p)}</button></div>`;});
-  h+='<div class="sec">기능</div>';
-  h+=`<div class="item"><div class="ic">🤖</div><div><h3>자동 강화 ${S.autoUnlocked?'<span class="own">해금됨</span>':''}</h3><p>목표 레벨까지 알아서 강화하고, 도달하면 판매까지 반복한다.</p></div>
+  h+='<div class="sec">기기</div>';
+  h+=`<div class="item"><div class="ic">📱</div><div><h3>포켓기어 ${S.autoUnlocked?'<span class="own">해금됨</span>':''}</h3><p>자동 강화 기능이 들어 있다. 목표 레벨까지 알아서 강화하고, 도달하면 판매까지 반복한다.</p></div>
       <button class="buy${S.autoUnlocked?' max':''}" data-auto="1" ${S.autoUnlocked||S.gold<AUTO_PRICE?'disabled':''}>${S.autoUnlocked?'보유':'₽ '+fmt(AUTO_PRICE)}</button></div>`;
   el.innerHTML=h;
 }
@@ -455,7 +455,7 @@ function renderStats(){
     ['최고 판매 레벨',st.top?'+'+st.top:'-'],['누적 판매 수익','₽ '+fmt(st.earned)],['누적 강화 지출','₽ '+fmt(st.spent)],['심부름 횟수',st.work.toLocaleString()]];
   $('#tab-stats').innerHTML=`<div class="stats">${rows.map(r=>`<div>${r[0]}</div><div>${r[1]}</div>`).join('')}</div>
     <button class="btn danger" id="btnReset">${resetArmed?'정말 삭제할까요? 한 번 더 누르세요':'데이터 초기화'}</button>
-    <div class="note">진행 상황은 이 브라우저에 자동 저장됩니다. 판매가는 해당 레벨까지 가는 평균 강화 비용을 기준으로 정해져 있고, 높은 레벨일수록 파괴 위험이 큽니다. 상점의 영구 강화로 기대 수익을 끌어올리세요.</div>`;
+    <div class="note">진행 상황은 이 브라우저에 자동 저장됩니다. 판매가는 해당 레벨까지 가는 평균 강화 비용을 기준으로 정해져 있고, 높은 레벨일수록 파괴 위험이 큽니다. 상점의 지닌 물건으로 기대 수익을 끌어올리세요.</div>`;
 }
 
 /* =========================================================
@@ -528,7 +528,7 @@ async function enhance(){
     let guarded=false;
     if(out!=='keep'&&S.armed.protect&&S.inv.protect>0){S.inv.protect--;out='keep';guarded=true;}
     if(out==='keep'){
-      log(guarded?`실패… 하지만 <b>방어 부적</b>이 ${MONS[L][0]}을(를) 지켜줬다!`:`실패… 변화 없음 (${MONS[L][0]} +${L})`,guarded?'warn':'');
+      log(guarded?`실패… 하지만 ${jo(MONS[L][0],'은')} <b>기합의띠</b>로 버텼다!`:`실패… 변화 없음 (${MONS[L][0]} +${L})`,guarded?'warn':'');
       SFX.fail();flash('#64748b');burst('#94a3b8',14,90);
       await monAnim([{transform:'translateX(-8px)'},{transform:'translateX(8px)'},{transform:'translateX(-5px)'},{transform:'none'}],{duration:300});
     }else if(out==='drop'){
@@ -620,9 +620,9 @@ $('#tab-shop').onclick=e=>{
   }else if(b.dataset.up){
     const k=b.dataset.up,u=UPS[k],p=upCost(k,S.up[k]);
     if(S.gold<p||S.up[k]>=u.max)return;S.gold-=p;S.up[k]++;
-    log(`${u.n} Lv.${S.up[k]} 달성!`,'gold');
+    log(`${u.n} Lv.${S.up[k]} 획득!`,'gold');
   }else if(b.dataset.auto){
-    if(S.gold<AUTO_PRICE)return;S.gold-=AUTO_PRICE;S.autoUnlocked=true;log('자동 강화를 해금했다!','gold');
+    if(S.gold<AUTO_PRICE)return;S.gold-=AUTO_PRICE;S.autoUnlocked=true;log('포켓기어를 손에 넣었다! 자동 강화를 쓸 수 있다.','gold');
   }
   SFX.buy();save();render();
 };
